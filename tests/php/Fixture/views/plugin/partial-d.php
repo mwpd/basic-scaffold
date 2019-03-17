@@ -1,0 +1,1 @@
+partial D from plugin - <?= $this->render_partial( 'partial-e' ) ?>

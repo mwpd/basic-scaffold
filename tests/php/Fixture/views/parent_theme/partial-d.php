@@ -1,0 +1,1 @@
+partial D from parent theme - <?= $this->render_partial( 'partial-e' ) ?>

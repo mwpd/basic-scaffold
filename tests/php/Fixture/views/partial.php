@@ -1,0 +1,1 @@
+<span><?= $this->some_value ?></span>

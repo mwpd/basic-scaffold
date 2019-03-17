@@ -1,0 +1,1 @@
+<p>Rendering works with partials: <?= $this->render_partial( 'tests/php/Fixture/views/partial' ) ?>.</p>
