@@ -57,6 +57,6 @@ final class SampleService implements Service, Registerable {
 	 */
 	public function render_notice(): void {
 		echo $this->view_factory->create( 'views/test-service' )
-		                        ->render();
+		                        ->render( [ 'plugin' => 'MWPD Boilerplate' ] );
 	}
 }
