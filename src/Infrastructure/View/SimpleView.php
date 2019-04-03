@@ -199,7 +199,7 @@ class SimpleView implements View {
 	 */
 	public function __get( $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
-			return \esc_html( (string) $this->_context_[ $property ] );
+			return $this->escape( (string) $this->_context_[ $property ] );
 		}
 
 		/*
@@ -212,6 +212,16 @@ class SimpleView implements View {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Escape a value for output.
+	 *
+	 * @param mixed $value Value to escape.
+	 * @return string Escaped value.
+	 */
+	protected function escape( $value ): string {
+		return htmlspecialchars( (string) $value, ENT_COMPAT, 'UTF-8' );
 	}
 
 	/**
