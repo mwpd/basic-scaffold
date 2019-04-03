@@ -15,7 +15,6 @@ namespace MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Instantiator;
-use MWPD\BasicScaffold\Infrastructure\Service;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -24,7 +23,7 @@ use Throwable;
 /**
  * A simplified implementation of a dependency injector.
  */
-final class SimpleInjector implements Injector, Service {
+final class SimpleInjector implements Injector {
 
 	/**
 	 * Special-case index key for handling globally defined named arguments.

@@ -12,10 +12,12 @@
 
 namespace MWPD\BasicScaffold\SampleSubsystem;
 
-use MWPD\BasicScaffold\Infrastructure\Conditional;
-use MWPD\BasicScaffold\Infrastructure\Registerable;
-use MWPD\BasicScaffold\Infrastructure\Service;
-use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use MWPD\BasicScaffold\Infrastructure\{
+	Conditional,
+	Registerable,
+	Service,
+	ViewFactory
+};
 
 /**
  * This sample service only renders a silly "Hello World" notice in the admin
@@ -33,9 +35,9 @@ final class SampleService implements Service, Registerable, Conditional {
 	private $view_factory;
 
 	/**
-	 * Check whether the conditional object is currently needed.
+	 * Check whether the conditional service is currently needed.
 	 *
-	 * @return bool Whether the conditional object is needed.
+	 * @return bool Whether the conditional service is needed.
 	 */
 	public static function is_needed(): bool {
 		/*

@@ -102,7 +102,7 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
  * For more information on why to avoid a Singleton, read:
  * https://www.alainschlesser.com/singletons-shared-instances/
  */
-$plugin = PluginFactory::create();
+$plugin = BasicScaffoldPluginFactory::create();
 
 /*
  * We register activation and deactivation hooks by using closures, as these

@@ -37,4 +37,22 @@ class InvalidService
 
 		return new static( $message );
 	}
+
+	/**
+	 * Create a new instance of the exception for a service identifier that is
+	 * not recognized.
+	 *
+	 * @param string $service_id Identifier of the service that is not being
+	 *                           recognized.
+	 *
+	 * @return static
+	 */
+	public static function from_service_id( string $service_id ) {
+		$message = \sprintf(
+			'The service ID "%s" is not recognized and cannot be retrieved.',
+			$service_id
+		);
+
+		return new static( $message );
+	}
 }

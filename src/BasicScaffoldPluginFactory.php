@@ -21,7 +21,7 @@ namespace MWPD\BasicScaffold;
  * To read more about why this is preferable to a Singleton,
  * @see https://www.alainschlesser.com/singletons-shared-instances/
  */
-final class PluginFactory {
+final class BasicScaffoldPluginFactory {
 
 	/**
 	 * Create and return an instance of the plugin.
@@ -29,13 +29,13 @@ final class PluginFactory {
 	 * This always returns a shared instance. This way, outside code can always
 	 * get access to the object instance of the plugin.
 	 *
-	 * @return Plugin Plugin instance.
+	 * @return BasicScaffoldPlugin Plugin instance.
 	 */
-	public static function create(): Plugin {
+	public static function create(): BasicScaffoldPlugin {
 		static $plugin = null;
 
 		if ( null === $plugin ) {
-			$plugin = new Plugin();
+			$plugin = new BasicScaffoldPlugin();
 		}
 
 		return $plugin;

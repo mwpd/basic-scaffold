@@ -29,7 +29,7 @@ namespace MWPD\BasicScaffold\Infrastructure;
  * (always returning a fresh new instance on each subsequent call). This
  * effectively gets rid of the dreaded Singletons.
  */
-interface Injector {
+interface Injector extends Service {
 
 	/**
 	 * Make an object instance out of an interface or class.
