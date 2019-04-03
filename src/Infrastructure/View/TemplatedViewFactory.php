@@ -36,6 +36,10 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * @param array $locations Array of locations to use.
 	 */
 	public function __construct( array $locations = [] ) {
+		if ( empty( $locations ) ) {
+			$locations = $this->get_default_locations();
+		}
+
 		$this->locations = $locations;
 	}
 
@@ -47,5 +51,27 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 */
 	public function create( string $relative_path ): View {
 		return new TemplatedView( $relative_path, $this, $this->locations );
+	}
+
+	/**
+	 * Get the default locations for the templated view.
+	 *
+	 * Uses internal caching to avoid retrieving the paths multiple times across
+	 * instantiations.
+	 *
+	 * @return array Array of default locations.
+	 */
+	private function get_default_locations(): array {
+		static $default_locations = null;
+
+		if ( null === $default_locations ) {
+			$default_locations = [
+				\get_stylesheet_directory(),
+				\get_template_directory(),
+				\dirname( __DIR__, 3 ),
+			];
+		}
+
+		return $default_locations;
 	}
 }
