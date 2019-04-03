@@ -24,8 +24,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 	// Main filters to control the flow of the plugin from outside code.
 	public const SERVICES_FILTER         = 'services';
 	public const BINDINGS_FILTER         = 'bindings';
-	public const SHARED_INSTANCES_FILTER = 'shared_instances';
 	public const ARGUMENTS_FILTER        = 'arguments';
+	public const SHARED_INSTANCES_FILTER = 'shared_instances';
+	public const DELEGATIONS_FILTER      = 'delegations';
 
 	// Service identifier for the injector.
 	public const INJECTOR_ID = 'injector';
@@ -39,8 +40,12 @@ abstract class ServiceBasedPlugin implements Plugin {
 	protected const SERVICES = [];
 	// Interface to implementation bindings for the injector.
 	protected const BINDINGS = [];
+	// Argument values to be used when instantiating given classes.
+	protected const ARGUMENTS = [];
 	// Instances that are meant to be reused instead of reinstantiated.
 	protected const SHARED_INSTANCES = [];
+	// Classes for which instantiation should be delegated.
+	protected const DELEGATIONS = [];
 
 	// Prefixes to use.
 	protected const HOOK_PREFIX    = '';
@@ -262,7 +267,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * The bindings let you map interfaces (or classes) to the classes that
 	 * should be used to implement them.
 	 *
-	 * @return array Array of fully qualified class names.
+	 * @return array<string> Associative array of fully qualified class names.
 	 */
 	protected function get_bindings(): array {
 		/**
@@ -281,6 +286,31 @@ abstract class ServiceBasedPlugin implements Plugin {
 	}
 
 	/**
+	 * Get the argument bindings for the dependency injector.
+	 *
+	 * The argument bindings let you map specific argument values for specific
+	 * classes.
+	 *
+	 * @return array<array> Associative array of arrays mapping argument names
+	 *                      to argument values.
+	 */
+	protected function get_arguments(): array {
+		/**
+		 * Filter the default argument bindings that are provided by the plugin.
+		 *
+		 * This can be used to override scalar values.
+		 *
+		 * @param array<array> $arguments Associative array of class =>
+		 *                                arguments mappings. The arguments
+		 *                                array maps argument names to values.
+		 */
+		return (array) \apply_filters(
+			static::HOOK_PREFIX . static::ARGUMENTS_FILTER,
+			static::ARGUMENTS
+		);
+	}
+
+	/**
 	 * Get the shared instances for the dependency injector.
 	 *
 	 * These classes will only be instantiated once by the injector and then
@@ -289,7 +319,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * This effectively turns them into singletons, without any of the
 	 * drawbacks of the actual Singleton anti-pattern.
 	 *
-	 * @return array Array of fully qualified class names.
+	 * @return array<string> Array of fully qualified class names.
 	 */
 	protected function get_shared_instances(): array {
 		/**
@@ -304,6 +334,30 @@ abstract class ServiceBasedPlugin implements Plugin {
 		return (array) \apply_filters(
 			static::HOOK_PREFIX . static::SHARED_INSTANCES_FILTER,
 			static::SHARED_INSTANCES
+		);
+	}
+
+	/**
+	 * Get the delegations for the dependency injector.
+	 *
+	 * These are basically factories to provide custom instantiation logic for
+	 * classes.
+	 *
+	 * @return array<callable> Associative array of callables.
+	 */
+	protected function get_delegations(): array {
+		/**
+		 * Filter the instances that are shared by default by the plugin.
+		 *
+		 * This can be used to turn objects that were added externally into
+		 * shared instances.
+		 *
+		 * @param array<string> $delegations Associative array of class =>
+		 *                                   callable mappings.
+		 */
+		return (array) \apply_filters(
+			static::HOOK_PREFIX . static::DELEGATIONS_FILTER,
+			static::DELEGATIONS
 		);
 	}
 }

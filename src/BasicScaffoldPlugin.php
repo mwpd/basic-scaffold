@@ -47,7 +47,6 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * @var array<string>
 	 */
 	protected const SERVICES = [
-		self::VIEW_FACTORY_ID   => ViewFactory::class,
 		self::SAMPLE_SERVICE_ID => SampleSubsystem\SampleService::class,
 	];
 
@@ -69,6 +68,19 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected const BINDINGS = [
 		ViewFactory::class => TemplatedViewFactory::class,
+		// Add your bindings here.
+	];
+
+	/**
+	 * The ARGUMENTS array contains a map of <class> => <associative array of
+	 * arguments> mappings.
+	 *
+	 * The array is provided in the form <argument name> => <argument value>.
+	 *
+	 * @var array<array>
+	 */
+	protected const ARGUMENTS = [
+		// Add your argument mappings here.
 	];
 
 	/**
@@ -81,7 +93,22 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 *
 	 * @var array<string>
 	 */
-	protected const SHARED_INSTANCES = [];
+	protected const SHARED_INSTANCES = [
+		// Add your shared instances here.
+	];
+
+	/**
+	 * The DELEGATIONS array contains a map of <class> => <callable>
+	 * mappings.
+	 *
+	 * The <callable> is basically a factory to provide custom instantiation
+	 * logic for the given <class>.
+	 *
+	 * @var array<callable>
+	 */
+	protected const DELEGATIONS = [
+		// Add your delegations here.
+	];
 
 	/*--------------------------------------------------------------------------
 	 *-- 3. Define prefixes and identifiers for outside access.               --

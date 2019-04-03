@@ -38,6 +38,9 @@ final class SimpleInjector implements Injector {
 	/** @var array<object|null> */
 	private $shared_instances = [];
 
+	/** @var array<callable> */
+	private $delegates = [];
+
 	/** @var array[] */
 	private $argument_mappings = [
 		self::GLOBAL_ARGUMENTS => [],
@@ -77,57 +80,20 @@ final class SimpleInjector implements Injector {
 			return $this->get_shared_instance( $class );
 		}
 
-		$reflection = $this->get_class_reflection( $class );
-		$this->ensure_is_instantiable( $reflection );
+		if ( array_key_exists( $class, $this->delegates ) ) {
+			$object = $this->delegates[ $class ]( $class );
+		} else {
+			$reflection = $this->get_class_reflection( $class );
+			$this->ensure_is_instantiable( $reflection );
 
-		$dependencies = $this->get_dependencies_for(
-			$injection_chain,
-			$reflection,
-			$arguments
-		);
+			$dependencies = $this->get_dependencies_for(
+				$injection_chain,
+				$reflection,
+				$arguments
+			);
 
-		$object = $this->instantiator->instantiate( $class, $dependencies );
-
-		if ( \array_key_exists( $class, $this->shared_instances ) ) {
-			$this->shared_instances[ $class ] = $object;
+			$object = $this->instantiator->instantiate( $class, $dependencies );
 		}
-
-		return $object;
-	}
-
-	/**
-	 * Make an object instance out of an interface or class.
-	 *
-	 * @param InjectionChain $injection_chain    Injection chain to track
-	 *                                           resolutions.
-	 * @param string         $interface_or_class Interface or class to make an
-	 *                                           object instance out of.
-	 * @return object Instantiated object.
-	 */
-	private function make_dependency(
-		InjectionChain $injection_chain,
-		string $interface_or_class
-	): object {
-		$injection_chain = $this->resolve(
-			$injection_chain,
-			$interface_or_class
-		);
-
-		$class = $injection_chain->get_class();
-
-		if ( $this->has_shared_instance( $class ) ) {
-			return $this->get_shared_instance( $class );
-		}
-
-		$reflection = $this->get_class_reflection( $class );
-		$this->ensure_is_instantiable( $reflection );
-
-		$dependencies = $this->get_dependencies_for(
-			$injection_chain,
-			$reflection
-		);
-
-		$object = $this->instantiator->instantiate( $class, $dependencies );
 
 		if ( \array_key_exists( $class, $this->shared_instances ) ) {
 			$this->shared_instances[ $class ] = $object;
@@ -181,6 +147,61 @@ final class SimpleInjector implements Injector {
 		$this->shared_instances[ $interface_or_class ] = null;
 
 		return $this;
+	}
+
+	/**
+	 * Delegate instantiation of an interface or class to a callable.
+	 *
+	 * @param string   $interface_or_class Interface or class to delegate the
+	 *                                     instantiation of.
+	 * @param callable $callable           Callable to use for instantiation.
+	 * @return Injector
+	 */
+	public function delegate( string $interface_or_class, callable $callable ): Injector {
+		$this->delegates[ $interface_or_class ] = $callable;
+
+		return $this;
+	}
+
+	/**
+	 * Make an object instance out of an interface or class.
+	 *
+	 * @param InjectionChain $injection_chain    Injection chain to track
+	 *                                           resolutions.
+	 * @param string         $interface_or_class Interface or class to make an
+	 *                                           object instance out of.
+	 * @return object Instantiated object.
+	 */
+	private function make_dependency(
+		InjectionChain $injection_chain,
+		string $interface_or_class
+	): object {
+		$injection_chain = $this->resolve(
+			$injection_chain,
+			$interface_or_class
+		);
+
+		$class = $injection_chain->get_class();
+
+		if ( $this->has_shared_instance( $class ) ) {
+			return $this->get_shared_instance( $class );
+		}
+
+		$reflection = $this->get_class_reflection( $class );
+		$this->ensure_is_instantiable( $reflection );
+
+		$dependencies = $this->get_dependencies_for(
+			$injection_chain,
+			$reflection
+		);
+
+		$object = $this->instantiator->instantiate( $class, $dependencies );
+
+		if ( \array_key_exists( $class, $this->shared_instances ) ) {
+			$this->shared_instances[ $class ] = $object;
+		}
+
+		return $object;
 	}
 
 	/**

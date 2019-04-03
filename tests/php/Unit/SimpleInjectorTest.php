@@ -6,6 +6,7 @@ use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Tests\Fixture;
+use stdClass;
 
 final class SimpleInjectorTest extends TestCase {
 
@@ -107,5 +108,43 @@ final class SimpleInjectorTest extends TestCase {
 				Fixture\DummyClassWithDependency::class
 			)
 			->make( Fixture\DummyClassWithDependency::class );
+	}
+
+	public function test_it_can_delegate_instantiation(): void {
+		$injector = ( new SimpleInjector() )
+			->delegate(
+				Fixture\DummyInterface::class,
+				function ( string $class ) {
+					$object = new stdClass();
+					$object->class_name = $class;
+					return $object;
+				}
+			);
+		$object = $injector->make( Fixture\DummyInterface::class );
+
+		$this->assertInstanceOf( stdClass::class, $object );
+		$this->assertObjectHasAttribute( 'class_name', $object );
+		$this->assertEquals( Fixture\DummyInterface::class, $object->class_name );
+	}
+
+	public function test_delegation_works_across_resolution(): void {
+		$injector = ( new SimpleInjector() )
+			->bind(
+				Fixture\DummyInterface::class,
+				Fixture\DummyClassWithDependency::class
+			)
+			->delegate(
+				Fixture\DummyClassWithDependency::class,
+				function ( string $class ) {
+					$object = new stdClass();
+					$object->class_name = $class;
+					return $object;
+				}
+			);
+		$object = $injector->make( Fixture\DummyInterface::class );
+
+		$this->assertInstanceOf( stdClass::class, $object );
+		$this->assertObjectHasAttribute( 'class_name', $object );
+		$this->assertEquals( Fixture\DummyClassWithDependency::class, $object->class_name );
 	}
 }
