@@ -14,6 +14,7 @@ namespace MWPD\BasicScaffold;
 
 use MWPD\BasicScaffold\Infrastructure\{
 	Activateable,
+	Conditional,
 	Deactivateable,
 	Injector,
 	Registerable,
@@ -37,6 +38,11 @@ final class Plugin implements Registerable, Activateable, Deactivateable {
 	public const BINDINGS_FILTER         = 'mwpd.basic_scaffold.bindings';
 	public const SHARED_INSTANCES_FILTER = 'mwpd.basic_scaffold.shared_instances';
 	public const ARGUMENTS_FILTER        = 'mwpd.basic_scaffold.arguments';
+
+	// Service identifiers we know about.
+	public const INJECTOR_ID       = 'mwpd.basic_scaffold.injector';
+	public const VIEW_FACTORY_ID   = 'mwpd.basic_scaffold.view-factory';
+	public const SAMPLE_SERVICE_ID = 'mwpd.basic_scaffold.sample-subsystem.sample-service';
 
 	/** @var Injector */
 	private $injector;
@@ -113,12 +119,20 @@ final class Plugin implements Registerable, Activateable, Deactivateable {
 			return;
 		}
 
-		$this->services[ Injector::class ] = $this->injector;
+		// Add the injector as the very first service.
+		$this->services[ self::INJECTOR_ID ] = $this->injector;
 
 		foreach ( $this->get_service_classes() as $class ) {
+			// Only instantiate services that are actually needed.
+			if ( is_a( $class, Conditional::class, true )
+			     && ! $class::is_needed() ) {
+				continue;
+			}
+
 			$this->services[ $class ] = $this->instantiate_service( $class );
 		}
 
+		// Give all Registerables the opportunity to register themselves.
 		foreach ( $this->services as $service ) {
 			if ( $service instanceof Registerable ) {
 				$service->register();
@@ -148,23 +162,21 @@ final class Plugin implements Registerable, Activateable, Deactivateable {
 	/**
 	 * Configure the provided injector.
 	 *
+	 * This method defines the mappings that the injector knows about, and the
+	 * logic it requires to make more complex instantiations work.
+	 *
+	 * For more complex plugins, this should be extracted into a separate object
+	 * or into configuration files.
+	 *
 	 * @param Injector $injector Injector instance to configure.
 	 * @return Injector Configured injector instance.
 	 */
 	private function configure_injector( Injector $injector ): Injector {
-		$bindings = \apply_filters( self::BINDINGS_FILTER, [
-			ViewFactory::class => TemplatedViewFactory::class,
-		] );
-
-		foreach ( $bindings as $from => $to ) {
+		foreach ( $this->get_bindings() as $from => $to ) {
 			$injector = $injector->bind( $from, $to );
 		}
 
-		$shared_instances = \apply_filters( self::SHARED_INSTANCES_FILTER, [
-			Injector::class,
-		] );
-
-		foreach ( $shared_instances as $shared_instance ) {
+		foreach ( $this->get_shared_instances() as $shared_instance ) {
 			$injector = $injector->share( $shared_instance );
 		}
 
@@ -172,15 +184,47 @@ final class Plugin implements Registerable, Activateable, Deactivateable {
 	}
 
 	/**
+	 * Get the bindings for the dependency injector.
+	 *
+	 * The bindings let you map interfaces (or classes) to the classes that
+	 * should be used to implement them.
+	 *
+	 * @return array Array of fully qualified class names.
+	 */
+	private function get_bindings(): array {
+		return (array) \apply_filters( self::BINDINGS_FILTER, [
+			ViewFactory::class => TemplatedViewFactory::class,
+		] );
+	}
+
+	/**
+	 * Get the shared instances for the dependency injector.
+	 *
+	 * These classes will only be instantiated once by the injector and then
+	 * reused on subsequent requests.
+	 *
+	 * This effectively turns them into singletons, without any of the
+	 * drawbacks of the actual Singleton anti-pattern.
+	 *
+	 * @return array Array of fully qualified class names.
+	 */
+	private function get_shared_instances(): array {
+		return (array) \apply_filters( self::SHARED_INSTANCES_FILTER, [
+			Injector::class,
+		] );
+	}
+
+	/**
 	 * Get the list of services to register.
 	 *
-	 * @return array<string> Array of fully qualified class names.
+	 * @return array<string> Associative array of identifiers mapped to fully
+	 *                       qualified class names.
 	 */
 	private function get_service_classes(): array {
 		return \apply_filters( self::SERVICES_FILTER, [
-			// Add services as FQCNs here.
-			ViewFactory::class,
-			SampleService::class,
+			// Add services as ID => FQCN mappings here.
+			self::VIEW_FACTORY_ID   => ViewFactory::class,
+			self::SAMPLE_SERVICE_ID => SampleSubsystem\SampleService::class,
 		] );
 	}
 }

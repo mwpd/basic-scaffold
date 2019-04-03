@@ -10,8 +10,9 @@
  * @copyright 2019 Alain Schlesser
  */
 
-namespace MWPD\BasicScaffold;
+namespace MWPD\BasicScaffold\SampleSubsystem;
 
+use MWPD\BasicScaffold\Infrastructure\Conditional;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
@@ -26,10 +27,24 @@ use MWPD\BasicScaffold\Infrastructure\ViewFactory;
  * Note that the dependency here is actually an interface, not a class. We can
  * still just transparently use it though.
  */
-final class SampleService implements Service, Registerable {
+final class SampleService implements Service, Registerable, Conditional {
 
 	/** @var ViewFactory */
 	private $view_factory;
+
+	/**
+	 * Check whether the conditional object is currently needed.
+	 *
+	 * @return bool Whether the conditional object is needed.
+	 */
+	public static function is_needed(): bool {
+		/*
+		 * We only load this sample service on the admin backend.
+		 * If this conditional returns false, the service is never even
+		 * instantiated.
+		 */
+		return \is_admin() && ! \wp_doing_ajax();
+	}
 
 	/**
 	 * Instantiate a SampleService object.
@@ -38,6 +53,10 @@ final class SampleService implements Service, Registerable {
 	 *                                  the views.
 	 */
 	public function __construct( ViewFactory $view_factory ) {
+		/*
+		 * We request a view factory from the injector so that we can create a
+		 * new view to be rendered when we want to show our sample notice.
+		 */
 		$this->view_factory = $view_factory;
 	}
 
@@ -47,6 +66,10 @@ final class SampleService implements Service, Registerable {
 	 * @return void
 	 */
 	public function register(): void {
+		/*
+		 * The register method now hooks our actual sample functionality into
+		 * the WordPress execution flow.
+		 */
 		\add_action( 'admin_notices', [ $this, 'render_notice' ] );
 	}
 
@@ -56,6 +79,10 @@ final class SampleService implements Service, Registerable {
 	 * @return void
 	 */
 	public function render_notice(): void {
+		/*
+		 * As we already have an instance of the view factory available, it is
+		 * now easy to create a new view and render it.
+		 */
 		echo $this->view_factory->create( 'views/test-service' )
 		                        ->render( [ 'plugin' => 'MWPD Boilerplate' ] );
 	}

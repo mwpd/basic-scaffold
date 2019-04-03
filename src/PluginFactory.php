@@ -12,6 +12,15 @@
 
 namespace MWPD\BasicScaffold;
 
+/**
+ * The plugin factory is responsible for instantiating the plugin and returning
+ * that instance.
+ *
+ * It can decide whether to return a shared or a fresh instance as needed.
+ *
+ * To read more about why this is preferable to a Singleton,
+ * @see https://www.alainschlesser.com/singletons-shared-instances/
+ */
 final class PluginFactory {
 
 	/**
