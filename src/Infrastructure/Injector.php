@@ -63,13 +63,13 @@ interface Injector extends Service {
 	 * @param string $argument_name      Argument name to bind a value to.
 	 * @param mixed  $value              Value to bind the argument to.
 	 *
-	 * @return void
+	 * @return Injector
 	 */
 	public function bind_argument(
 		string $interface_or_class,
 		string $argument_name,
 		$value
-	): void;
+	): Injector;
 
 	/**
 	 * Always reuse and share the same instance for the provided interface or

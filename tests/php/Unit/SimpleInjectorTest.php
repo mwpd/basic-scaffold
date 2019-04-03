@@ -147,4 +147,23 @@ final class SimpleInjectorTest extends TestCase {
 		$this->assertObjectHasAttribute( 'class_name', $object );
 		$this->assertEquals( Fixture\DummyClassWithDependency::class, $object->class_name );
 	}
+
+	public function test_arguments_can_be_bound(): void {
+		$object = ( new SimpleInjector() )
+			->bind_argument(
+				Fixture\DummyClassWithNamedArguments::class,
+				'argument_a',
+				42
+			)
+			->bind_argument(
+				SimpleInjector::GLOBAL_ARGUMENTS,
+				'argument_b',
+				'Mr Alderson'
+			)
+			->make( Fixture\DummyClassWithNamedArguments::class );
+
+		$this->assertInstanceOf( Fixture\DummyClassWithNamedArguments::class, $object );
+		$this->assertEquals( 42, $object->get_argument_a() );
+		$this->assertEquals( 'Mr Alderson', $object->get_argument_b() );
+	}
 }

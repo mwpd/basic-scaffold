@@ -30,7 +30,7 @@ final class SimpleInjector implements Injector {
 	 *
 	 * @var string
 	 */
-	private const GLOBAL_ARGUMENTS = '__global__';
+	public const GLOBAL_ARGUMENTS = '__global__';
 
 	/** @var array<string> */
 	private $mappings = [];
@@ -126,14 +126,16 @@ final class SimpleInjector implements Injector {
 	 * @param string $argument_name      Argument name to bind a value to.
 	 * @param mixed  $value              Value to bind the argument to.
 	 *
-	 * @return void
+	 * @return Injector
 	 */
 	public function bind_argument(
 		string $interface_or_class,
 		string $argument_name,
 		$value
-	): void {
+	): Injector {
 		$this->argument_mappings[ $interface_or_class ][ $argument_name ] = $value;
+
+		return $this;
 	}
 
 	/**
@@ -351,22 +353,14 @@ final class SimpleInjector implements Injector {
 			return $arguments[ $name ];
 		}
 
-		$type_class = $parameter->getClass();
-		$type       = $type_class !== null
-			? $type_class->getName()
-			: null;
-
 		// Check if we have mapped this argument for the specific class.
-		if ( null !== $type
-		     && \array_key_exists( $type, $this->argument_mappings )
-		     && \array_key_exists( $name,
-				$this->argument_mappings[ $type ] ) ) {
-			return $this->argument_mappings[ $type ][ $name ];
+		if ( \array_key_exists( $class, $this->argument_mappings )
+		     && \array_key_exists( $name, $this->argument_mappings[ $class ] ) ) {
+			return $this->argument_mappings[ $class ][ $name ];
 		}
 
 		// No argument found for the class, check if we have a global value.
-		if ( \array_key_exists( $name,
-			$this->argument_mappings[ self::GLOBAL_ARGUMENTS ] ) ) {
+		if ( \array_key_exists( $name, $this->argument_mappings[ self::GLOBAL_ARGUMENTS ] ) ) {
 			return $this->argument_mappings[ self::GLOBAL_ARGUMENTS ][ $name ];
 		}
 
