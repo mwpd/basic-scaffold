@@ -54,4 +54,16 @@ interface View extends Renderable {
 	 * @throws FailedToLoadView If the view could not be loaded.
 	 */
 	public function render_partial( string $path, array $context = null ): string;
+
+	/**
+	 * Return the raw value of a context property.
+	 *
+	 * By default, properties are automatically escaped when accessing them
+	 * within the view. This method allows direct access to the raw value
+	 * instead to bypass this automatic escaping.
+	 *
+	 * @param string $property Property for which to return the raw value.
+	 * @return mixed Raw context property value.
+	 */
+	public function raw( $property );
 }

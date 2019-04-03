@@ -13,6 +13,7 @@
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
+use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
@@ -65,13 +66,6 @@ class SimpleView implements View {
 	 * @throws FailedToLoadView If the View path could not be loaded.
 	 */
 	public function render( array $context = [] ): string {
-
-		// Add context to the current instance to make it available within the
-		// rendered view.
-		foreach ( $context as $key => $value ) {
-			$this->$key = $value;
-		}
-
 		// Add entire context as array to the current instance to pass onto
 		// partial views.
 		$this->_context_ = $context;
@@ -115,9 +109,35 @@ class SimpleView implements View {
 	 * @throws FailedToLoadView If the view could not be loaded.
 	 */
 	public function render_partial( string $path, array $context = null ): string {
-		$view = $this->view_factory->create( $path );
+		return $this->view_factory->create( $path )
+		                          ->render( $context ?: $this->_context_ );
+	}
 
-		return $view->render( $context ?: $this->_context_ );
+	/**
+	 * Return the raw value of a context property.
+	 *
+	 * By default, properties are automatically escaped when accessing them
+	 * within the view. This method allows direct access to the raw value
+	 * instead to bypass this automatic escaping.
+	 *
+	 * @param string $property Property for which to return the raw value.
+	 * @return mixed Raw context property value.
+	 */
+	public function raw( $property ) {
+		if ( array_key_exists( $property, $this->_context_ ) ) {
+			return $this->_context_[ $property ];
+		}
+
+		/*
+		 * We only throw an exception here if we are in debugging mode, as we
+		 * don't want to take the server down when trying to render a missing
+		 * property.
+		 */
+		if ( $this->is_debug_mode() ) {
+			throw InvalidContextProperty::from_property( $property );
+		}
+
+		return null;
 	}
 
 	/**
@@ -167,5 +187,39 @@ class SimpleView implements View {
 	 */
 	protected function ensure_trailing_slash( string $path ): string {
 		return \rtrim( $path, '/\\' ) . '/';
+	}
+
+	/**
+	 * Use magic getter to provide automatic escaping by default.
+	 *
+	 * Use the raw() method to skip automatic escaping.
+	 *
+	 * @param string $property Property to get.
+	 * @return mixed
+	 */
+	public function __get( $property ) {
+		if ( array_key_exists( $property, $this->_context_ ) ) {
+			return \esc_html( (string) $this->_context_[ $property ] );
+		}
+
+		/*
+		 * We only throw an exception here if we are in debugging mode, as we
+		 * don't want to take the server down when trying to render a missing
+		 * property.
+		 */
+		if ( $this->is_debug_mode() ) {
+			throw InvalidContextProperty::from_property( $property );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check whether debugging mode is enabled.
+	 *
+	 * @return bool Whether debugging mode is enabled.
+	 */
+	protected function is_debug_mode(): bool {
+		return defined( 'WP_DEBUG' ) && WP_DEBUG;
 	}
 }
