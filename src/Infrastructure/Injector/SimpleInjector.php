@@ -32,10 +32,10 @@ final class SimpleInjector implements Injector {
 	 */
 	private const GLOBAL_ARGUMENTS = '__global__';
 
-	/** @var string[] */
+	/** @var array<string> */
 	private $mappings = [];
 
-	/** @var object[] */
+	/** @var array<object|null> */
 	private $shared_instances = [];
 
 	/** @var array[] */
@@ -159,12 +159,14 @@ final class SimpleInjector implements Injector {
 	 *                                   for.
 	 * @param string $argument_name      Argument name to bind a value to.
 	 * @param mixed  $value              Value to bind the argument to.
+	 *
+	 * @return void
 	 */
 	public function bind_argument(
 		string $interface_or_class,
 		string $argument_name,
 		$value
-	) {
+	): void {
 		$this->argument_mappings[ $interface_or_class ][ $argument_name ] = $value;
 	}
 
@@ -236,14 +238,18 @@ final class SimpleInjector implements Injector {
 			return [];
 		}
 
-		return \array_map( function ( $parameter ) use ( $injection_chain, $class, $arguments ) {
-			return $this->resolve_argument(
-				$injection_chain,
-				$class,
-				$parameter,
-				$arguments
-			);
-		}, $constructor->getParameters() );
+		return \array_map(
+			function ( ReflectionParameter $parameter )
+			use ( $injection_chain, $class, $arguments ) {
+				return $this->resolve_argument(
+					$injection_chain,
+					$class,
+					$parameter,
+					$arguments
+				);
+			},
+			$constructor->getParameters()
+		);
 	}
 
 	/**
@@ -324,8 +330,9 @@ final class SimpleInjector implements Injector {
 			return $arguments[ $name ];
 		}
 
-		$type = $parameter->getClass()
-			? $parameter->getClass()->getName()
+		$type_class = $parameter->getClass();
+		$type       = $type_class !== null
+			? $type_class->getName()
 			: null;
 
 		// Check if we have mapped this argument for the specific class.
@@ -373,7 +380,11 @@ final class SimpleInjector implements Injector {
 	 * @return object Shared instance.
 	 */
 	private function get_shared_instance( string $class ): object {
-		return $this->shared_instances[ $class ];
+		if ( ! $this->has_shared_instance( $class ) ) {
+			throw FailedToMakeInstance::for_uninstantiated_shared_instance( $class );
+		}
+
+		return (object) $this->shared_instances[ $class ];
 	}
 
 	/**

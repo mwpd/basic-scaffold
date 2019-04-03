@@ -19,8 +19,7 @@ use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
  * This abstract base plugin provides all the boilerplate code for working with
  * the dependency injector and the service container.
  */
-abstract class ServiceBasedPlugin
-	implements Registerable, Activateable, Deactivateable {
+abstract class ServiceBasedPlugin implements Plugin {
 
 	// Main filters to control the flow of the plugin from outside code.
 	public const SERVICES_FILTER         = 'services';
@@ -183,7 +182,7 @@ abstract class ServiceBasedPlugin
 		 */
 		if ( ! is_a( $class, Registerable::class, true ) ) {
 			return new LazilyInstantiatedService(
-				function () use ( $class ) {
+				function () use ( $class ): object {
 					return $this->injector->make( $class );
 				}
 			);

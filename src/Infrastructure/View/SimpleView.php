@@ -89,7 +89,7 @@ class SimpleView implements View {
 			);
 		}
 
-		return \ob_get_clean();
+		return \ob_get_clean() ?: '';
 	}
 
 	/**

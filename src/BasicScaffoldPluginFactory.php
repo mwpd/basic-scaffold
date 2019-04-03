@@ -12,6 +12,8 @@
 
 namespace MWPD\BasicScaffold;
 
+use MWPD\BasicScaffold\Infrastructure\Plugin;
+
 /**
  * The plugin factory is responsible for instantiating the plugin and returning
  * that instance.
@@ -19,6 +21,7 @@ namespace MWPD\BasicScaffold;
  * It can decide whether to return a shared or a fresh instance as needed.
  *
  * To read more about why this is preferable to a Singleton,
+ *
  * @see https://www.alainschlesser.com/singletons-shared-instances/
  */
 final class BasicScaffoldPluginFactory {
@@ -29,9 +32,9 @@ final class BasicScaffoldPluginFactory {
 	 * This always returns a shared instance. This way, outside code can always
 	 * get access to the object instance of the plugin.
 	 *
-	 * @return BasicScaffoldPlugin Plugin instance.
+	 * @return Plugin Plugin instance.
 	 */
-	public static function create(): BasicScaffoldPlugin {
+	public static function create(): Plugin {
 		static $plugin = null;
 
 		if ( null === $plugin ) {

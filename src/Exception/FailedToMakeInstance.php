@@ -20,10 +20,11 @@ class FailedToMakeInstance
 
 	// These constants are public so you can use them to find out what exactly
 	// happened when you catch a "FailedToMakeInstance" exception.
-	public const CIRCULAR_REFERENCE   = 100;
-	public const UNRESOLVED_INTERFACE = 200;
-	public const UNREFLECTABLE_CLASS  = 300;
-	public const UNRESOLVED_ARGUMENT  = 400;
+	public const CIRCULAR_REFERENCE             = 100;
+	public const UNRESOLVED_INTERFACE           = 200;
+	public const UNREFLECTABLE_CLASS            = 300;
+	public const UNRESOLVED_ARGUMENT            = 400;
+	public const UNINSTANTIATED_SHARED_INSTANCE = 500;
 
 	/**
 	 * Create a new instance of the exception for an interface or class that
@@ -96,5 +97,23 @@ class FailedToMakeInstance
 		);
 
 		return new static( $message, static::UNRESOLVED_ARGUMENT );
+	}
+
+
+	/**
+	 * Create a new instance of the exception for a class that was meant to be
+	 * reused but was not yet instantiated.
+	 *
+	 * @param string $class Class that was not yet instantiated.
+	 *
+	 * @return static
+	 */
+	public static function for_uninstantiated_shared_instance( string $class ) {
+		$message = \sprintf(
+			'Could not retrieve the shared instance for "%s" as it was not instantiated yet.',
+			$class
+		);
+
+		return new static( $message, static::UNINSTANTIATED_SHARED_INSTANCE );
 	}
 }

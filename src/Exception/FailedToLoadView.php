@@ -35,6 +35,6 @@ class FailedToLoadView
 			$exception->getMessage()
 		);
 
-		return new static( $message, $exception->getCode(), $exception );
+		return new static( $message, (int) $exception->getCode(), $exception );
 	}
 }

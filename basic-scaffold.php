@@ -8,9 +8,9 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  *
- * -----------------------------------------------------------------------------
- * -- 1. Provide the plugin meta information that WordPress needs             --
- * -----------------------------------------------------------------------------
+ *------------------------------------------------------------------------------
+ *-- 1. Provide the plugin meta information that WordPress needs.             --
+ *------------------------------------------------------------------------------
  *
  * @wordpress-plugin
  * Plugin Name:  MWPD Basic Plugin Scaffold
@@ -54,11 +54,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 
 
-/*
- * -----------------------------------------------------------------------------
- * -- 2. Prepare the environment so that it is ready to execute our OOP code  --
- * -----------------------------------------------------------------------------
- */
+/*------------------------------------------------------------------------------
+ *-- 2. Prepare the environment so that it is ready to execute our OOP code.  --
+ *----------------------------------------------------------------------------*/
 
 /*
  * We try to load the Composer if it exists.
@@ -87,20 +85,21 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
 
 
 
-/*
- * -----------------------------------------------------------------------------
- * -- 3. Instantiate and kick off our "composition root" (our 'Plugin' class) --
- * -----------------------------------------------------------------------------
- */
+/*------------------------------------------------------------------------------
+ *-- 3. Instantiate and kick off our "composition root" (our "Plugin" class). --
+ *----------------------------------------------------------------------------*/
 
 /*
  * We use a factory to instantiate the actual plugin.
+ *
  * The factory keeps the object as a shared instance, so that you can also
  * get outside access to that same plugin instance through the factory.
+ *
  * This is similar to a Singleton, but without all the drawbacks the Singleton
  * anti-pattern brings along.
- * For more information on why to avoid a Singleton, read:
- * https://www.alainschlesser.com/singletons-shared-instances/
+ *
+ * For more information on why to avoid a Singleton,
+ * @see https://www.alainschlesser.com/singletons-shared-instances/
  */
 $plugin = BasicScaffoldPluginFactory::create();
 

@@ -39,7 +39,7 @@ final class Autoloader {
 	/**
 	 * Array containing the registered namespace structures.
 	 *
-	 * @var array
+	 * @var array<array>
 	 */
 	private $namespaces = [];
 
@@ -122,13 +122,13 @@ final class Autoloader {
 		foreach ( $this->namespaces as $namespace ) {
 
 			// Move on if the object does not belong to the current namespace.
-			if ( 0 !== \strpos( $class, $namespace[ self::ROOT ] ) ) {
+			if ( 0 !== \strpos( $class, (string) $namespace[ self::ROOT ] ) ) {
 				continue;
 			}
 
 			// Remove namespace root level to correspond with root filesystem.
 			$filename = \str_replace(
-				$namespace[ self::ROOT ], '',
+				(string) $namespace[ self::ROOT ], '',
 				$class
 			);
 

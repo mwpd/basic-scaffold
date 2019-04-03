@@ -11,7 +11,11 @@
     ],
     "require": {},
     "require-dev": {
-        "phpunit/phpunit": "^6"
+        "phpunit/phpunit": "^6",
+        "phpstan/phpstan": "^0.11.5",
+        "phan/phan": "^1.2",
+        "vimeo/psalm": "^3.2",
+        "giacocorsiglia/wordpress-stubs": "^5.1"
     },
     "autoload": {
         "psr-4": {

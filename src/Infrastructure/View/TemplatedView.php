@@ -38,7 +38,7 @@ final class TemplatedView extends SimpleView {
 		ViewFactory $view_factory,
 		array $locations = []
 	) {
-		array_walk( $locations, [ $this, 'add_location' ] );
+		$this->locations = array_map( [ $this, 'ensure_trailing_slash' ], $locations );
 		parent::__construct( $path, $view_factory );
 	}
 
@@ -86,7 +86,7 @@ final class TemplatedView extends SimpleView {
 	 * @return array Array of possible locations.
 	 */
 	private function get_locations( string $path ): array {
-		return array_map( function ( $location ) use ( $path ) {
+		return array_map( function ( string $location ) use ( $path ): string {
 			return "{$location}{$path}";
 		}, $this->locations );
 	}

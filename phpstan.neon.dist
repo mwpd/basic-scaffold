@@ -1,0 +1,4 @@
+parameters:
+	level: max
+	autoload_files:
+	- %currentWorkingDirectory%/vendor/giacocorsiglia/wordpress-stubs/wordpress-stubs.php

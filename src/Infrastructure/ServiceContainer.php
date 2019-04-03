@@ -20,8 +20,11 @@ use Traversable;
 /**
  * The service container collects all services to manage them.
  *
- * This is based on PSR-11 and should implement that if Composer dependencies
- * are being used.
+ * This is based on PSR-11 and should extend that one if Composer dependencies
+ * are being used. Relying on a standardized interface like PSR-11 means you'll
+ * be able to easily swap out the implementation for something else later on.
+ *
+ * @see https://www.php-fig.org/psr/psr-11/
  */
 interface ServiceContainer extends Traversable, Countable, ArrayAccess {
 

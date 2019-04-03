@@ -23,7 +23,7 @@ use LogicException;
  */
 final class InjectionChain {
 
-	/** @var array<object> */
+	/** @var array<string> */
 	private $chain = [];
 
 	/** @var array<bool> */
@@ -65,7 +65,7 @@ final class InjectionChain {
 			);
 		}
 
-		return \end( $this->chain );
+		return \end( $this->chain ) ?: '';
 	}
 
 	/**
