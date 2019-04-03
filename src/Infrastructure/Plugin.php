@@ -21,7 +21,18 @@ namespace MWPD\BasicScaffold\Infrastructure;
  *
  * This is what this interface represents, by assembling the separate,
  * segregated interfaces for each of these lifecycle actions.
+ *
+ * Additionally, we provide a means to get access to the plugin's container that
+ * collects all the services it is made up of. This allows direct access to the
+ * services to outside code if needed.
  */
 interface Plugin extends Activateable, Deactivateable, Registerable {
 
+	/**
+	 * Get the service container that contains the services that make up the
+	 * plugin.
+	 *
+	 * @return ServiceContainer Service container of the plugin.
+	 */
+	public function get_container(): ServiceContainer;
 }

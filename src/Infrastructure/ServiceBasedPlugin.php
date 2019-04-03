@@ -164,6 +164,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 	}
 
 	/**
+	 * Get the service container that contains the services that make up the
+	 * plugin.
+	 *
+	 * @return ServiceContainer Service container of the plugin.
+	 */
+	public function get_container(): ServiceContainer {
+		return $this->service_container;
+	}
+
+	/**
 	 * Instantiate a single service.
 	 *
 	 * @param string $class Service class to instantiate.
