@@ -51,7 +51,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected function get_service_classes(): array {
 		return [
-			self::SAMPLE_SERVICE_ID => SampleSubsystem\SampleService::class,
+			self::SAMPLE_BACKEND_SERVICE_ID => SampleSubsystem\SampleBackendService::class,
+			self::SAMPLE_LOOP_SERVICE_ID    => SampleSubsystem\SampleLoopService::class,
 
 			// Add your service definitions here.
 		];
@@ -138,8 +139,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected function get_delegations(): array {
 		return [
-			// Example - Add a factory for instantiating WP_Post objects:
-			// WP_Post::class => function () { return get_post( get_the_ID() ); }
+			// Add a factory for instantiating WP_Post objects:
+			\WP_Post::class => function () { return \get_post( \get_the_ID() ); }
 
 			// Add your delegations here.
 		];
@@ -164,6 +165,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * These can be used from outside code as well to directly refer to a
 	 * service when talking to the service container.
 	 */
-	public const VIEW_FACTORY_ID   = self::SERVICE_PREFIX . 'view-factory';
-	public const SAMPLE_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-service';
+	public const VIEW_FACTORY_ID           = self::SERVICE_PREFIX . 'view-factory';
+	public const SAMPLE_BACKEND_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-backend-service';
+	public const SAMPLE_LOOP_SERVICE_ID    = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
 }

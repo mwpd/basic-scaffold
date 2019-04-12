@@ -72,9 +72,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 * optional and provide default implementations for easy regular usage.
 		 */
 
-		$this->enable_filter = $enable_filters;
-		$this->injector = $injector ?? new Injector\SimpleInjector();
-		$this->injector = $this->configure_injector( $this->injector );
+		$this->enable_filters = $enable_filters;
+		$this->injector       = $injector ?? new Injector\SimpleInjector();
+		$this->injector       = $this->configure_injector( $this->injector );
 
 		$this->service_container = $service_container ?? new ServiceContainer\SimpleServiceContainer();
 	}
@@ -169,23 +169,49 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$id    = $this->maybe_resolve( $id );
 			$class = $this->maybe_resolve( $class );
 
-			// Only instantiate services that are actually needed.
-			if ( is_a( $class, Conditional::class, true )
-			     && ! $class::is_needed() ) {
+			// Allow the services to delay their registration
+			if ( is_a( $class, Delayed::class, true ) ) {
+				$registration_action = $class::get_registration_action();
+
+				if ( did_action( $registration_action ) ) {
+					$this->register_service( $id, $class );
+
+					continue;
+				}
+
+				\add_action(
+					$class::get_registration_action(),
+					function () use ( $id, $class ) {
+						$this->register_service( $id, $class );
+					}
+				);
+
 				continue;
 			}
 
-			$this->service_container->put(
-				$id,
-				$this->instantiate_service( $class )
-			);
+			$this->register_service( $id, $class );
+		}
+	}
+
+	/**
+	 * Register a single service.
+	 *
+	 * @param string $id
+	 * @param string $class
+	 */
+	protected function register_service( string $id, string $class ): void {
+		// Only instantiate services that are actually needed.
+		if ( is_a( $class, Conditional::class, true )
+		     && ! $class::is_needed() ) {
+			return;
 		}
 
-		// Give all Registerables the opportunity to register themselves.
-		foreach ( $this->service_container as $service ) {
-			if ( $service instanceof Registerable ) {
-				$service->register();
-			}
+		$service = $this->instantiate_service( $class );
+
+		$this->service_container->put( $id, $service );
+
+		if ( $service instanceof Registerable ) {
+			$service->register();
 		}
 	}
 

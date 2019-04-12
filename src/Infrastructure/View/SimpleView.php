@@ -17,6 +17,7 @@ use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use Throwable;
 
 /**
  * A simplified implementation of a renderable view object.
@@ -199,7 +200,13 @@ class SimpleView implements View {
 	 */
 	public function __get( $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
-			return $this->escape( (string) $this->_context_[ $property ] );
+			$value = $this->_context_[ $property ];
+			try {
+				return $this->escape( (string) $this->_context_[ $property ] );
+			} catch ( Throwable $exception ) {
+				// Value could not be converted to string, so just return as-is.
+				return $value;
+			}
 		}
 
 		/*

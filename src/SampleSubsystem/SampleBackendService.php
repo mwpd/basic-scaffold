@@ -29,7 +29,7 @@ use MWPD\BasicScaffold\Infrastructure\{
  * Note that the dependency here is actually an interface, not a class. We can
  * still just transparently use it though.
  */
-final class SampleService implements Service, Registerable, Conditional {
+final class SampleBackendService implements Service, Registerable, Conditional {
 
 	/** @var ViewFactory */
 	private $view_factory;
@@ -49,7 +49,7 @@ final class SampleService implements Service, Registerable, Conditional {
 	}
 
 	/**
-	 * Instantiate a SampleService object.
+	 * Instantiate a SampleBackendService object.
 	 *
 	 * @param ViewFactory $view_factory View factory to use for instantiating
 	 *                                  the views.
@@ -85,7 +85,7 @@ final class SampleService implements Service, Registerable, Conditional {
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.
 		 */
-		echo $this->view_factory->create( 'views/test-service' )
+		echo $this->view_factory->create( 'views/test-backend-service' )
 		                        ->render( [ 'plugin' => 'MWPD Boilerplate' ] );
 	}
 }

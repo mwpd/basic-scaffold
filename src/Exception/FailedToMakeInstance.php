@@ -25,6 +25,7 @@ class FailedToMakeInstance
 	public const UNREFLECTABLE_CLASS            = 300;
 	public const UNRESOLVED_ARGUMENT            = 400;
 	public const UNINSTANTIATED_SHARED_INSTANCE = 500;
+	public const INVALID_DELEGATE               = 600;
 
 	/**
 	 * Create a new instance of the exception for an interface or class that
@@ -99,7 +100,6 @@ class FailedToMakeInstance
 		return new static( $message, static::UNRESOLVED_ARGUMENT );
 	}
 
-
 	/**
 	 * Create a new instance of the exception for a class that was meant to be
 	 * reused but was not yet instantiated.
@@ -115,5 +115,22 @@ class FailedToMakeInstance
 		);
 
 		return new static( $message, static::UNINSTANTIATED_SHARED_INSTANCE );
+	}
+
+	/**
+	 * Create a new instance of the exception for a delegate that was requested
+	 * for a class that doesn't have one.
+	 *
+	 * @param string $class Class for which there is no delegate.
+	 *
+	 * @return static
+	 */
+	public static function for_invalid_delegate( string $class ) {
+		$message = \sprintf(
+			'Could not retrieve a delegate for "%s", none was defined.',
+			$class
+		);
+
+		return new static( $message, static::INVALID_DELEGATE );
 	}
 }

@@ -80,8 +80,9 @@ final class SimpleInjector implements Injector {
 			return $this->get_shared_instance( $class );
 		}
 
-		if ( array_key_exists( $class, $this->delegates ) ) {
-			$object = $this->delegates[ $class ]( $class );
+		if ( $this->has_delegate( $class ) ) {
+			$delegate = $this->get_delegate( $class );
+			$object = $delegate( $class );
 		} else {
 			$reflection = $this->get_class_reflection( $class );
 			$this->ensure_is_instantiable( $reflection );
@@ -187,6 +188,11 @@ final class SimpleInjector implements Injector {
 
 		if ( $this->has_shared_instance( $class ) ) {
 			return $this->get_shared_instance( $class );
+		}
+
+		if ( $this->has_delegate( $class ) ) {
+			$delegate = $this->get_delegate( $class );
+			return $delegate( $class );
 		}
 
 		$reflection = $this->get_class_reflection( $class );
@@ -400,6 +406,30 @@ final class SimpleInjector implements Injector {
 		}
 
 		return (object) $this->shared_instances[ $class ];
+	}
+
+	/**
+	 * Check whether a delegate exists for a given class.
+	 *
+	 * @param string $class Class to check for a delegate.
+	 * @return bool Whether a delegate exists.
+	 */
+	private function has_delegate( string $class ): bool {
+		return \array_key_exists( $class, $this->delegates );
+	}
+
+	/**
+	 * Get the delegate for a given class.
+	 *
+	 * @param string $class Class to get the delegate for.
+	 * @return callable Delegate.
+	 */
+	private function get_delegate( string $class ): callable {
+		if ( ! $this->has_delegate( $class ) ) {
+			throw FailedToMakeInstance::for_invalid_delegate( $class );
+		}
+
+		return $this->delegates[ $class ];
 	}
 
 	/**
