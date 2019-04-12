@@ -69,7 +69,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 			// on WordPress being loaded here.
 			// This makes the code more flexible and testing easier.
 			$default_locations = ( function_exists( 'get_stylesheet_directory' )
-			                       || function_exists( 'get_template_directory' ) )
+			                       && function_exists( 'get_template_directory' ) )
 				? [
 					\get_stylesheet_directory(),
 					\get_template_directory(),
