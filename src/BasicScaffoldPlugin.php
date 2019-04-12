@@ -41,21 +41,30 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 
 	/**
-	 * The SERVICES array contains a map of <identifier> => <service class name>
+	 * Get the list of services to register.
+	 *
+	 * The services array contains a map of <identifier> => <service class name>
 	 * associations.
 	 *
-	 * @var array<string>
+	 * @return array<string> Associative array of identifiers mapped to fully
+	 *                       qualified class names.
 	 */
-	protected const SERVICES = [
-		self::SAMPLE_SERVICE_ID => SampleSubsystem\SampleService::class,
-	];
+	protected function get_service_classes(): array {
+		return [
+			self::SAMPLE_SERVICE_ID => SampleSubsystem\SampleService::class,
+
+			// Add your service definitions here.
+		];
+	}
 
 	/*--------------------------------------------------------------------------
 	 *-- 2. Configure the injector so it knows how to assemble them.          --
 	 *------------------------------------------------------------------------*/
 
 	/**
-	 * The BINDINGS array contains a map of <interface> => <implementation>
+	 * Get the bindings for the dependency injector.
+	 *
+	 * The bindings array contains a map of <interface> => <implementation>
 	 * mappings, both of which should be fully qualified class names (FQCNs).
 	 *
 	 * The <interface> does not need to be the actual PHP `interface` language
@@ -64,51 +73,77 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * Whenever you ask the injector to "make()" an <interface>, it will resolve
 	 * these mappings and return an instance of the final <class> it found.
 	 *
-	 * @var array<string>
+	 * @return array<string> Associative array of fully qualified class names.
 	 */
-	protected const BINDINGS = [
-		ViewFactory::class => TemplatedViewFactory::class,
-		// Add your bindings here.
-	];
+	protected function get_bindings(): array {
+		return [
+			// Map the ViewFactory interface to a concrete implementation.
+			ViewFactory::class => TemplatedViewFactory::class,
+
+			// Add your bindings here.
+		];
+	}
 
 	/**
-	 * The ARGUMENTS array contains a map of <class> => <associative array of
+	 * Get the argument bindings for the dependency injector.
+	 *
+	 * The arguments array contains a map of <class> => <associative array of
 	 * arguments> mappings.
 	 *
 	 * The array is provided in the form <argument name> => <argument value>.
 	 *
-	 * @var array<array>
+	 * @return array<array> Associative array of arrays mapping argument names
+	 *                      to argument values.
 	 */
-	protected const ARGUMENTS = [
-		// Add your argument mappings here.
-	];
+	protected function get_arguments(): array {
+		return [
+			// Example - add a scalar value to an argument for SampleService:
+			// SampleService::class => [ 'argument_name' => 'value' ],
+
+			// Add your argument mappings here.
+		];
+	}
 
 	/**
-	 * The SHARED_INSTANCES array contains a list of FQCNs that are meant to be
+	 * Get the shared instances for the dependency injector.
+	 *
+	 * The shared instances array contains a list of FQCNs that are meant to be
 	 * reused. For multiple "make()" requests, the injector will return the same
 	 * instance reference for these, instead of always returning a new one.
 	 *
 	 * This effectively turns these FQCNs into a "singleton", without incurring
 	 * all the drawbacks of the Singleton design anti-pattern.
 	 *
-	 * @var array<string>
+	 * @return array<string> Array of fully qualified class names.
 	 */
-	protected const SHARED_INSTANCES = [
-		// Add your shared instances here.
-	];
+	protected function get_shared_instances(): array {
+		return [
+			// Example - make SampleService be shared amongst instantiations:
+			// SampleService::class
+
+			// Add your shared instances here.
+		];
+	}
 
 	/**
-	 * The DELEGATIONS array contains a map of <class> => <callable>
+	 * Get the delegations for the dependency injector.
+	 *
+	 * The delegations array contains a map of <class> => <callable>
 	 * mappings.
 	 *
 	 * The <callable> is basically a factory to provide custom instantiation
 	 * logic for the given <class>.
 	 *
-	 * @var array<callable>
+	 * @return array<callable> Associative array of callables.
 	 */
-	protected const DELEGATIONS = [
-		// Add your delegations here.
-	];
+	protected function get_delegations(): array {
+		return [
+			// Example - Add a factory for instantiating WP_Post objects:
+			// WP_Post::class => function () { return get_post( get_the_ID() ); }
+
+			// Add your delegations here.
+		];
+	}
 
 	/*--------------------------------------------------------------------------
 	 *-- 3. Define prefixes and identifiers for outside access.               --

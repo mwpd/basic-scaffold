@@ -31,25 +31,15 @@ abstract class ServiceBasedPlugin implements Plugin {
 	// Service identifier for the injector.
 	public const INJECTOR_ID = 'injector';
 
-	/*
-	 * Override the following 5 constants in the actual plugin implementation
-	 * class to define how to assemble this specific plugin.
-	 */
-
-	// Services that make up this plugin.
-	protected const SERVICES = [];
-	// Interface to implementation bindings for the injector.
-	protected const BINDINGS = [];
-	// Argument values to be used when instantiating given classes.
-	protected const ARGUMENTS = [];
-	// Instances that are meant to be reused instead of reinstantiated.
-	protected const SHARED_INSTANCES = [];
-	// Classes for which instantiation should be delegated.
-	protected const DELEGATIONS = [];
+	// WordPress action to trigger the service registration on.
+	protected const REGISTRATION_ACTION = 'plugins_loaded';
 
 	// Prefixes to use.
 	protected const HOOK_PREFIX    = '';
 	protected const SERVICE_PREFIX = '';
+
+	/** @var bool */
+	protected $enable_filters;
 
 	/** @var Injector */
 	protected $injector;
@@ -60,6 +50,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Instantiate a Plugin object.
 	 *
+	 * @param bool                  $enable_filters    Optional. Whether to
+	 *                                                 enable filtering of the
+	 *                                                 injector configuration.
 	 * @param Injector|null         $injector          Optional. Injector
 	 *                                                 instance to use.
 	 * @param ServiceContainer|null $service_container Optional. Service
@@ -67,6 +60,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *                                                 use.
 	 */
 	public function __construct(
+		bool $enable_filters = true,
 		?Injector $injector = null,
 		?ServiceContainer $service_container = null
 	) {
@@ -78,6 +72,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 * optional and provide default implementations for easy regular usage.
 		 */
 
+		$this->enable_filter = $enable_filters;
 		$this->injector = $injector ?? new Injector\SimpleInjector();
 		$this->injector = $this->configure_injector( $this->injector );
 
@@ -125,7 +120,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function register(): void {
-		\add_action( 'plugins_loaded', [ $this, 'register_services' ] );
+		\add_action(
+			static::REGISTRATION_ACTION,
+			[ $this, 'register_services' ]
+		);
 	}
 
 	/**
@@ -147,7 +145,30 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$this->injector
 		);
 
-		foreach ( $this->get_service_classes() as $id => $class ) {
+		$services = $this->get_service_classes();
+
+		if ( $this->enable_filters ) {
+			/**
+			 * Filter the default services that make up this plugin.
+			 *
+			 * This can be used to add services to the service container for
+			 * this plugin.
+			 *
+			 * @param array<string> $services Associative array of identifier =>
+			 *                                class mappings. The provided
+			 *                                classes need to implement the
+			 *                                Service interface.
+			 */
+			$services = \apply_filters(
+				static::HOOK_PREFIX . static::SERVICES_FILTER,
+				$services
+			);
+		}
+
+		foreach ( $services as $id => $class ) {
+			$id    = $this->maybe_resolve( $id );
+			$class = $this->maybe_resolve( $class );
+
 			// Only instantiate services that are actually needed.
 			if ( is_a( $class, Conditional::class, true )
 			     && ! $class::is_needed() ) {
@@ -219,19 +240,110 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * This method defines the mappings that the injector knows about, and the
 	 * logic it requires to make more complex instantiations work.
 	 *
-	 * For more complex plugins, this should be extracted into a separate object
+	 * For more complex plugins, this should be extracted into a separate
+	 * object
 	 * or into configuration files.
 	 *
 	 * @param Injector $injector Injector instance to configure.
 	 * @return Injector Configured injector instance.
 	 */
 	protected function configure_injector( Injector $injector ): Injector {
-		foreach ( $this->get_bindings() as $from => $to ) {
+		$bindings         = $this->get_bindings();
+		$shared_instances = $this->get_shared_instances();
+		$arguments        = $this->get_arguments();
+		$delegations      = $this->get_delegations();
+
+		if ( $this->enable_filters ) {
+			/**
+			 * Filter the default bindings that are provided by the plugin.
+			 *
+			 * This can be used to swap implementations out for alternatives.
+			 *
+			 * @param array<string> $bindings Associative array of interface =>
+			 *                                implementation bindings. Both
+			 *                                should be FQCNs.
+			 */
+			$bindings = (array) \apply_filters(
+				static::HOOK_PREFIX . static::BINDINGS_FILTER,
+				$bindings
+			);
+
+			/**
+			 * Filter the default argument bindings that are provided by the
+			 * plugin.
+			 *
+			 * This can be used to override scalar values.
+			 *
+			 * @param array<array> $arguments Associative array of class =>
+			 *                                arguments mappings. The arguments
+			 *                                array maps argument names to
+			 *                                values.
+			 */
+			$arguments = (array) \apply_filters(
+				static::HOOK_PREFIX . static::ARGUMENTS_FILTER,
+				$arguments
+			);
+
+			/**
+			 * Filter the instances that are shared by default by the plugin.
+			 *
+			 * This can be used to turn objects that were added externally into
+			 * shared instances.
+			 *
+			 * @param array<string> $shared_instances Array of FQCNs to turn
+			 *                                        into shared objects.
+			 */
+			$shared_instances = (array) \apply_filters(
+				static::HOOK_PREFIX . static::SHARED_INSTANCES_FILTER,
+				$shared_instances
+			);
+
+			/**
+			 * Filter the instances that are shared by default by the plugin.
+			 *
+			 * This can be used to turn objects that were added externally into
+			 * shared instances.
+			 *
+			 * @param array<string> $delegations Associative array of class =>
+			 *                                   callable mappings.
+			 */
+			$delegations = (array) \apply_filters(
+				static::HOOK_PREFIX . static::DELEGATIONS_FILTER,
+				$delegations
+			);
+		}
+
+		foreach ( $bindings as $from => $to ) {
+			$from = $this->maybe_resolve( $from );
+			$to   = $this->maybe_resolve( $to );
+
 			$injector = $injector->bind( $from, $to );
 		}
 
-		foreach ( $this->get_shared_instances() as $shared_instance ) {
+		foreach ( $arguments as $class => $argument_map ) {
+			$class = $this->maybe_resolve( $class );
+
+			foreach ( $argument_map as $name => $value ) {
+				// We don't try to resolve the $value here, as we might want to
+				// pass a callable as-is.
+				$name = $this->maybe_resolve( $name );
+
+				$injector = $injector->bind_argument( $class, $name, $value );
+			}
+		}
+
+		foreach ( $shared_instances as $shared_instance ) {
+			$shared_instance = $this->maybe_resolve( $shared_instance );
+
 			$injector = $injector->share( $shared_instance );
+		}
+
+		foreach ( $delegations as $class => $callable ) {
+			// We don't try to resolve the $callable here, as we want to pass it
+			// on as-is.
+			$class = $this->maybe_resolve( $class );
+
+			$injector = $injector->delegate( $class, $callable );
 		}
 
 		return $injector;
@@ -244,21 +356,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *                       qualified class names.
 	 */
 	protected function get_service_classes(): array {
-		/**
-		 * Filter the default services that make up this plugin.
-		 *
-		 * This can be used to add services to the service container for this
-		 * plugin.
-		 *
-		 * @param array<string> $services Associative array of identifier =>
-		 *                                class mappings. The provided classes
-		 *                                need to implement the Service
-		 *                                interface.
-		 */
-		return \apply_filters(
-			static::HOOK_PREFIX . static::SERVICES_FILTER,
-			static::SERVICES
-		);
+		return [];
 	}
 
 	/**
@@ -270,19 +368,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @return array<string> Associative array of fully qualified class names.
 	 */
 	protected function get_bindings(): array {
-		/**
-		 * Filter the default bindings that are provided by the plugin.
-		 *
-		 * This can be used to swap implementations out for alternatives.
-		 *
-		 * @param array<string> $bindings Associative array of interface =>
-		 *                                implementation bindings. Both should
-		 *                                be FQCNs.
-		 */
-		return (array) \apply_filters(
-			static::HOOK_PREFIX . static::BINDINGS_FILTER,
-			static::BINDINGS
-		);
+		return [];
 	}
 
 	/**
@@ -295,19 +381,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *                      to argument values.
 	 */
 	protected function get_arguments(): array {
-		/**
-		 * Filter the default argument bindings that are provided by the plugin.
-		 *
-		 * This can be used to override scalar values.
-		 *
-		 * @param array<array> $arguments Associative array of class =>
-		 *                                arguments mappings. The arguments
-		 *                                array maps argument names to values.
-		 */
-		return (array) \apply_filters(
-			static::HOOK_PREFIX . static::ARGUMENTS_FILTER,
-			static::ARGUMENTS
-		);
+		return [];
 	}
 
 	/**
@@ -322,19 +396,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @return array<string> Array of fully qualified class names.
 	 */
 	protected function get_shared_instances(): array {
-		/**
-		 * Filter the instances that are shared by default by the plugin.
-		 *
-		 * This can be used to turn objects that were added externally into
-		 * shared instances.
-		 *
-		 * @param array<string> $shared_instances Array of FQCNs to turn into
-		 *                                        shared objects..
-		 */
-		return (array) \apply_filters(
-			static::HOOK_PREFIX . static::SHARED_INSTANCES_FILTER,
-			static::SHARED_INSTANCES
-		);
+		return [];
 	}
 
 	/**
@@ -346,18 +408,23 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @return array<callable> Associative array of callables.
 	 */
 	protected function get_delegations(): array {
-		/**
-		 * Filter the instances that are shared by default by the plugin.
-		 *
-		 * This can be used to turn objects that were added externally into
-		 * shared instances.
-		 *
-		 * @param array<string> $delegations Associative array of class =>
-		 *                                   callable mappings.
-		 */
-		return (array) \apply_filters(
-			static::HOOK_PREFIX . static::DELEGATIONS_FILTER,
-			static::DELEGATIONS
-		);
+		return [];
+	}
+
+	/**
+	 * Maybe resolve a value that is a callable instead of a scalar.
+	 *
+	 * Values that are passed through this method can optionally be provided as
+	 * callables instead of direct values and will be evaluated when needed.
+	 *
+	 * @param mixed $value Value to potentially resolve.
+	 * @return mixed Resolved or unchanged value.
+	 */
+	protected function maybe_resolve( $value ) {
+		if ( is_callable( $value ) ) {
+			$value = $value( $this->injector, $this->service_container );
+		}
+
+		return $value;
 	}
 }
