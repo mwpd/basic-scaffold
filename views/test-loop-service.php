@@ -1,1 +1,1 @@
-<pre>Post title: <?= $this->post->post_title ?></pre>
+<pre>Post title: <?= $this->post->post_title ?><br>Post date:  <?= $this->post->post_date ?></pre><hr>
