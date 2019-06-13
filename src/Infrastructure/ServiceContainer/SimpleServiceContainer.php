@@ -37,7 +37,7 @@ final class SimpleServiceContainer
 	 * @return Service Service that was requested.
 	 */
 	public function get( string $id ): Service {
-		if ( $this->has( $id ) ) {
+		if ( ! $this->has( $id ) ) {
 			throw InvalidService::from_service_id( $id );
 		}
 
