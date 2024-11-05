@@ -14,7 +14,7 @@ namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
 
-class FailedToMakeInstance
+final class FailedToMakeInstance
 	extends RuntimeException
 	implements BasicScaffoldException {
 

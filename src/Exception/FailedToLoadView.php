@@ -14,7 +14,7 @@ namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
 
-class FailedToLoadView
+final class FailedToLoadView
 	extends RuntimeException
 	implements BasicScaffoldException {
 

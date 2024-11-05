@@ -14,7 +14,7 @@ namespace MWPD\BasicScaffold\Exception;
 
 use InvalidArgumentException;
 
-class InvalidContextProperty
+final class InvalidContextProperty
 	extends InvalidArgumentException
 	implements BasicScaffoldException {
 

@@ -14,7 +14,7 @@ namespace MWPD\BasicScaffold\Exception;
 
 use InvalidArgumentException;
 
-class InvalidPath
+final class InvalidPath
 	extends InvalidArgumentException
 	implements BasicScaffoldException {
 

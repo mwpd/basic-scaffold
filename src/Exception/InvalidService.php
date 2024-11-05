@@ -14,7 +14,7 @@ namespace MWPD\BasicScaffold\Exception;
 
 use InvalidArgumentException;
 
-class InvalidService
+final class InvalidService
 	extends InvalidArgumentException
 	implements BasicScaffoldException {
 
