@@ -323,6 +323,7 @@ final class SimpleInjector implements Injector {
 
 		$type = $parameter->getType();
 
+		/** @phpstan-ignore method.notFound (Method was moved to ReflectionNamedType in PHP 8.0) */
 		if ( null === $type || $type->isBuiltin() ) {
 			return $this->resolve_argument_by_name(
 				$class,

@@ -17,12 +17,16 @@ use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use stdClass;
 use Throwable;
 
 /**
  * A simplified implementation of a renderable view object.
+ *
+ * This extends stdClass to get around a deprecation notice in PHP 8.2.
+ * @see https://php.watch/versions/8.2/dynamic-properties-deprecated#stdClass
  */
-class SimpleView implements View {
+class SimpleView extends stdClass implements View {
 
 	/**
 	 * Extension to use for view files.
