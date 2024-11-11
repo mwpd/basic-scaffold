@@ -195,14 +195,14 @@ class SimpleView extends stdClass implements View {
 	}
 
 	/**
-	 * Use magic getter to provide automatic escaping by default.
+	 * Return the escaped value of a context property.
 	 *
 	 * Use the raw() method to skip automatic escaping.
 	 *
-	 * @param string $property Property to get.
-	 * @return mixed
+	 * @param string $property Property for which to return the escaped value.
+	 * @return string Escaped context property value.
 	 */
-	public function __get( $property ) {
+	public function __get( string $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
 			$value = $this->_context_[ $property ];
 			try {
@@ -222,7 +222,8 @@ class SimpleView extends stdClass implements View {
 			throw InvalidContextProperty::from_property( $property );
 		}
 
-		return null;
+		// Return an empty string if the property does not exist.
+		return '';
 	}
 
 	/**

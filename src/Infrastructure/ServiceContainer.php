@@ -25,6 +25,9 @@ use Traversable;
  * be able to easily swap out the implementation for something else later on.
  *
  * @see https://www.php-fig.org/psr/psr-11/
+ *
+ * @extends Traversable<string, Service>
+ * @extends ArrayAccess<string, Service>
  */
 interface ServiceContainer extends Traversable, Countable, ArrayAccess {
 

@@ -73,6 +73,8 @@ interface View extends Renderable {
 	/**
 	 * Return the escaped value of a context property.
 	 *
+	 * Use the raw() method to skip automatic escaping.
+	 *
 	 * @param string $property Property for which to return the escaped value.
 	 * @return string Escaped context property value.
 	 */

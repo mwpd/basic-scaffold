@@ -22,6 +22,8 @@ use ArrayObject;
  *
  * We extend ArrayObject so we have default implementations for iterators and
  * array access.
+ *
+ * @extends ArrayObject<string, Service>
  */
 final class SimpleServiceContainer
 	extends ArrayObject
