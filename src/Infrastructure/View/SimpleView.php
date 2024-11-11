@@ -17,6 +17,8 @@ use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
+use MWPD\BasicScaffold\Infrastructure\Service\WordPressDebugMode;
 use stdClass;
 use Throwable;
 
@@ -50,16 +52,21 @@ class SimpleView extends stdClass implements View {
 	/** @var ViewFactory */
 	protected $view_factory;
 
+	/** @var DebugMode */
+	private $debug_mode;
+
 	/**
 	 * Instantiate a SimpleView object.
 	 *
 	 * @param string      $path         Path to the view file to render.
 	 * @param ViewFactory $view_factory View factory instance to use.
+	 * @param ?DebugMode  $debug_mode   Debug mode instance to use. Optional, defaults to WordPressDebugMode.
 	 * @throws InvalidPath If an invalid Path was passed into the View.
 	 */
-	public function __construct( string $path, ViewFactory $view_factory ) {
+	public function __construct( string $path, ViewFactory $view_factory, ?DebugMode $debug_mode = null ) {
 		$this->path         = $this->validate( $path );
 		$this->view_factory = $view_factory;
+		$this->debug_mode   = $debug_mode ?? new WordPressDebugMode();
 	}
 
 	/**
@@ -83,7 +90,7 @@ class SimpleView extends stdClass implements View {
 
 		try {
 			include $this->path;
-		} catch ( \Exception $exception ) {
+		} catch ( Throwable $exception ) {
 			// Remove whatever levels were added up until now.
 			while ( \ob_get_level() > $buffer_level ) {
 				\ob_end_clean();
@@ -242,6 +249,6 @@ class SimpleView extends stdClass implements View {
 	 * @return bool Whether debugging mode is enabled.
 	 */
 	protected function is_debug_mode(): bool {
-		return defined( 'WP_DEBUG' ) && WP_DEBUG;
+		return $this->debug_mode->is_debug_mode();
 	}
 }

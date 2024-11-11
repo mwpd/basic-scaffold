@@ -13,6 +13,7 @@
 		<directory name="tests" />
 		<ignoreFiles>
 			<directory name="vendor" />
+			<file name="tests/php/Fixture/views/broken-view.php" />
 		</ignoreFiles>
 	</projectFiles>
 	<stubs>

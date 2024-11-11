@@ -1,4 +1,12 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
 parameters:
-	level: max
-	autoload_files:
-	- %currentWorkingDirectory%/vendor/giacocorsiglia/wordpress-stubs/wordpress-stubs.php
+    level: 5
+    paths:
+        - src
+        - tests
+    bootstrapFiles:
+        - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php 
+    excludePaths:
+        - tests/php/Fixture/views/broken-view.php

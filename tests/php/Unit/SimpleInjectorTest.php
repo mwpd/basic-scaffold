@@ -5,6 +5,7 @@ namespace MWPD\BasicScaffold\Tests\Unit;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
+use MWPD\BasicScaffold\Infrastructure\Instantiator;
 use MWPD\BasicScaffold\Tests\Fixture;
 use stdClass;
 
@@ -165,5 +166,18 @@ final class SimpleInjectorTest extends TestCase {
 		$this->assertInstanceOf( Fixture\DummyClassWithNamedArguments::class, $object );
 		$this->assertEquals( 42, $object->get_argument_a() );
 		$this->assertEquals( 'Mr Alderson', $object->get_argument_b() );
+	}
+
+	public function test_it_can_use_custom_instantiator(): void {
+		$mockInstantiator = $this->createMock(Instantiator::class);
+		$mockInstantiator->expects($this->once())
+			->method('instantiate')
+			->with(Fixture\DummyClass::class, [])
+			->willReturn(new Fixture\DummyClass());
+
+		$injector = new SimpleInjector($mockInstantiator);
+		$instance = $injector->make(Fixture\DummyClass::class);
+
+		$this->assertInstanceOf(Fixture\DummyClass::class, $instance);
 	}
 }

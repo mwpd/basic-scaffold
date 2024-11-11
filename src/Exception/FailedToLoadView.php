@@ -13,6 +13,7 @@
 namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
+use Throwable;
 
 final class FailedToLoadView
 	extends RuntimeException
@@ -22,9 +23,9 @@ final class FailedToLoadView
 	 * Create a new instance of the exception if the view file itself created
 	 * an exception.
 	 *
-	 * @param string     $uri       URI of the file that is not accessible or
-	 *                              not readable.
-	 * @param \Exception $exception Exception that was thrown by the view file.
+	 * @param string    $uri       URI of the file that is not accessible or
+	 *                             not readable.
+	 * @param Throwable $exception Exception that was thrown by the view file.
 	 *
 	 * @return static
 	 */
