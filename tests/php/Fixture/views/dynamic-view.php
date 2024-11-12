@@ -6,4 +6,4 @@ use MWPD\BasicScaffold\Infrastructure\View;
  * @property string $some_value
  */
 ?>
-<p>Rendering works with context: <?php echo $this->some_value; ?>.</p>
+<p>Rendering works with context: <?= $this->some_value ?>.</p>

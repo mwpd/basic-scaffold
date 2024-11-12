@@ -96,17 +96,17 @@ final class SimpleInjector implements Injector {
 			$interface_or_class
 		);
 
-		$class = $injection_chain->get_class();
+		$class_name = $injection_chain->get_class();
 
-		if ( $this->has_shared_instance( $class ) ) {
-			return $this->get_shared_instance( $class );
+		if ( $this->has_shared_instance( $class_name ) ) {
+			return $this->get_shared_instance( $class_name );
 		}
 
-		if ( $this->has_delegate( $class ) ) {
-			$delegate = $this->get_delegate( $class );
-			$object   = $delegate( $class );
+		if ( $this->has_delegate( $class_name ) ) {
+			$delegate = $this->get_delegate( $class_name );
+			$object   = $delegate( $class_name );
 		} else {
-			$reflection = $this->get_class_reflection( $class );
+			$reflection = $this->get_class_reflection( $class_name );
 			$this->ensure_is_instantiable( $reflection );
 
 			$dependencies = $this->get_dependencies_for(
@@ -115,11 +115,11 @@ final class SimpleInjector implements Injector {
 				$arguments
 			);
 
-			$object = $this->instantiator->instantiate( $class, $dependencies );
+			$object = $this->instantiator->instantiate( $class_name, $dependencies );
 		}
 
-		if ( \array_key_exists( $class, $this->shared_instances ) ) {
-			$this->shared_instances[ $class ] = $object;
+		if ( \array_key_exists( $class_name, $this->shared_instances ) ) {
+			$this->shared_instances[ $class_name ] = $object;
 		}
 
 		return $object;
@@ -206,18 +206,18 @@ final class SimpleInjector implements Injector {
 			$interface_or_class
 		);
 
-		$class = $injection_chain->get_class();
+		$class_name = $injection_chain->get_class();
 
-		if ( $this->has_shared_instance( $class ) ) {
-			return $this->get_shared_instance( $class );
+		if ( $this->has_shared_instance( $class_name ) ) {
+			return $this->get_shared_instance( $class_name );
 		}
 
-		if ( $this->has_delegate( $class ) ) {
-			$delegate = $this->get_delegate( $class );
-			return $delegate( $class );
+		if ( $this->has_delegate( $class_name ) ) {
+			$delegate = $this->get_delegate( $class_name );
+			return $delegate( $class_name );
 		}
 
-		$reflection = $this->get_class_reflection( $class );
+		$reflection = $this->get_class_reflection( $class_name );
 		$this->ensure_is_instantiable( $reflection );
 
 		$dependencies = $this->get_dependencies_for(
@@ -225,10 +225,10 @@ final class SimpleInjector implements Injector {
 			$reflection
 		);
 
-		$object = $this->instantiator->instantiate( $class, $dependencies );
+		$object = $this->instantiator->instantiate( $class_name, $dependencies );
 
-		if ( \array_key_exists( $class, $this->shared_instances ) ) {
-			$this->shared_instances[ $class ] = $object;
+		if ( \array_key_exists( $class_name, $this->shared_instances ) ) {
+			$this->shared_instances[ $class_name ] = $object;
 		}
 
 		return $object;
@@ -481,11 +481,12 @@ final class SimpleInjector implements Injector {
 	 * @param string $class_name Class to get the reflection for.
 	 * @return ReflectionClass Class reflection.
 	 * @throws FailedToMakeInstance If the class could not be reflected.
+	 * @phpstan-param class-string $class_name
 	 */
 	private function get_class_reflection( string $class_name ): ReflectionClass {
 		try {
 			return new ReflectionClass( $class_name );
-		} catch ( Throwable $exception ) {
+		} catch ( Throwable $exception ) { // @phpstan-ignore-line
 			throw FailedToMakeInstance::for_unreflectable_class( $class_name );
 		}
 	}

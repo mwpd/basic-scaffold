@@ -67,6 +67,7 @@ final class InjectionChain {
 	 *
 	 * @return string Last class pushed to the injection chain.
 	 * @throws LogicException If the chain is empty.
+	 * @phpstan-return class-string
 	 */
 	public function get_class(): string {
 		if ( empty( $this->chain ) ) {
@@ -75,6 +76,11 @@ final class InjectionChain {
 			);
 		}
 
+		/**
+		 * This returns a class string.
+		 *
+		 * @phpstan-var class-string
+		 */
 		return \end( $this->chain ) ?: '';
 	}
 

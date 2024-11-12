@@ -40,6 +40,12 @@
 
         <!-- Allow underscore prefix for the _context_ property -->
         <exclude name="PSR2.Classes.PropertyDeclaration.Underscore"/>
+
+        <!-- Allow short open tags -->
+        <exclude name="Generic.PHP.DisallowShortOpenTag"/>
+
+        <!-- Allow short open echo tag without semicolon -->
+        <exclude name="Squiz.PHP.EmbeddedPhp.ShortOpenEchoNoSemicolon"/>
     </rule>
 
     <!-- Rules: PHP version compatibility -->
@@ -84,6 +90,11 @@
                 <element value="MWPD\BasicScaffold\View::render"/>
             </property>
         </properties>
+    </rule>
+
+    <!-- Don't enforce PSR-12 file header for view files -->
+    <rule ref="PSR12.Files.FileHeader">
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     
     <!-- Customize rules for test files -->

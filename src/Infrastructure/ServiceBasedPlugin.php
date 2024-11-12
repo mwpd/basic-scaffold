@@ -348,8 +348,8 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 * This can be used to turn objects that were added externally into
 			 * shared instances.
 			 *
-			 * @param array<string> $delegations Associative array of class =>
-			 *                                   callable mappings.
+			 * @param array<callable> $delegations Associative array of class =>
+			 *                                     callable mappings.
 			 */
 			$delegations = (array) \apply_filters(
 				static::HOOK_PREFIX . static::DELEGATIONS_FILTER,
@@ -364,15 +364,15 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$injector = $injector->bind( $from, $to );
 		}
 
-		foreach ( $arguments as $class => $argument_map ) {
-			$class = $this->maybe_resolve( $class );
+		foreach ( $arguments as $class_name => $argument_map ) {
+			$class_name = $this->maybe_resolve( $class_name );
 
 			foreach ( $argument_map as $name => $value ) {
 				// We don't try to resolve the $value here, as we might want to
 				// pass a callable as-is.
 				$name = $this->maybe_resolve( $name );
 
-				$injector = $injector->bind_argument( $class, $name, $value );
+				$injector = $injector->bind_argument( $class_name, $name, $value );
 			}
 		}
 
@@ -382,12 +382,12 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$injector = $injector->share( $shared_instance );
 		}
 
-		foreach ( $delegations as $class => $callable ) {
+		foreach ( $delegations as $class_name => $delegation ) {
 			// We don't try to resolve the $callable here, as we want to pass it
 			// on as-is.
-			$class = $this->maybe_resolve( $class );
+			$class_name = $this->maybe_resolve( $class_name );
 
-			$injector = $injector->delegate( $class, $callable );
+			$injector = $injector->delegate( $class_name, $delegation );
 		}
 
 		return $injector;
