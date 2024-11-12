@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
+use MWPD\BasicScaffold\Exception\InvalidArgument;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService;
 
@@ -182,16 +183,25 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$id         = $this->maybe_resolve( $id );
 			$class_name = $this->maybe_resolve( $class_name );
 
+			if ( ! is_string( $id ) ) {
+				throw InvalidService::from_invalid_identifier( $id );
+			}
+
+			if ( ! is_string( $class_name ) ) {
+				throw InvalidService::from_invalid_class_name( $class_name );
+			}
+
+			/**
+			 * The class name is guaranteed to be a string at this point.
+			 *
+			 * @var class-string $class_name
+			 */
+
 			// Allow the services to delay their registration.
 			if ( is_a( $class_name, Delayed::class, true ) ) {
 				$registration_action = $class_name::get_registration_action();
-				/**
-				 * The class name will still be a string here, not a Delayed object.
-				 *
-				 * @var string $class_name
-				 */
 
-				if ( did_action( $registration_action ) ) {
+				if ( \did_action( $registration_action ) ) {
 					$this->register_service( $id, $class_name );
 
 					continue;
@@ -290,6 +300,8 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *
 	 * @param Injector $injector Injector instance to configure.
 	 * @return Injector Configured injector instance.
+	 * @throws InvalidArgument If an argument is not recognized.
+	 * @throws InvalidService If the injector configuration is invalid.
 	 */
 	protected function configure_injector( Injector $injector ): Injector {
 		$bindings         = $this->get_bindings();
@@ -361,16 +373,32 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$from = $this->maybe_resolve( $from );
 			$to   = $this->maybe_resolve( $to );
 
+			if ( ! is_string( $from ) ) {
+				throw InvalidService::from_invalid_identifier( $from );
+			}
+
+			if ( ! is_string( $to ) ) {
+				throw InvalidService::from_invalid_identifier( $to );
+			}
+
 			$injector = $injector->bind( $from, $to );
 		}
 
 		foreach ( $arguments as $class_name => $argument_map ) {
 			$class_name = $this->maybe_resolve( $class_name );
 
+			if ( ! is_string( $class_name ) ) {
+				throw InvalidService::from_invalid_identifier( $class_name );
+			}
+
 			foreach ( $argument_map as $name => $value ) {
 				// We don't try to resolve the $value here, as we might want to
 				// pass a callable as-is.
 				$name = $this->maybe_resolve( $name );
+
+				if ( ! is_string( $name ) ) {
+					throw InvalidArgument::from_name( $name );
+				}
 
 				$injector = $injector->bind_argument( $class_name, $name, $value );
 			}
@@ -379,6 +407,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 		foreach ( $shared_instances as $shared_instance ) {
 			$shared_instance = $this->maybe_resolve( $shared_instance );
 
+			if ( ! is_string( $shared_instance ) ) {
+				throw InvalidService::from_invalid_identifier( $shared_instance );
+			}
+
 			$injector = $injector->share( $shared_instance );
 		}
 
@@ -386,6 +418,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			// We don't try to resolve the $callable here, as we want to pass it
 			// on as-is.
 			$class_name = $this->maybe_resolve( $class_name );
+
+			if ( ! is_string( $class_name ) ) {
+				throw InvalidService::from_invalid_identifier( $class_name );
+			}
 
 			$injector = $injector->delegate( $class_name, $delegation );
 		}

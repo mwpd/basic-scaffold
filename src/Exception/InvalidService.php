@@ -20,6 +20,7 @@ use InvalidArgumentException;
  */
 final class InvalidService extends InvalidArgumentException implements BasicScaffoldException {
 
+	use Stringify;
 
 	/**
 	 * Create a new instance of the exception for a service class name that is
@@ -54,6 +55,36 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 		$message = \sprintf(
 			'The service ID "%s" is not recognized and cannot be retrieved.',
 			$service_id
+		);
+
+		return new self( $message );
+	}
+
+	/**
+	 * Create a new instance of the exception for an invalid class name.
+	 *
+	 * @param mixed $class_name Class name that is not a string.
+	 * @return static
+	 */
+	public static function from_invalid_class_name( $class_name ) {
+		$message = \sprintf(
+			'The class name "%s" is not a string and cannot be registered as a service.',
+			self::stringify( $class_name )
+		);
+
+		return new self( $message );
+	}
+
+	/**
+	 * Create a new instance of the exception for an invalid identifier.
+	 *
+	 * @param mixed $identifier Identifier that is not a string.
+	 * @return static
+	 */
+	public static function from_invalid_identifier( $identifier ) {
+		$message = \sprintf(
+			'The identifier "%s" is not a string and cannot be registered as a service.',
+			self::stringify( $identifier )
 		);
 
 		return new self( $message );

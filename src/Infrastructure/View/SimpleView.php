@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
+use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
@@ -224,11 +225,9 @@ class SimpleView extends stdClass implements View {
 	public function __get( string $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
 			$value = $this->_context_[ $property ];
-			try {
-				return $this->escape( (string) $this->_context_[ $property ] );
-			} catch ( Throwable $exception ) {
-				// Value could not be converted to string, so just return as-is.
-				return $value;
+
+			if ( $this->is_stringable( $value ) ) {
+				return $this->escape( $value );
 			}
 		}
 
@@ -250,9 +249,19 @@ class SimpleView extends stdClass implements View {
 	 *
 	 * @param mixed $value Value to escape.
 	 * @return string Escaped value.
+	 * @throws FailedToEscapeValue If the value could not be escaped.
 	 */
 	protected function escape( $value ): string {
-		return htmlspecialchars( (string) $value, ENT_COMPAT, 'UTF-8' );
+		if ( is_object( $value ) && method_exists( $value, '__toString' ) ) {
+			$value = (string) $value;
+		}
+		if ( is_scalar( $value ) ) {
+			$value = (string) $value;
+		}
+		if ( ! is_string( $value ) ) {
+			throw FailedToEscapeValue::from_value( $value );
+		}
+		return htmlspecialchars( $value, ENT_COMPAT, 'UTF-8' );
 	}
 
 	/**
@@ -262,5 +271,16 @@ class SimpleView extends stdClass implements View {
 	 */
 	protected function is_debug_mode(): bool {
 		return $this->debug_mode->is_debug_mode();
+	}
+
+	/**
+	 * Check if a value is stringable.
+	 *
+	 * @param mixed $value Value to check.
+	 * @return bool Whether the value is stringable.
+	 */
+	protected function is_stringable( $value ): bool {
+		return is_scalar( $value )
+			|| ( is_object( $value ) && method_exists( $value, '__toString' ) );
 	}
 }

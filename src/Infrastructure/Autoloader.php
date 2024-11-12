@@ -22,6 +22,15 @@ use Exception;
  *
  * WordPress being far from ideal, though, it makes sense to include this for
  * the average plugin.
+ *
+ * @phpstan-type AutoloaderNamespace array{
+ *     root: string,
+ *     base_dir: string,
+ *     prefix: string,
+ *     suffix: string,
+ *     lowercase: bool,
+ *     underscores: bool,
+ * }
  */
 final class Autoloader {
 
@@ -42,7 +51,7 @@ final class Autoloader {
 	/**
 	 * Array containing the registered namespace structures.
 	 *
-	 * @var array<array<string, mixed>>
+	 * @var array<int, AutoloaderNamespace>
 	 */
 	private $namespaces = [];
 
@@ -125,13 +134,13 @@ final class Autoloader {
 		foreach ( $this->namespaces as $namespace ) {
 
 			// Move on if the object does not belong to the current namespace.
-			if ( 0 !== \strpos( $class_string, (string) $namespace[ self::ROOT ] ) ) {
+			if ( 0 !== \strpos( $class_string, $namespace[ self::ROOT ] ) ) {
 				continue;
 			}
 
 			// Remove namespace root level to correspond with root filesystem.
 			$filename = \str_replace(
-				(string) $namespace[ self::ROOT ],
+				$namespace[ self::ROOT ],
 				'',
 				$class_string
 			);
