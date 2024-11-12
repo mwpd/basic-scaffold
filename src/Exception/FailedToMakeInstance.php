@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,13 +9,16 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
 
-final class FailedToMakeInstance
-	extends RuntimeException
-	implements BasicScaffoldException {
+/**
+ * Exception thrown when a class instance cannot be made.
+ */
+final class FailedToMakeInstance extends RuntimeException implements BasicScaffoldException {
 
 	// These constants are public so you can use them to find out what exactly
 	// happened when you catch a "FailedToMakeInstance" exception.
@@ -42,24 +44,24 @@ final class FailedToMakeInstance
 			$interface_or_class
 		);
 
-		return new static( $message, static::CIRCULAR_REFERENCE );
+		return new self( $message, self::CIRCULAR_REFERENCE );
 	}
 
 	/**
 	 * Create a new instance of the exception for an interface that could not
 	 * be resolved to an instantiable class.
 	 *
-	 * @param string $interface Interface that was left unresolved.
+	 * @param string $interface_name Interface that was left unresolved.
 	 *
 	 * @return static
 	 */
-	public static function for_unresolved_interface( string $interface ) {
+	public static function for_unresolved_interface( string $interface_name ) {
 		$message = \sprintf(
 			'Could not resolve the interface "%s" to an instantiable class, probably forgot to bind an implementation.',
-			$interface
+			$interface_name
 		);
 
-		return new static( $message, static::UNRESOLVED_INTERFACE );
+		return new self( $message, self::UNRESOLVED_INTERFACE );
 	}
 
 	/**
@@ -77,7 +79,7 @@ final class FailedToMakeInstance
 			$interface_or_class
 		);
 
-		return new static( $message, static::UNREFLECTABLE_CLASS );
+		return new self( $message, self::UNREFLECTABLE_CLASS );
 	}
 
 	/**
@@ -86,51 +88,51 @@ final class FailedToMakeInstance
 	 *
 	 * @param string $argument_name Name of the argument that could not be
 	 *                              resolved.
-	 * @param string $class         Class that had the argument in its
+	 * @param string $class_name         Class that had the argument in its
 	 *                              constructor.
 	 * @return static
 	 */
-	public static function for_unresolved_argument( string $argument_name, string $class ) {
+	public static function for_unresolved_argument( string $argument_name, string $class_name ) {
 		$message = \sprintf(
 			'Could not resolve the argument "%s" while trying to instantiate the class "%s".',
 			$argument_name,
-			$class
+			$class_name
 		);
 
-		return new static( $message, static::UNRESOLVED_ARGUMENT );
+		return new self( $message, self::UNRESOLVED_ARGUMENT );
 	}
 
 	/**
 	 * Create a new instance of the exception for a class that was meant to be
 	 * reused but was not yet instantiated.
 	 *
-	 * @param string $class Class that was not yet instantiated.
+	 * @param string $class_name Class that was not yet instantiated.
 	 *
 	 * @return static
 	 */
-	public static function for_uninstantiated_shared_instance( string $class ) {
+	public static function for_uninstantiated_shared_instance( string $class_name ) {
 		$message = \sprintf(
 			'Could not retrieve the shared instance for "%s" as it was not instantiated yet.',
-			$class
+			$class_name
 		);
 
-		return new static( $message, static::UNINSTANTIATED_SHARED_INSTANCE );
+		return new self( $message, self::UNINSTANTIATED_SHARED_INSTANCE );
 	}
 
 	/**
 	 * Create a new instance of the exception for a delegate that was requested
 	 * for a class that doesn't have one.
 	 *
-	 * @param string $class Class for which there is no delegate.
+	 * @param string $class_name Class for which there is no delegate.
 	 *
 	 * @return static
 	 */
-	public static function for_invalid_delegate( string $class ) {
+	public static function for_invalid_delegate( string $class_name ) {
 		$message = \sprintf(
 			'Could not retrieve a delegate for "%s", none was defined.',
-			$class
+			$class_name
 		);
 
-		return new static( $message, static::INVALID_DELEGATE );
+		return new self( $message, self::INVALID_DELEGATE );
 	}
 }

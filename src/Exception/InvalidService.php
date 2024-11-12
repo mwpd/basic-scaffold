@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,13 +9,17 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Exception;
 
 use InvalidArgumentException;
 
-final class InvalidService
-	extends InvalidArgumentException
-	implements BasicScaffoldException {
+/**
+ * Exception thrown when a service is invalid.
+ */
+final class InvalidService extends InvalidArgumentException implements BasicScaffoldException {
+
 
 	/**
 	 * Create a new instance of the exception for a service class name that is
@@ -35,7 +38,7 @@ final class InvalidService
 				: (string) $service
 		);
 
-		return new static( $message );
+		return new self( $message );
 	}
 
 	/**
@@ -53,6 +56,6 @@ final class InvalidService
 			$service_id
 		);
 
-		return new static( $message );
+		return new self( $message );
 	}
 }

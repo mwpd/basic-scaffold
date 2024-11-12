@@ -9,7 +9,9 @@
             "email": "alain.schlesser@gmail.com"
         }
     ],
-    "require": {},
+    "require": {
+        "php": "^7.4 || ^8.0 || ^9.0"
+    },
     "require-dev": {
         "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
         "phpstan/phpstan": "^1.10",
@@ -17,7 +19,11 @@
         "yoast/phpunit-polyfills": "^2.0",
         "wp-phpunit/wp-phpunit": "^6.0",
         "szepeviktor/phpstan-wordpress": "^1.3",
-        "php-stubs/wordpress-stubs": "^6.2"
+        "php-stubs/wordpress-stubs": "^6.2",
+        "squizlabs/php_codesniffer": "^3.7",
+        "wp-coding-standards/wpcs": "^3.0",
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpcompatibility/php-compatibility": "^9.3"
     },
     "autoload": {
         "psr-4": {
@@ -38,6 +44,17 @@
         "analyze": [
             "@phpstan",
             "@psalm"
+        ],
+        "phpcs": "phpcs",
+        "phpcs:fix": "phpcbf",
+        "lint": [
+            "@phpcs",
+            "@analyze"
         ]
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
     }
 }

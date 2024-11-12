@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<ruleset name="MWPD Basic Scaffold">
+    <description>Custom coding standards for MWPD Basic Scaffold</description>
+
+    <!-- What to scan -->
+    <file>src</file>
+    <file>tests</file>
+
+    <!-- Exclude patterns -->
+    <exclude-pattern>/vendor/*</exclude-pattern>
+    <exclude-pattern>/node_modules/*</exclude-pattern>
+
+    <!-- How to scan -->
+    <arg value="sp"/> <!-- Show sniff and progress -->
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+    <arg name="parallel" value="8"/>
+
+    <!-- Rules: WordPress Coding Standards -->
+    <config name="minimum_supported_wp_version" value="6.0"/>
+    <rule ref="WordPress">
+        <!-- Allow modern array syntax -->
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+        
+        <!-- Allow short ternary operator -->
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+        
+        <!-- Allow PSR-4 class names -->
+        <exclude name="WordPress.Files.FileName"/>
+        
+        <!-- Allow proper case for class names -->
+        <exclude name="PEAR.NamingConventions.ValidClassName"/>
+
+        <!-- Allow exceptions not escaped -->
+        <exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped"/>
+
+        <!-- Allow short ternary operator -->
+        <exclude name="Universal.Operators.DisallowShortTernary"/>
+
+        <!-- Allow underscore prefix for the _context_ property -->
+        <exclude name="PSR2.Classes.PropertyDeclaration.Underscore"/>
+    </rule>
+
+    <!-- Rules: PHP version compatibility -->
+    <config name="testVersion" value="7.4-"/>
+    <rule ref="PHPCompatibility"/>
+
+    <!-- Rules: Customizations -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+    <rule ref="Generic.Formatting.SpaceAfterCast"/>
+    
+    <!-- Allow short array syntax -->
+    <rule ref="Generic.Arrays.DisallowShortArraySyntax.Found">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Enforce PSR-4 style class names -->
+    <rule ref="Squiz.Classes.ValidClassName">
+        <severity>5</severity>
+    </rule>
+
+    <!-- Set line length -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="0"/>
+        </properties>
+    </rule>
+
+    <!-- Enforce proper docblock alignment -->
+    <rule ref="Squiz.Commenting.DocCommentAlignment"/>
+
+    <!-- Verify that all class properties have their visibility declared -->
+    <rule ref="PSR2.Classes.PropertyDeclaration"/>
+
+    <!-- Mark the View::render() method as an escaping function
+         Note: This does NOT work yet, waiting for
+         https://github.com/WordPress/WordPress-Coding-Standards/pull/2370
+         to be merged. -->
+    <rule ref="WordPress.Security.EscapeOutput">
+        <properties>
+            <property name="customAutoEscapedFunctions" type="array">
+                <element value="MWPD\BasicScaffold\View::render"/>
+            </property>
+        </properties>
+    </rule>
+    
+    <!-- Customize rules for test files -->
+    <rule ref="Squiz.Commenting.FunctionComment">
+        <exclude-pattern>/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.Commenting.FileComment">
+        <exclude-pattern>/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.Commenting.ClassComment">
+        <exclude-pattern>/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="Generic.Commenting.DocComment">
+        <exclude-pattern>/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.Files.FileName">
+        <exclude-pattern>/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.Security.EscapeOutput">
+        <exclude-pattern>/tests/php/Fixture/views/*</exclude-pattern>
+    </rule>
+    <rule ref="Internal.NoCodeFound">
+        <exclude-pattern>/tests/php/Fixture/views/*</exclude-pattern>
+    </rule>
+    <rule ref="Generic.PHP.Syntax">
+        <exclude-pattern>/tests/php/Fixture/views/*</exclude-pattern>
+    </rule>
+</ruleset> 

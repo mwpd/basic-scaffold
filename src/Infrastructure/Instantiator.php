@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -23,9 +24,9 @@ interface Instantiator {
 	/**
 	 * Make an object instance out of an interface or class.
 	 *
-	 * @param string $class        Class to make an object instance out of.
+	 * @param string $class_name   Class to make an object instance out of.
 	 * @param array  $dependencies Optional. Dependencies of the class.
 	 * @return object Instantiated object.
 	 */
-	public function instantiate( string $class, array $dependencies = [] ): object;
+	public function instantiate( string $class_name, array $dependencies = [] ): object;
 }

@@ -1,4 +1,5 @@
 <?php
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Unit;
 
@@ -54,11 +55,13 @@ final class TemplatedViewTest extends TestCase {
 			->expects( $this->once() )
 			->method( 'create' )
 			->with( 'partial' )
-			->willReturn( new TemplatedView(
-				'partial',
-				$view_factory_mock,
-				ViewHelper::LOCATIONS
-			) );
+			->willReturn(
+				new TemplatedView(
+					'partial',
+					$view_factory_mock,
+					ViewHelper::LOCATIONS
+				)
+			);
 
 		$view = new TemplatedView(
 			'view-with-partial',

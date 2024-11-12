@@ -1,9 +1,8 @@
-<?php declare( strict_types=1 );
-
+<?php
 use MWPD\BasicScaffold\Infrastructure\View;
 
 /**
  * @var View $this
  */
 ?>
-partial C from child theme - <?= $this->render_partial( 'partial-d' ) ?>
+partial C from child theme - <?php echo $this->render_partial( 'partial-d' ); ?>

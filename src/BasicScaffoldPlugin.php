@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 
@@ -26,10 +27,11 @@ use MWPD\BasicScaffold\Infrastructure\{
  * can hook themselves into the WordPress lifecycle.
  */
 final class BasicScaffoldPlugin extends ServiceBasedPlugin {
-
-	/*--------------------------------------------------------------------------
-	 *-- 1. Define the services that make up this plugin.                     --
-	 *------------------------------------------------------------------------*/
+	/*
+	 * --------------------------------------------------------------------------
+	 * -- 1. Define the services that make up this plugin.                     --
+	 * --------------------------------------------------------------------------
+	 */
 
 	/*
 	 * The "plugin" is only a tool to hook arbitrary code up to the WordPress
@@ -58,9 +60,11 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 		];
 	}
 
-	/*--------------------------------------------------------------------------
-	 *-- 2. Configure the injector so it knows how to assemble them.          --
-	 *------------------------------------------------------------------------*/
+	/*
+	 * --------------------------------------------------------------------------
+	 * -- 2. Configure the injector so it knows how to assemble them.          --
+	 * --------------------------------------------------------------------------
+	 */
 
 	/**
 	 * Get the bindings for the dependency injector.
@@ -98,8 +102,11 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected function get_arguments(): array {
 		return [
-			// Example - add a scalar value to an argument for SampleService:
-			// SampleService::class => [ 'argument_name' => 'value' ],
+
+			/*
+			 * Example - add a scalar value to an argument for SampleService:
+			 * SampleService::class => [ 'argument_name' => 'value' ],
+			 */
 
 			// Add your argument mappings here.
 		];
@@ -119,8 +126,11 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected function get_shared_instances(): array {
 		return [
-			// Example - make SampleService be shared amongst instantiations:
-			// SampleService::class
+
+			/*
+			 * Example - make SampleService be shared amongst instantiations:
+			 * SampleService::class,
+			 */
 
 			// Add your shared instances here.
 		];
@@ -139,16 +149,22 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected function get_delegations(): array {
 		return [
-			// Add a factory for instantiating WP_Post objects:
-			\WP_Post::class => function () { return \get_post( \get_the_ID() ); }
+
+			/*
+			 * Add a factory for instantiating WP_Post objects:
+			 * \WP_Post::class => function () {
+			 *     return \get_post( \get_the_ID() ); },
+			 */
 
 			// Add your delegations here.
 		];
 	}
 
-	/*--------------------------------------------------------------------------
-	 *-- 3. Define prefixes and identifiers for outside access.               --
-	 *------------------------------------------------------------------------*/
+	/*
+	 * --------------------------------------------------------------------------
+	 * -- 3. Define prefixes and identifiers for outside access.               --
+	 * --------------------------------------------------------------------------
+	 */
 
 	/*
 	 * Prefixes to use.

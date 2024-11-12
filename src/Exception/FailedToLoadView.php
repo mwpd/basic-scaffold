@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,14 +9,17 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
 use Throwable;
 
-final class FailedToLoadView
-	extends RuntimeException
-	implements BasicScaffoldException {
+/**
+ * Exception thrown when a view file cannot be loaded.
+ */
+final class FailedToLoadView extends RuntimeException implements BasicScaffoldException {
 
 	/**
 	 * Create a new instance of the exception if the view file itself created
@@ -36,6 +38,6 @@ final class FailedToLoadView
 			$exception->getMessage()
 		);
 
-		return new static( $message, (int) $exception->getCode(), $exception );
+		return new self( $message, (int) $exception->getCode(), $exception );
 	}
 }

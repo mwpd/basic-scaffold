@@ -1,7 +1,6 @@
-<?php declare( strict_types=1 );
-
+<?php
 use MWPD\BasicScaffold\Infrastructure\View;
 
 /** @var View $this */
 ?>
-<span><?= $this->some_value ?></span>
+<span><?php echo $this->some_value; ?></span>

@@ -1,5 +1,4 @@
-<?php declare(strict_types=1);
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\Service;
 
@@ -20,10 +21,10 @@ namespace MWPD\BasicScaffold\Infrastructure\Service;
  */
 interface DebugMode {
 
-    /**
-     * Check if the application is in debug mode.
-     *
-     * @return bool True if debug mode is active, false otherwise.
-     */
-    public function is_debug_mode(): bool;
-} 
+	/**
+	 * Check if the application is in debug mode.
+	 *
+	 * @return bool True if debug mode is active, false otherwise.
+	 */
+	public function is_debug_mode(): bool;
+}

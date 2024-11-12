@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -38,13 +39,25 @@ abstract class ServiceBasedPlugin implements Plugin {
 	protected const HOOK_PREFIX    = '';
 	protected const SERVICE_PREFIX = '';
 
-	/** @var bool */
+	/**
+	 * Whether to enable filtering of the injector configuration.
+	 *
+	 * @var bool
+	 */
 	protected $enable_filters;
 
-	/** @var Injector */
+	/**
+	 * Injector instance.
+	 *
+	 * @var Injector
+	 */
 	protected $injector;
 
-	/** @var ServiceContainer */
+	/**
+	 * Service container instance.
+	 *
+	 * @var ServiceContainer
+	 */
 	protected $service_container;
 
 	/**
@@ -165,48 +178,48 @@ abstract class ServiceBasedPlugin implements Plugin {
 			);
 		}
 
-		foreach ( $services as $id => $class ) {
-			$id    = $this->maybe_resolve( $id );
-			$class = $this->maybe_resolve( $class );
+		foreach ( $services as $id => $class_name ) {
+			$id         = $this->maybe_resolve( $id );
+			$class_name = $this->maybe_resolve( $class_name );
 
-			// Allow the services to delay their registration
-			if ( is_a( $class, Delayed::class, true ) ) {
-				$registration_action = $class::get_registration_action();
+			// Allow the services to delay their registration.
+			if ( is_a( $class_name, Delayed::class, true ) ) {
+				$registration_action = $class_name::get_registration_action();
 
 				if ( did_action( $registration_action ) ) {
-					$this->register_service( $id, $class );
+					$this->register_service( $id, $class_name );
 
 					continue;
 				}
 
 				\add_action(
-					$class::get_registration_action(),
-					function () use ( $id, $class ) {
-						$this->register_service( $id, $class );
+					$class_name::get_registration_action(),
+					function () use ( $id, $class_name ) {
+						$this->register_service( $id, $class_name );
 					}
 				);
 
 				continue;
 			}
 
-			$this->register_service( $id, $class );
+			$this->register_service( $id, $class_name );
 		}
 	}
 
 	/**
 	 * Register a single service.
 	 *
-	 * @param string $id
-	 * @param string $class
+	 * @param string $id         Identifier of the service.
+	 * @param string $class_name Class name of the service.
 	 */
-	protected function register_service( string $id, string $class ): void {
+	protected function register_service( string $id, string $class_name ): void {
 		// Only instantiate services that are actually needed.
-		if ( is_a( $class, Conditional::class, true )
-		     && ! $class::is_needed() ) {
+		if ( is_a( $class_name, Conditional::class, true )
+			&& ! $class_name::is_needed() ) {
 			return;
 		}
 
-		$service = $this->instantiate_service( $class );
+		$service = $this->instantiate_service( $class_name );
 
 		$this->service_container->put( $id, $service );
 
@@ -228,13 +241,13 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Instantiate a single service.
 	 *
-	 * @param string $class Service class to instantiate.
+	 * @param string $class_name Service class to instantiate.
 	 *
 	 * @throws InvalidService If the service could not be properly instantiated.
 	 *
 	 * @return Service Instantiated service.
 	 */
-	protected function instantiate_service( $class ): Service {
+	protected function instantiate_service( $class_name ): Service {
 		/*
 		 * If the service is not registerable, we default to lazily instantiated
 		 * services here for some basic optimization.
@@ -242,16 +255,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 * The services will be properly instantiated once they are retrieved
 		 * from the service container.
 		 */
-		if ( ! is_a( $class, Registerable::class, true ) ) {
+		if ( ! is_a( $class_name, Registerable::class, true ) ) {
 			return new LazilyInstantiatedService(
-				function () use ( $class ): object {
-					return $this->injector->make( $class );
+				function () use ( $class_name ): object {
+					return $this->injector->make( $class_name );
 				}
 			);
 		}
 
 		// The service needs to be registered, so instantiate right away.
-		$service = $this->injector->make( $class );
+		$service = $this->injector->make( $class_name );
 
 		if ( ! $service instanceof Service ) {
 			throw InvalidService::from_service( $service );

@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
@@ -26,6 +27,7 @@ use Throwable;
  * A simplified implementation of a renderable view object.
  *
  * This extends stdClass to get around a deprecation notice in PHP 8.2.
+ *
  * @see https://php.watch/versions/8.2/dynamic-properties-deprecated#stdClass
  */
 class SimpleView extends stdClass implements View {
@@ -49,10 +51,18 @@ class SimpleView extends stdClass implements View {
 	 */
 	protected $_context_ = [];
 
-	/** @var ViewFactory */
+	/**
+	 * View factory instance to use.
+	 *
+	 * @var ViewFactory
+	 */
 	protected $view_factory;
 
-	/** @var DebugMode */
+	/**
+	 * Debug mode instance to use.
+	 *
+	 * @var DebugMode
+	 */
 	private $debug_mode;
 
 	/**
@@ -122,7 +132,7 @@ class SimpleView extends stdClass implements View {
 	 */
 	public function render_partial( string $path, array $context = null ): string {
 		return $this->view_factory->create( $path )
-		                          ->render( $context ?: $this->_context_ );
+									->render( $context ?: $this->_context_ );
 	}
 
 	/**
@@ -134,6 +144,7 @@ class SimpleView extends stdClass implements View {
 	 *
 	 * @param string $property Property for which to return the raw value.
 	 * @return mixed Raw context property value.
+	 * @throws InvalidContextProperty If the property does not exist (in debug mode).
 	 */
 	public function raw( $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
@@ -208,6 +219,7 @@ class SimpleView extends stdClass implements View {
 	 *
 	 * @param string $property Property for which to return the escaped value.
 	 * @return string Escaped context property value.
+	 * @throws InvalidContextProperty If the property does not exist (in debug mode).
 	 */
 	public function __get( string $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {

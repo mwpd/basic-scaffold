@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 
@@ -21,7 +22,11 @@ use MWPD\BasicScaffold\Infrastructure\Service;
  */
 final class LazilyInstantiatedService implements Service {
 
-	/** @var callable */
+	/**
+	 * Instantiation callable.
+	 *
+	 * @var callable
+	 */
 	private $instantiation;
 
 	/**

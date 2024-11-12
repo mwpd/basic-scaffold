@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 
@@ -25,9 +26,7 @@ use ArrayObject;
  *
  * @extends ArrayObject<string, Service>
  */
-final class SimpleServiceContainer
-	extends ArrayObject
-	implements ServiceContainer {
+final class SimpleServiceContainer extends ArrayObject implements ServiceContainer {
 
 	/**
 	 * Find a service of the container by its identifier and return it.

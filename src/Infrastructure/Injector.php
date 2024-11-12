@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -85,8 +86,8 @@ interface Injector extends Service {
 	 *
 	 * @param string   $interface_or_class Interface or class to delegate the
 	 *                                     instantiation of.
-	 * @param callable $callable           Callable to use for instantiation.
+	 * @param callable $delegation         Callable to use for instantiation.
 	 * @return Injector
 	 */
-	public function delegate( string $interface_or_class, callable $callable ): Injector;
+	public function delegate( string $interface_or_class, callable $delegation ): Injector;
 }

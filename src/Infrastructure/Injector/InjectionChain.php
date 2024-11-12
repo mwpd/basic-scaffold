@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\Injector;
 
@@ -23,20 +24,28 @@ use LogicException;
  */
 final class InjectionChain {
 
-	/** @var array<string> */
+	/**
+	 * Chain of injections.
+	 *
+	 * @var array<string>
+	 */
 	private $chain = [];
 
-	/** @var array<bool> */
+	/**
+	 * Resolutions.
+	 *
+	 * @var array<bool>
+	 */
 	private $resolutions = [];
 
 	/**
 	 * Add class to injection chain.
 	 *
-	 * @param string $class Class to add to injection chain.
+	 * @param string $class_name Class to add to injection chain.
 	 * @return self Modified injection chain.
 	 */
-	public function add_to_chain( string $class ): self {
-		$this->chain[] = $class;
+	public function add_to_chain( string $class_name ): self {
+		$this->chain[] = $class_name;
 
 		return $this;
 	}
@@ -57,6 +66,7 @@ final class InjectionChain {
 	 * Get the last class that was pushed to the injection chain.
 	 *
 	 * @return string Last class pushed to the injection chain.
+	 * @throws LogicException If the chain is empty.
 	 */
 	public function get_class(): string {
 		if ( empty( $this->chain ) ) {
@@ -80,7 +90,7 @@ final class InjectionChain {
 	/**
 	 * Check whether the injection chain already has a given resolution.
 	 *
-	 * @param string $resolution Resolution to check for
+	 * @param string $resolution Resolution to check for.
 	 * @return bool Whether the resolution was found.
 	 */
 	public function has_resolution( string $resolution ): bool {

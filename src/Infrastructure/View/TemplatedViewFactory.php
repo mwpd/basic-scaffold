@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
@@ -27,7 +28,11 @@ use MWPD\BasicScaffold\Infrastructure\ViewFactory;
  */
 final class TemplatedViewFactory implements Service, ViewFactory {
 
-	/** @var array<string> */
+	/**
+	 * Array of locations to use.
+	 *
+	 * @var array<string>
+	 */
 	private $locations;
 
 	/**
@@ -69,7 +74,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 			// on WordPress being loaded here.
 			// This makes the code more flexible and testing easier.
 			$default_locations = ( function_exists( 'get_stylesheet_directory' )
-			                       && function_exists( 'get_template_directory' ) )
+									&& function_exists( 'get_template_directory' ) )
 				? [
 					\get_stylesheet_directory(),
 					\get_template_directory(),

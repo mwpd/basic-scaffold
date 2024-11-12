@@ -1,7 +1,6 @@
-<?php declare( strict_types=1 );
-
+<?php
 use MWPD\BasicScaffold\Infrastructure\View;
 
 /** @var View $this */
 ?>
-partial A from plugin - <?= $this->render_partial( 'partial-b' ) ?>
+partial A from plugin - <?php echo $this->render_partial( 'partial-b' ); ?>

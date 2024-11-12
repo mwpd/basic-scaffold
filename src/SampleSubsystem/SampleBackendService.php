@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\SampleSubsystem;
 
@@ -31,7 +32,11 @@ use MWPD\BasicScaffold\Infrastructure\{
  */
 final class SampleBackendService implements Service, Registerable, Conditional {
 
-	/** @var ViewFactory */
+	/**
+	 * View factory.
+	 *
+	 * @var ViewFactory
+	 */
 	private $view_factory;
 
 	/**
@@ -85,7 +90,7 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.
 		 */
-		echo $this->view_factory->create( 'views/test-backend-service' )
-		                        ->render( [ 'plugin' => 'MWPD Boilerplate' ] );
+		echo $this->view_factory->create( 'views/test-backend-service' ) // phpcs:ignore WordPress.Security.EscapeOutput,Generic.Files.LineLength
+								->render( [ 'plugin' => 'MWPD Boilerplate' ] );
 	}
 }

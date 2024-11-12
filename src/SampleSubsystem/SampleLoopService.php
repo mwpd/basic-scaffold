@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\SampleSubsystem;
 
@@ -21,6 +22,9 @@ use MWPD\BasicScaffold\Infrastructure\{
 };
 use WP_Post;
 
+/**
+ * Sample loop service.
+ */
 final class SampleLoopService implements Service, Registerable, Conditional, Delayed {
 
 	/**
@@ -29,10 +33,18 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	 */
 	private const REGISTRATION_HOOK = 'wp';
 
-	/** @var ViewFactory */
+	/**
+	 * View factory.
+	 *
+	 * @var ViewFactory
+	 */
 	private $view_factory;
 
-	/** @var WP_Post */
+	/**
+	 * Post.
+	 *
+	 *  @var WP_Post
+	 */
 	private $post;
 
 	/**
@@ -110,7 +122,7 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		 * now easy to create a new view and render it.
 		 */
 		$post_header = $this->view_factory->create( 'views/test-loop-service' )
-		                                  ->render( [ 'post' => $this->post ] );
+											->render( [ 'post' => $this->post ] );
 
 		return $post_header . $content;
 	}

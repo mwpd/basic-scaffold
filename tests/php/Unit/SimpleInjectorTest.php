@@ -1,4 +1,5 @@
 <?php
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Unit;
 
@@ -44,7 +45,7 @@ final class SimpleInjectorTest extends TestCase {
 				Fixture\DummyInterface::class,
 				Fixture\DummyClassWithDependency::class
 			);
-		$object = $injector->make( Fixture\DummyInterface::class );
+		$object   = $injector->make( Fixture\DummyInterface::class );
 
 		$this->assertInstanceOf( Fixture\DummyInterface::class, $object );
 		$this->assertInstanceOf( Fixture\DummyClassWithDependency::class, $object );
@@ -72,7 +73,10 @@ final class SimpleInjectorTest extends TestCase {
 		$object = ( new SimpleInjector() )
 			->make(
 				Fixture\DummyClassWithNamedArguments::class,
-				[ 'argument_a' => 42, 'argument_b' => 'Mr Alderson' ]
+				[
+					'argument_a' => 42,
+					'argument_b' => 'Mr Alderson',
+				]
 			);
 
 		$this->assertInstanceOf( Fixture\DummyClassWithNamedArguments::class, $object );
@@ -115,13 +119,13 @@ final class SimpleInjectorTest extends TestCase {
 		$injector = ( new SimpleInjector() )
 			->delegate(
 				Fixture\DummyInterface::class,
-				function ( string $class ) {
-					$object = new stdClass();
-					$object->class_name = $class;
+				function ( string $class_name ) {
+					$object             = new stdClass();
+					$object->class_name = $class_name;
 					return $object;
 				}
 			);
-		$object = $injector->make( Fixture\DummyInterface::class );
+		$object   = $injector->make( Fixture\DummyInterface::class );
 
 		$this->assertInstanceOf( stdClass::class, $object );
 		$this->assertObjectHasProperty( 'class_name', $object );
@@ -136,13 +140,13 @@ final class SimpleInjectorTest extends TestCase {
 			)
 			->delegate(
 				Fixture\DummyClassWithDependency::class,
-				function ( string $class ) {
-					$object = new stdClass();
-					$object->class_name = $class;
+				function ( string $class_name ) {
+					$object             = new stdClass();
+					$object->class_name = $class_name;
 					return $object;
 				}
 			);
-		$object = $injector->make( Fixture\DummyInterface::class );
+		$object   = $injector->make( Fixture\DummyInterface::class );
 
 		$this->assertInstanceOf( stdClass::class, $object );
 		$this->assertObjectHasProperty( 'class_name', $object );
@@ -169,15 +173,15 @@ final class SimpleInjectorTest extends TestCase {
 	}
 
 	public function test_it_can_use_custom_instantiator(): void {
-		$mockInstantiator = $this->createMock(Instantiator::class);
-		$mockInstantiator->expects($this->once())
-			->method('instantiate')
-			->with(Fixture\DummyClass::class, [])
-			->willReturn(new Fixture\DummyClass());
+		$mock_instantiator = $this->createMock( Instantiator::class );
+		$mock_instantiator->expects( $this->once() )
+			->method( 'instantiate' )
+			->with( Fixture\DummyClass::class, [] )
+			->willReturn( new Fixture\DummyClass() );
 
-		$injector = new SimpleInjector($mockInstantiator);
-		$instance = $injector->make(Fixture\DummyClass::class);
+		$injector = new SimpleInjector( $mock_instantiator );
+		$instance = $injector->make( Fixture\DummyClass::class );
 
-		$this->assertInstanceOf(Fixture\DummyClass::class, $instance);
+		$this->assertInstanceOf( Fixture\DummyClass::class, $instance );
 	}
 }

@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\Injector;
 
@@ -32,21 +33,41 @@ final class SimpleInjector implements Injector {
 	 */
 	public const GLOBAL_ARGUMENTS = '__global__';
 
-	/** @var array<string> */
+	/**
+	 * Mapping of interfaces to classes.
+	 *
+	 * @var array<string>
+	 */
 	private $mappings = [];
 
-	/** @var array<object|null> */
+	/**
+	 * Mapping of shared instances.
+	 *
+	 * @var array<object|null>
+	 */
 	private $shared_instances = [];
 
-	/** @var array<callable> */
+	/**
+	 * Mapping of delegates.
+	 *
+	 * @var array<callable>
+	 */
 	private $delegates = [];
 
-	/** @var array[] */
+	/**
+	 * Mapping of argument names to values.
+	 *
+	 * @var array<array<string, mixed>>
+	 */
 	private $argument_mappings = [
 		self::GLOBAL_ARGUMENTS => [],
 	];
 
-	/** @var Instantiator */
+	/**
+	 * Instantiator to use.
+	 *
+	 * @var Instantiator
+	 */
 	private $instantiator;
 
 	/**
@@ -82,7 +103,7 @@ final class SimpleInjector implements Injector {
 
 		if ( $this->has_delegate( $class ) ) {
 			$delegate = $this->get_delegate( $class );
-			$object = $delegate( $class );
+			$object   = $delegate( $class );
 		} else {
 			$reflection = $this->get_class_reflection( $class );
 			$this->ensure_is_instantiable( $reflection );
@@ -157,11 +178,11 @@ final class SimpleInjector implements Injector {
 	 *
 	 * @param string   $interface_or_class Interface or class to delegate the
 	 *                                     instantiation of.
-	 * @param callable $callable           Callable to use for instantiation.
+	 * @param callable $delegation         Callable to use for instantiation.
 	 * @return Injector
 	 */
-	public function delegate( string $interface_or_class, callable $callable ): Injector {
-		$this->delegates[ $interface_or_class ] = $callable;
+	public function delegate( string $interface_or_class, callable $delegation ): Injector {
+		$this->delegates[ $interface_or_class ] = $delegation;
 
 		return $this;
 	}
@@ -218,7 +239,8 @@ final class SimpleInjector implements Injector {
 	 * @param InjectionChain $injection_chain    Injection chain to track
 	 *                                           resolutions.
 	 * @param string         $interface_or_class Interface or class to resolve.
-	 * @return InjectionChain Modified Injection chain
+	 * @return InjectionChain Modified Injection chain.
+	 * @throws FailedToMakeInstance If a circular reference is detected.
 	 */
 	private function resolve(
 		InjectionChain $injection_chain,
@@ -268,8 +290,7 @@ final class SimpleInjector implements Injector {
 		}
 
 		return \array_map(
-			function ( ReflectionParameter $parameter )
-			use ( $injection_chain, $class, $arguments ) {
+			function ( ReflectionParameter $parameter ) use ( $injection_chain, $class, $arguments ) {
 				return $this->resolve_argument(
 					$injection_chain,
 					$class,
@@ -299,7 +320,7 @@ final class SimpleInjector implements Injector {
 	 *
 	 * @param InjectionChain      $injection_chain  Injection chain to track
 	 *                                              resolutions.
-	 * @param string              $class            Name of the class to
+	 * @param string              $class_name            Name of the class to
 	 *                                              resolve the arguments for.
 	 * @param ReflectionParameter $parameter        Parameter to resolve.
 	 * @param array               $arguments        Associative array of
@@ -309,27 +330,32 @@ final class SimpleInjector implements Injector {
 	 */
 	private function resolve_argument(
 		InjectionChain $injection_chain,
-		string $class,
+		string $class_name,
 		ReflectionParameter $parameter,
 		array $arguments
 	) {
 		if ( ! $parameter->hasType() ) {
 			return $this->resolve_argument_by_name(
-				$class,
+				$class_name,
 				$parameter,
 				$arguments
 			);
 		}
 
+		/**
+		 * Type can vary based on PHP version.
+		 *
+		 * @var \ReflectionType|ReflectionNamedType|null $type
+		 */
 		$type = $parameter->getType();
 
-		/**
+		/*
 		 * @psalm-suppress UndefinedMethod,TypeDoesNotContainNull
 		 * @phpstan-ignore method.notFound (Method was moved to ReflectionNamedType in PHP 8.0)
 		 */
 		if ( null === $type || $type->isBuiltin() ) {
 			return $this->resolve_argument_by_name(
-				$class,
+				$class_name,
 				$parameter,
 				$arguments
 			);
@@ -345,14 +371,15 @@ final class SimpleInjector implements Injector {
 	/**
 	 * Resolve a given reflected argument by its name.
 	 *
-	 * @param string              $class     Class to resolve the argument for.
+	 * @param string              $class_name     Class to resolve the argument for.
 	 * @param ReflectionParameter $parameter Argument to resolve by name.
 	 * @param array               $arguments Associative array of directly
 	 *                                       provided arguments.
 	 * @return mixed Resolved value of the argument.
+	 * @throws FailedToMakeInstance If the argument could not be resolved.
 	 */
 	private function resolve_argument_by_name(
-		string $class,
+		string $class_name,
 		ReflectionParameter $parameter,
 		array $arguments
 	) {
@@ -364,9 +391,9 @@ final class SimpleInjector implements Injector {
 		}
 
 		// Check if we have mapped this argument for the specific class.
-		if ( \array_key_exists( $class, $this->argument_mappings )
-		     && \array_key_exists( $name, $this->argument_mappings[ $class ] ) ) {
-			return $this->argument_mappings[ $class ][ $name ];
+		if ( \array_key_exists( $class_name, $this->argument_mappings )
+			&& \array_key_exists( $name, $this->argument_mappings[ $class_name ] ) ) {
+			return $this->argument_mappings[ $class_name ][ $name ];
 		}
 
 		// No argument found for the class, check if we have a global value.
@@ -379,75 +406,77 @@ final class SimpleInjector implements Injector {
 			if ( $parameter->isDefaultValueAvailable() ) {
 				return $parameter->getDefaultValue();
 			}
-		} catch ( Throwable $exception ) {
+		} catch ( Throwable $exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			// Just fall through into the FailedToMakeInstance exception.
 		}
 
 		// Out of options, fail with an exception.
-		throw FailedToMakeInstance::for_unresolved_argument( $name, $class );
+		throw FailedToMakeInstance::for_unresolved_argument( $name, $class_name );
 	}
 
 	/**
 	 * Check whether a shared instance exists for a given class.
 	 *
-	 * @param string $class Class to check for a shared instance.
+	 * @param string $class_name Class to check for a shared instance.
 	 * @return bool Whether a shared instance exists.
 	 */
-	private function has_shared_instance( string $class ): bool {
-		return \array_key_exists( $class, $this->shared_instances )
-		       && null !== $this->shared_instances[ $class ];
+	private function has_shared_instance( string $class_name ): bool {
+		return \array_key_exists( $class_name, $this->shared_instances )
+				&& null !== $this->shared_instances[ $class_name ];
 	}
 
 	/**
 	 * Get the shared instance for a given class.
 	 *
-	 * @param string $class Class to get the shared instance for.
+	 * @param string $class_name Class to get the shared instance for.
 	 * @return object Shared instance.
+	 * @throws FailedToMakeInstance If the shared instance could not be found.
 	 */
-	private function get_shared_instance( string $class ): object {
-		if ( ! $this->has_shared_instance( $class ) ) {
-			throw FailedToMakeInstance::for_uninstantiated_shared_instance( $class );
+	private function get_shared_instance( string $class_name ): object {
+		if ( ! $this->has_shared_instance( $class_name ) ) {
+			throw FailedToMakeInstance::for_uninstantiated_shared_instance( $class_name );
 		}
 
-		return (object) $this->shared_instances[ $class ];
+		return (object) $this->shared_instances[ $class_name ];
 	}
 
 	/**
 	 * Check whether a delegate exists for a given class.
 	 *
-	 * @param string $class Class to check for a delegate.
+	 * @param string $class_name Class to check for a delegate.
 	 * @return bool Whether a delegate exists.
 	 */
-	private function has_delegate( string $class ): bool {
-		return \array_key_exists( $class, $this->delegates );
+	private function has_delegate( string $class_name ): bool {
+		return \array_key_exists( $class_name, $this->delegates );
 	}
 
 	/**
 	 * Get the delegate for a given class.
 	 *
-	 * @param string $class Class to get the delegate for.
+	 * @param string $class_name Class to get the delegate for.
 	 * @return callable Delegate.
+	 * @throws FailedToMakeInstance If the delegate could not be found.
 	 */
-	private function get_delegate( string $class ): callable {
-		if ( ! $this->has_delegate( $class ) ) {
-			throw FailedToMakeInstance::for_invalid_delegate( $class );
+	private function get_delegate( string $class_name ): callable {
+		if ( ! $this->has_delegate( $class_name ) ) {
+			throw FailedToMakeInstance::for_invalid_delegate( $class_name );
 		}
 
-		return $this->delegates[ $class ];
+		return $this->delegates[ $class_name ];
 	}
 
 	/**
 	 * Get the reflection for a class or throw an exception.
 	 *
-	 * @param string $class Class to get the reflection for.
+	 * @param string $class_name Class to get the reflection for.
 	 * @return ReflectionClass Class reflection.
 	 * @throws FailedToMakeInstance If the class could not be reflected.
 	 */
-	private function get_class_reflection( string $class ): ReflectionClass {
+	private function get_class_reflection( string $class_name ): ReflectionClass {
 		try {
-			return new ReflectionClass( $class );
+			return new ReflectionClass( $class_name );
 		} catch ( Throwable $exception ) {
-			throw FailedToMakeInstance::for_unreflectable_class( $class );
+			throw FailedToMakeInstance::for_unreflectable_class( $class_name );
 		}
 	}
 
@@ -457,17 +486,17 @@ final class SimpleInjector implements Injector {
 	 * @return Instantiator Simplistic fallback instantiator.
 	 */
 	private function get_fallback_instantiator(): Instantiator {
-		return new class implements Instantiator {
+		return new class() implements Instantiator {
 
 			/**
 			 * Make an object instance out of an interface or class.
 			 *
-			 * @param string $class        Class to make an object instance out of.
+			 * @param string $class_name        Class to make an object instance out of.
 			 * @param array  $dependencies Optional. Dependencies of the class.
 			 * @return object Instantiated object.
 			 */
-			public function instantiate( string $class, array $dependencies = [] ): object {
-				return new $class( ...$dependencies );
+			public function instantiate( string $class_name, array $dependencies = [] ): object {
+				return new $class_name( ...$dependencies );
 			}
 		};
 	}

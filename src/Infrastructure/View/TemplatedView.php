@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
@@ -23,7 +24,11 @@ use MWPD\BasicScaffold\Infrastructure\ViewFactory;
  */
 final class TemplatedView extends SimpleView {
 
-	/** @var array<string> */
+	/**
+	 * Array of locations to use.
+	 *
+	 * @var array<string>
+	 */
 	private $locations;
 
 	/**
@@ -63,7 +68,7 @@ final class TemplatedView extends SimpleView {
 	 * @throws InvalidPath If an invalid path was passed into the View.
 	 */
 	protected function validate( string $path ): string {
-		$path = $this->check_extension( $path, static::VIEW_EXTENSION );
+		$path = $this->check_extension( $path, self::VIEW_EXTENSION );
 
 		foreach ( $this->get_locations( $path ) as $location ) {
 			if ( \is_readable( $location ) ) {
@@ -86,8 +91,11 @@ final class TemplatedView extends SimpleView {
 	 * @return array Array of possible locations.
 	 */
 	private function get_locations( string $path ): array {
-		return array_map( function ( string $location ) use ( $path ): string {
-			return "{$location}{$path}";
-		}, $this->locations );
+		return array_map(
+			function ( string $location ) use ( $path ): string {
+				return "{$location}{$path}";
+			},
+			$this->locations
+		);
 	}
 }

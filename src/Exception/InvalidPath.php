@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,13 +9,16 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Exception;
 
 use InvalidArgumentException;
 
-final class InvalidPath
-	extends InvalidArgumentException
-	implements BasicScaffoldException {
+/**
+ * Exception for invalid paths.
+ */
+final class InvalidPath extends InvalidArgumentException implements BasicScaffoldException {
 
 	/**
 	 * Create a new instance of the exception for a file that is not accessible
@@ -33,6 +35,6 @@ final class InvalidPath
 			$path
 		);
 
-		return new static( $message );
+		return new self( $message );
 	}
 }

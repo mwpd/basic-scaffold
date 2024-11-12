@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 use MWPD\BasicScaffold\Infrastructure\View;
 
 /** @var View $this */

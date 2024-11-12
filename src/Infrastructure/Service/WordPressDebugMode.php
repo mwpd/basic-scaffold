@@ -1,5 +1,4 @@
-<?php declare(strict_types=1);
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,6 +9,8 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Infrastructure\Service;
 
 /**
@@ -17,12 +18,12 @@ namespace MWPD\BasicScaffold\Infrastructure\Service;
  */
 final class WordPressDebugMode implements DebugMode {
 
-    /**
-     * Check if the application is in debug mode.
-     *
-     * @return bool True if debug mode is active, false otherwise.
-     */
-    public function is_debug_mode(): bool {
-        return defined('WP_DEBUG') && WP_DEBUG;
-    }
-} 
+	/**
+	 * Check if the application is in debug mode.
+	 *
+	 * @return bool True if debug mode is active, false otherwise.
+	 */
+	public function is_debug_mode(): bool {
+		return defined( 'WP_DEBUG' ) && WP_DEBUG;
+	}
+}
