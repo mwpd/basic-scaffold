@@ -214,6 +214,7 @@ class SimpleView extends stdClass implements View {
 	 * Ensure the path has a trailing slash.
 	 *
 	 * @param string $path Path to maybe add a trailing slash.
+	 *
 	 * @return string Path with trailing slash.
 	 */
 	protected function ensure_trailing_slash( string $path ): string {

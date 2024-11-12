@@ -136,7 +136,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 	public function register(): void {
 		\add_action(
 			static::REGISTRATION_ACTION,
-			[ $this, 'register_services' ]
+			[ $this, 'register_services' ],
+			10,
+			0
 		);
 	}
 
@@ -211,7 +213,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 					$class_name::get_registration_action(),
 					function () use ( $id, $class_name ) {
 						$this->register_service( $id, $class_name );
-					}
+					},
+					10,
+					0
 				);
 
 				continue;
