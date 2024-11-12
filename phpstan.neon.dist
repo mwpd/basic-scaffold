@@ -6,6 +6,7 @@ parameters:
     paths:
         - src
         - tests
+        - views
     bootstrapFiles:
         - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php 
     excludePaths:

@@ -9,7 +9,7 @@ use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\Instantiator;
 use MWPD\BasicScaffold\Tests\Fixture;
 use stdClass;
-
+use PHPUnit\Framework\MockObject\MockObject;
 final class SimpleInjectorTest extends TestCase {
 
 	public function test_it_can_be_initialized(): void {
@@ -173,6 +173,7 @@ final class SimpleInjectorTest extends TestCase {
 	}
 
 	public function test_it_can_use_custom_instantiator(): void {
+		/** @var MockObject&Instantiator $mock_instantiator */
 		$mock_instantiator = $this->createMock( Instantiator::class );
 		$mock_instantiator->expects( $this->once() )
 			->method( 'instantiate' )

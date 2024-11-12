@@ -5,6 +5,7 @@
     <!-- What to scan -->
     <file>src</file>
     <file>tests</file>
+    <file>views</file>
 
     <!-- Exclude patterns -->
     <exclude-pattern>/vendor/*</exclude-pattern>
@@ -88,26 +89,34 @@
     <!-- Customize rules for test files -->
     <rule ref="Squiz.Commenting.FunctionComment">
         <exclude-pattern>/tests/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="Squiz.Commenting.FileComment">
         <exclude-pattern>/tests/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="Squiz.Commenting.ClassComment">
         <exclude-pattern>/tests/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="Generic.Commenting.DocComment">
         <exclude-pattern>/tests/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="WordPress.Files.FileName">
         <exclude-pattern>/tests/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="WordPress.Security.EscapeOutput">
         <exclude-pattern>/tests/php/Fixture/views/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="Internal.NoCodeFound">
         <exclude-pattern>/tests/php/Fixture/views/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
     <rule ref="Generic.PHP.Syntax">
         <exclude-pattern>/tests/php/Fixture/views/*</exclude-pattern>
+        <exclude-pattern>/views/*</exclude-pattern>
     </rule>
 </ruleset> 

@@ -11,6 +11,7 @@
 	<projectFiles>
 		<directory name="src" />
 		<directory name="tests" />
+		<directory name="views" />
 		<ignoreFiles>
 			<directory name="vendor" />
 			<file name="tests/php/Fixture/views/broken-view.php" />
@@ -23,11 +24,13 @@
 		<InvalidScope>
 			<errorLevel type="suppress">
 				<directory name="tests/php/Fixture/views/" />
+				<directory name="views/" />
 			</errorLevel>
 		</InvalidScope>
 		<NoInterfaceProperties>
 			<errorLevel type="suppress">
 				<directory name="tests/php/Fixture/views/" />
+				<directory name="views/" />
 			</errorLevel>
 		</NoInterfaceProperties>
 	</issueHandlers>

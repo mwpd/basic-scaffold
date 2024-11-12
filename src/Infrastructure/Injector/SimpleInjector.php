@@ -19,6 +19,7 @@ use MWPD\BasicScaffold\Infrastructure\Instantiator;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionType;
 use Throwable;
 
 /**
@@ -345,7 +346,7 @@ final class SimpleInjector implements Injector {
 		/**
 		 * Type can vary based on PHP version.
 		 *
-		 * @var \ReflectionType|ReflectionNamedType|null $type
+		 * @var ReflectionType|ReflectionNamedType|null $type
 		 */
 		$type = $parameter->getType();
 
@@ -361,6 +362,11 @@ final class SimpleInjector implements Injector {
 			);
 		}
 
+		/**
+		 * We need to deal with differences between PHP versions here.
+		 *
+		 * @disregard P1009 as this is a different type in PHP 8.
+		 */
 		$type = $type instanceof ReflectionNamedType
 			? $type->getName()
 			: (string) $type;

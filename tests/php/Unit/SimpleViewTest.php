@@ -131,7 +131,7 @@ final class SimpleViewTest extends TestCase {
 	public function test_it_handles_non_string_context_values(): void {
 		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
 
-		$object = new class() implements \Stringable {
+		$object = new class() {
 			public function __toString(): string {
 				return '42';
 			}

@@ -185,6 +185,11 @@ abstract class ServiceBasedPlugin implements Plugin {
 			// Allow the services to delay their registration.
 			if ( is_a( $class_name, Delayed::class, true ) ) {
 				$registration_action = $class_name::get_registration_action();
+				/**
+				 * The class name will still be a string here, not a Delayed object.
+				 *
+				 * @var string $class_name
+				 */
 
 				if ( did_action( $registration_action ) ) {
 					$this->register_service( $id, $class_name );

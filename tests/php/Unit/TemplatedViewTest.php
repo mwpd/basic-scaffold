@@ -4,17 +4,25 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\Unit;
 
 use MWPD\BasicScaffold\Infrastructure\View\TemplatedView;
-use MWPD\BasicScaffold\Infrastructure\View\TemplatedViewFactory;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 use MWPD\BasicScaffold\Tests\ViewHelper;
+use PHPUnit\Framework\MockObject\MockObject;
 
 final class TemplatedViewTest extends TestCase {
 
+	/**
+	 * @var MockObject&ViewFactory
+	 */
+	private $view_factory_mock;
+
+	protected function setUp(): void {
+		$this->view_factory_mock = $this->createMock( ViewFactory::class );
+	}
+
 	public function test_it_can_be_initialized(): void {
-		$view_factory_mock = $this->createMock( ViewFactory::class );
-		$view              = new TemplatedView(
+		$view = new TemplatedView(
 			'static-view',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
 
@@ -22,10 +30,9 @@ final class TemplatedViewTest extends TestCase {
 	}
 
 	public function test_it_can_be_rendered(): void {
-		$view_factory_mock = $this->createMock( ViewFactory::class );
-		$view              = new TemplatedView(
+		$view = new TemplatedView(
 			'static-view',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
 
@@ -36,10 +43,9 @@ final class TemplatedViewTest extends TestCase {
 	}
 
 	public function test_it_can_provide_rendering_context(): void {
-		$view_factory_mock = $this->createMock( ViewFactory::class );
-		$view              = new TemplatedView(
+		$view = new TemplatedView(
 			'dynamic-view',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
 
@@ -50,22 +56,21 @@ final class TemplatedViewTest extends TestCase {
 	}
 
 	public function test_it_can_render_partials(): void {
-		$view_factory_mock = $this->createMock( ViewFactory::class );
-		$view_factory_mock
+		$this->view_factory_mock
 			->expects( $this->once() )
 			->method( 'create' )
 			->with( 'partial' )
 			->willReturn(
 				new TemplatedView(
 					'partial',
-					$view_factory_mock,
+					$this->view_factory_mock,
 					ViewHelper::LOCATIONS
 				)
 			);
 
 		$view = new TemplatedView(
 			'view-with-partial',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
 
@@ -76,20 +81,19 @@ final class TemplatedViewTest extends TestCase {
 	}
 
 	public function test_it_can_be_overridden_in_themes(): void {
-		$view_factory_mock = $this->createMock( ViewFactory::class );
-		$view_a            = new TemplatedView(
+		$view_a = new TemplatedView(
 			'view-a',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
-		$view_b            = new TemplatedView(
+		$view_b = new TemplatedView(
 			'view-b',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
-		$view_c            = new TemplatedView(
+		$view_c = new TemplatedView(
 			'view-c',
-			$view_factory_mock,
+			$this->view_factory_mock,
 			ViewHelper::LOCATIONS
 		);
 

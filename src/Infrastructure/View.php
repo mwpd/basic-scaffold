@@ -15,7 +15,6 @@ namespace MWPD\BasicScaffold\Infrastructure;
 
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidPath;
-use stdClass;
 
 /**
  * The view interface defines how the rendering system works.
@@ -27,7 +26,7 @@ use stdClass;
  * As an example, with a default PHP-based view, the context information will be
  * available as properties of the '$this' variable.
  *
- * @phpstan-require-extends stdClass
+ * @phpstan-require-extends \stdClass
  */
 interface View extends Renderable {
 
