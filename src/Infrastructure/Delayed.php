@@ -28,7 +28,7 @@ interface Delayed {
 	/**
 	 * Get the action to use for registering the service.
 	 *
-	 * @return string Registration action to use.
+	 * @return non-empty-string Registration action to use.
 	 */
 	public static function get_registration_action(): string;
 }

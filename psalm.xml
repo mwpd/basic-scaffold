@@ -33,6 +33,11 @@
 				<directory name="views/"/>
 			</errorLevel>
 		</NoInterfaceProperties>
+		<ArgumentTypeCoercion>
+			<errorLevel type="suppress">
+				<file name="tests/php/Unit/SimpleInjectorTest.php"/>
+			</errorLevel>
+		</ArgumentTypeCoercion>
 	</issueHandlers>
 	<plugins>
 		<pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>

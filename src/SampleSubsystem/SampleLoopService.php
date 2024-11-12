@@ -30,6 +30,8 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	/**
 	 * We only want to register this service once the loop has been set up, as
 	 * we want to use smart injection to retrieve the current post.
+	 *
+	 * @var non-empty-string
 	 */
 	private const REGISTRATION_HOOK = 'wp';
 
@@ -65,7 +67,7 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	/**
 	 * Get the action to use for registering the service.
 	 *
-	 * @return string Registration action to use.
+	 * @return non-empty-string Registration action to use.
 	 */
 	public static function get_registration_action(): string {
 		return self::REGISTRATION_HOOK;

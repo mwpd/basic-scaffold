@@ -374,6 +374,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 * @param array<string> $bindings Associative array of interface =>
 			 *                                implementation bindings. Both
 			 *                                should be FQCNs.
+			 * @psalm-suppress RedundantCast
 			 */
 			$bindings = (array) \apply_filters(
 				static::HOOK_PREFIX . static::BINDINGS_FILTER,
@@ -391,6 +392,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *                                               mappings. The arguments
 			 *                                               array maps argument names
 			 *                                               to values.
+			 * @psalm-suppress RedundantCast,InvalidArgument
 			 */
 			$arguments = (array) \apply_filters(
 				static::HOOK_PREFIX . static::ARGUMENTS_FILTER,
@@ -405,6 +407,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *
 			 * @param array<string> $shared_instances Array of FQCNs to turn
 			 *                                        into shared objects.
+			 * @psalm-suppress RedundantCast
 			 */
 			$shared_instances = (array) \apply_filters(
 				static::HOOK_PREFIX . static::SHARED_INSTANCES_FILTER,
@@ -419,6 +422,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *
 			 * @param array<callable> $delegations Associative array of class =>
 			 *                                     callable mappings.
+			 * @psalm-suppress RedundantCast,InvalidArgument
 			 */
 			$delegations = (array) \apply_filters(
 				static::HOOK_PREFIX . static::DELEGATIONS_FILTER,
