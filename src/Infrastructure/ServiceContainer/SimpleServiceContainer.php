@@ -44,10 +44,18 @@ final class SimpleServiceContainer extends ArrayObject implements ServiceContain
 
 		$service = $this->offsetGet( $id );
 
+		if ( null === $service ) {
+			throw InvalidService::from_service_id( $id );
+		}
+
 		// Instantiate actual services if they were stored lazily.
 		if ( $service instanceof LazilyInstantiatedService ) {
 			$service = $service->instantiate();
 			$this->put( $id, $service );
+		}
+
+		if ( ! $service instanceof Service ) {
+			throw InvalidService::from_service_id( $id );
 		}
 
 		return $service;
