@@ -83,11 +83,11 @@ final class SimpleInjector implements Injector {
 	/**
 	 * Make an object instance out of an interface or class.
 	 *
-	 * @param string $interface_or_class Interface or class to make an object
-	 *                                   instance out of.
-	 * @param array  $arguments          Optional. Additional arguments to pass
-	 *                                   to the constructor. Defaults to an
-	 *                                   empty array.
+	 * @param string               $interface_or_class Interface or class to make an object
+	 *                                                 instance out of.
+	 * @param array<string, mixed> $arguments          Optional. Additional arguments
+	 *                                                 to pass to the constructor.
+	 *                                                 Defaults to an empty array.
 	 * @return object Instantiated object.
 	 */
 	public function make( string $interface_or_class, array $arguments = [] ): object {
@@ -269,14 +269,13 @@ final class SimpleInjector implements Injector {
 	/**
 	 * Get the array of constructor dependencies for a given reflected class.
 	 *
-	 * @param InjectionChain  $injection_chain   Injection chain to track
-	 *                                           resolutions.
-	 * @param ReflectionClass $reflection        Reflected class to get the
-	 *                                           dependencies for.
-	 * @param array           $arguments         Associative array of directly
-	 *                                           provided arguments.
-	 * @return array Array of dependencies that represent the arguments for the
-	 *                                           class' constructor.
+	 * @param InjectionChain       $injection_chain Injection chain to track
+	 *                                              resolutions.
+	 * @param ReflectionClass      $reflection      Reflected class to get the
+	 *                                              dependencies for.
+	 * @param array<string, mixed> $arguments       Associative array of directly
+	 *                                              provided arguments.
+	 * @return array<string, mixed> Array of dependencies that represent the arguments for the class' constructor.
 	 */
 	private function get_dependencies_for(
 		InjectionChain $injection_chain,
@@ -290,6 +289,11 @@ final class SimpleInjector implements Injector {
 			return [];
 		}
 
+		/**
+		 * The keys will be preserved in the returned array.
+		 *
+		 * @var array<string, mixed>
+		 */
 		return \array_map(
 			function ( ReflectionParameter $parameter ) use ( $injection_chain, $class, $arguments ) {
 				return $this->resolve_argument(
@@ -319,12 +323,12 @@ final class SimpleInjector implements Injector {
 	/**
 	 * Resolve a given reflected argument.
 	 *
-	 * @param InjectionChain      $injection_chain  Injection chain to track
+	 * @param InjectionChain       $injection_chain Injection chain to track
 	 *                                              resolutions.
-	 * @param string              $class_name            Name of the class to
+	 * @param string               $class_name      Name of the class to
 	 *                                              resolve the arguments for.
-	 * @param ReflectionParameter $parameter        Parameter to resolve.
-	 * @param array               $arguments        Associative array of
+	 * @param ReflectionParameter  $parameter       Parameter to resolve.
+	 * @param array<string, mixed> $arguments       Associative array of
 	 *                                              directly provided
 	 *                                              arguments.
 	 * @return mixed Resolved value of the argument.
@@ -377,10 +381,10 @@ final class SimpleInjector implements Injector {
 	/**
 	 * Resolve a given reflected argument by its name.
 	 *
-	 * @param string              $class_name     Class to resolve the argument for.
-	 * @param ReflectionParameter $parameter Argument to resolve by name.
-	 * @param array               $arguments Associative array of directly
-	 *                                       provided arguments.
+	 * @param string               $class_name Class to resolve the argument for.
+	 * @param ReflectionParameter  $parameter  Argument to resolve by name.
+	 * @param array<string, mixed> $arguments  Associative array of directly
+	 *                                         provided arguments.
 	 * @return mixed Resolved value of the argument.
 	 * @throws FailedToMakeInstance If the argument could not be resolved.
 	 */
@@ -497,8 +501,8 @@ final class SimpleInjector implements Injector {
 			/**
 			 * Make an object instance out of an interface or class.
 			 *
-			 * @param string $class_name        Class to make an object instance out of.
-			 * @param array  $dependencies Optional. Dependencies of the class.
+			 * @param string               $class_name   Class to make an object instance out of.
+			 * @param array<string, mixed> $dependencies Optional. Dependencies of the class.
 			 * @return object Instantiated object.
 			 */
 			public function instantiate( string $class_name, array $dependencies = [] ): object {

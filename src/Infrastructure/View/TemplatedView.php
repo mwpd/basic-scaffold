@@ -34,9 +34,9 @@ final class TemplatedView extends SimpleView {
 	/**
 	 * Instantiate a TemplatedView object.
 	 *
-	 * @param string      $path         Path to the view file to render.
-	 * @param ViewFactory $view_factory View factory instance to use.
-	 * @param array       $locations    Optional. Array of locations to use.
+	 * @param string        $path         Path to the view file to render.
+	 * @param ViewFactory   $view_factory View factory instance to use.
+	 * @param array<string> $locations    Optional. Array of locations to use.
 	 */
 	public function __construct(
 		string $path,
@@ -88,7 +88,7 @@ final class TemplatedView extends SimpleView {
 	 *
 	 * @param string $path Path of the view to get the locations for.
 	 *
-	 * @return array Array of possible locations.
+	 * @return array<string> Array of possible locations.
 	 */
 	private function get_locations( string $path ): array {
 		return array_map(

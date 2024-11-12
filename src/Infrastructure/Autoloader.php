@@ -42,7 +42,7 @@ final class Autoloader {
 	/**
 	 * Array containing the registered namespace structures.
 	 *
-	 * @var array<array>
+	 * @var array<array<string, mixed>>
 	 */
 	private $namespaces = [];
 

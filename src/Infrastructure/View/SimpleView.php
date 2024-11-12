@@ -47,7 +47,7 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Internal storage for passed-in context.
 	 *
-	 * @var array
+	 * @var array<string, mixed>
 	 */
 	protected $_context_ = [];
 
@@ -82,7 +82,7 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Render the current view with a given context.
 	 *
-	 * @param array $context Context in which to render.
+	 * @param array<string, mixed> $context Context in which to render.
 	 *
 	 * @return string Rendered HTML.
 	 * @throws FailedToLoadView If the View path could not be loaded.
@@ -123,8 +123,8 @@ class SimpleView extends stdClass implements View {
 	 * The passed-in context is optional, and will fall back to the parent's
 	 * context if omitted.
 	 *
-	 * @param string     $path    Path of the partial to render.
-	 * @param array|null $context Context in which to render the partial.
+	 * @param string                    $path    Path of the partial to render.
+	 * @param array<string, mixed>|null $context Context in which to render the partial.
 	 *
 	 * @return string Rendered HTML.
 	 * @throws InvalidPath If the provided path was not valid.

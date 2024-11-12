@@ -97,8 +97,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 *
 	 * The array is provided in the form <argument name> => <argument value>.
 	 *
-	 * @return array<array> Associative array of arrays mapping argument names
-	 *                      to argument values.
+	 * @return array<array<string, mixed>> Associative array of arrays mapping
+	 *                                     argument names to argument values.
 	 */
 	protected function get_arguments(): array {
 		return [

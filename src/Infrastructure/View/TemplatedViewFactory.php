@@ -38,7 +38,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	/**
 	 * Instantiate a TemplatedViewFactory object.
 	 *
-	 * @param array $locations Array of locations to use.
+	 * @param array<string> $locations Array of locations to use.
 	 */
 	public function __construct( array $locations = [] ) {
 		if ( empty( $locations ) ) {
@@ -64,7 +64,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * Uses internal caching to avoid retrieving the paths multiple times across
 	 * instantiations.
 	 *
-	 * @return array Array of default locations.
+	 * @return array<string> Array of default locations.
 	 */
 	private function get_default_locations(): array {
 		static $default_locations = null;

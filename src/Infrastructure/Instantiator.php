@@ -24,8 +24,8 @@ interface Instantiator {
 	/**
 	 * Make an object instance out of an interface or class.
 	 *
-	 * @param string $class_name   Class to make an object instance out of.
-	 * @param array  $dependencies Optional. Dependencies of the class.
+	 * @param string               $class_name   Class to make an object instance out of.
+	 * @param array<string, mixed> $dependencies Optional. Dependencies of the class.
 	 * @return object Instantiated object.
 	 */
 	public function instantiate( string $class_name, array $dependencies = [] ): object;

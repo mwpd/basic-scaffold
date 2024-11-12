@@ -2,7 +2,7 @@ includes:
     - vendor/szepeviktor/phpstan-wordpress/extension.neon
 
 parameters:
-    level: 5
+    level: 6
     paths:
         - src
         - tests
@@ -11,3 +11,8 @@ parameters:
         - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php 
     excludePaths:
         - tests/php/Fixture/views/broken-view.php
+    ignoreErrors:
+        # Ignore errors related to ReflectionClass subtype, see https://github.com/phpstan/phpstan/issues/4078
+        - '#SimpleInjector::get_dependencies_for\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
+        - '#SimpleInjector::ensure_is_instantiable\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
+        - '#SimpleInjector::get_class_reflection\(\) return type with generic class ReflectionClass does not specify its types#'

@@ -81,7 +81,7 @@ final class InjectionChain {
 	/**
 	 * Get the injection chain.
 	 *
-	 * @return array Chain of injections.
+	 * @return array<string> Chain of injections.
 	 */
 	public function get_chain(): array {
 		return \array_reverse( $this->chain );

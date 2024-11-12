@@ -421,8 +421,8 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * The argument bindings let you map specific argument values for specific
 	 * classes.
 	 *
-	 * @return array<array> Associative array of arrays mapping argument names
-	 *                      to argument values.
+	 * @return array<array<string, mixed>> Associative array of arrays mapping
+	 *                                     argument names to argument values.
 	 */
 	protected function get_arguments(): array {
 		return [];
