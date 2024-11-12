@@ -68,6 +68,11 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * @return array<string> Array of default locations.
 	 */
 	private function get_default_locations(): array {
+		/**
+		 * Internal storage for the default locations.
+		 *
+		 * @var array<string>|null
+		 */
 		static $default_locations = null;
 
 		if ( null === $default_locations ) {

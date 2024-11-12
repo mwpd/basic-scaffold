@@ -24,20 +24,72 @@ use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
 abstract class ServiceBasedPlugin implements Plugin {
 
 	// Main filters to control the flow of the plugin from outside code.
-	public const SERVICES_FILTER         = 'services';
-	public const BINDINGS_FILTER         = 'bindings';
-	public const ARGUMENTS_FILTER        = 'arguments';
-	public const SHARED_INSTANCES_FILTER = 'shared_instances';
-	public const DELEGATIONS_FILTER      = 'delegations';
 
-	// Service identifier for the injector.
+	/**
+	 * Filter to control the services that are registered by the plugin.
+	 *
+	 * @var non-empty-string
+	 */
+	public const SERVICES_FILTER = 'services';
+
+	/**
+	 * Filter to control the bindings of the dependency injector.
+	 *
+	 * @var non-empty-string
+	 */
+	public const BINDINGS_FILTER = 'bindings';
+
+	/**
+	 * Filter to control the argument bindings of the dependency injector.
+	 *
+	 * @var non-empty-string
+	 */
+	public const ARGUMENTS_FILTER = 'arguments';
+
+	/**
+	 * Filter to control the shared instances of the dependency injector.
+	 *
+	 * @var non-empty-string
+	 */
+	public const SHARED_INSTANCES_FILTER = 'shared_instances';
+
+	/**
+	 * Filter to control the delegations of the dependency injector.
+	 *
+	 * @var non-empty-string
+	 */
+	public const DELEGATIONS_FILTER = 'delegations';
+
+	/**
+	 * Identifier for the injector service.
+	 *
+	 * @var non-empty-string
+	 */
 	public const INJECTOR_ID = 'injector';
 
-	// WordPress action to trigger the service registration on.
+	/**
+	 * WordPress action to trigger the service registration on.
+	 *
+	 * @var non-empty-string
+	 */
 	protected const REGISTRATION_ACTION = 'plugins_loaded';
 
-	// Prefixes to use.
-	protected const HOOK_PREFIX    = '';
+	/**
+	 * Hook prefix to use.
+	 *
+	 * This is used to prefix all the hooks that are used by the plugin to avoid conflicts.
+	 *
+	 * @var string
+	 */
+	protected const HOOK_PREFIX = '';
+
+	/**
+	 * Service prefix to use.
+	 *
+	 * This is used to prefix all the services that are registered by the plugin.
+	 *
+	 * @var string
+	 */
 	protected const SERVICE_PREFIX = '';
 
 	/**
@@ -334,10 +386,11 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *
 			 * This can be used to override scalar values.
 			 *
-			 * @param array<array> $arguments Associative array of class =>
-			 *                                arguments mappings. The arguments
-			 *                                array maps argument names to
-			 *                                values.
+			 * @param array<array<string, mixed>> $arguments Associative array of
+			 *                                               class => arguments
+			 *                                               mappings. The arguments
+			 *                                               array maps argument names
+			 *                                               to values.
 			 */
 			$arguments = (array) \apply_filters(
 				static::HOOK_PREFIX . static::ARGUMENTS_FILTER,

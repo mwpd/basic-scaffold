@@ -91,6 +91,7 @@ final class SimpleInjector implements Injector {
 	 *                                                 to pass to the constructor.
 	 *                                                 Defaults to an empty array.
 	 * @return object Instantiated object.
+	 * @throws FailedToMakeInstance If the object could not be instantiated.
 	 */
 	public function make( string $interface_or_class, array $arguments = [] ): object {
 		$injection_chain = $this->resolve(
@@ -107,6 +108,12 @@ final class SimpleInjector implements Injector {
 		if ( $this->has_delegate( $class_name ) ) {
 			$delegate = $this->get_delegate( $class_name );
 			$object   = $delegate( $class_name );
+
+			if ( ! is_object( $object ) ) {
+				throw FailedToMakeInstance::for_invalid_delegate( $class_name );
+			}
+
+			return $object;
 		} else {
 			$reflection = $this->get_class_reflection( $class_name );
 			$this->ensure_is_instantiable( $reflection );
@@ -201,6 +208,7 @@ final class SimpleInjector implements Injector {
 	 * @param class-string   $interface_or_class Interface or class to make an
 	 *                                           object instance out of.
 	 * @return object Instantiated object.
+	 * @throws FailedToMakeInstance If the object could not be instantiated.
 	 */
 	private function make_dependency(
 		InjectionChain $injection_chain,
@@ -219,7 +227,13 @@ final class SimpleInjector implements Injector {
 
 		if ( $this->has_delegate( $class_name ) ) {
 			$delegate = $this->get_delegate( $class_name );
-			return $delegate( $class_name );
+			$object   = $delegate( $class_name );
+
+			if ( ! is_object( $object ) ) {
+				throw FailedToMakeInstance::for_invalid_delegate( $class_name );
+			}
+
+			return $object;
 		}
 
 		$reflection = $this->get_class_reflection( $class_name );
@@ -497,10 +511,17 @@ final class SimpleInjector implements Injector {
 	 */
 	private function get_class_reflection( string $class_name ): ReflectionClass {
 		try {
-			return new ReflectionClass( $class_name );
-		} catch ( Throwable $exception ) { // @phpstan-ignore-line
-			throw FailedToMakeInstance::for_unreflectable_class( $class_name );
+			$reflection = new ReflectionClass( $class_name );
+
+			if ( $reflection->getName() !== $class_name ) {
+				throw FailedToMakeInstance::for_invalid_reflection( $class_name );
+			}
+
+			return $reflection;
+		} catch ( Throwable $exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			// Just fall through into the FailedToMakeInstance exception.
 		}
+		throw FailedToMakeInstance::for_unreflectable_class( $class_name );
 	}
 
 	/**

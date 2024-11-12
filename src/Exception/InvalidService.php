@@ -121,4 +121,19 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 
 		return new self( $message );
 	}
+
+	/**
+	 * Create a new instance of the exception for a lazy service.
+	 *
+	 * @param mixed $service Service that is not an object of type Service.
+	 * @return static
+	 */
+	public static function from_lazy_service( $service ) {
+		$message = \sprintf(
+			'The lazy service "%s" cannot be instantiated into an object of type Service.',
+			self::stringify( $service )
+		);
+
+		return new self( $message );
+	}
 }

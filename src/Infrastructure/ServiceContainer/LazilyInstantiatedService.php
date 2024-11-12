@@ -49,7 +49,7 @@ final class LazilyInstantiatedService implements Service {
 		$service = ( $this->instantiation )();
 
 		if ( ! $service instanceof Service ) {
-			throw InvalidService::from_service( $service );
+			throw InvalidService::from_lazy_service( $service );
 		}
 
 		return $service;

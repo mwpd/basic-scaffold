@@ -28,7 +28,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	public const UNRESOLVED_ARGUMENT            = 400;
 	public const UNINSTANTIATED_SHARED_INSTANCE = 500;
 	public const INVALID_DELEGATE               = 600;
-
+	public const INVALID_REFLECTION             = 700;
 	/**
 	 * Create a new instance of the exception for an interface or class that
 	 * created a circular reference.
@@ -134,5 +134,21 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 		);
 
 		return new self( $message, self::INVALID_DELEGATE );
+	}
+
+	/**
+	 * Create a new instance of the exception for a reflection that is not valid.
+	 *
+	 * @param string $class_name Class that was reflected upon.
+	 *
+	 * @return static
+	 */
+	public static function for_invalid_reflection( string $class_name ) {
+		$message = \sprintf(
+			'Could not create a reflection for the class "%s".',
+			$class_name
+		);
+
+		return new self( $message, self::INVALID_REFLECTION );
 	}
 }

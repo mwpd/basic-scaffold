@@ -35,6 +35,8 @@ class SimpleView extends stdClass implements View {
 
 	/**
 	 * Extension to use for view files.
+	 *
+	 * @var string
 	 */
 	protected const VIEW_EXTENSION = 'php';
 

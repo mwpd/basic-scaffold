@@ -3,6 +3,7 @@ includes:
 
 parameters:
     level: max
+    treatPhpDocTypesAsCertain: false
     paths:
         - src
         - tests
@@ -16,3 +17,4 @@ parameters:
         - '#SimpleInjector::get_dependencies_for\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
         - '#SimpleInjector::ensure_is_instantiable\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
         - '#SimpleInjector::get_class_reflection\(\) return type with generic class ReflectionClass does not specify its types#'
+        - '#Parameter \#1 \(mixed\) of echo cannot be converted to string.#'
