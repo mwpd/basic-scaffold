@@ -161,7 +161,7 @@ final class SimpleInjectorTest extends TestCase {
 				42
 			)
 			->bind_argument(
-				SimpleInjector::GLOBAL_ARGUMENTS,
+				SimpleInjector::GLOBAL_ARGUMENTS, // @phpstan-ignore-line
 				'argument_b',
 				'Mr Alderson'
 			)

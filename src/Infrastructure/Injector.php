@@ -35,7 +35,7 @@ interface Injector extends Service {
 	/**
 	 * Make an object instance out of an interface or class.
 	 *
-	 * @param string               $interface_or_class Interface or class to make an object
+	 * @param class-string         $interface_or_class Interface or class to make an object
 	 *                                                 instance out of.
 	 * @param array<string, mixed> $arguments          Optional. Additional arguments to pass
 	 *                                                 to the constructor. Defaults to an
@@ -50,8 +50,8 @@ interface Injector extends Service {
 	 * Note: The implementation can be an interface as well, as long as it can
 	 * be resolved to an instantiatable class at runtime.
 	 *
-	 * @param string $from Interface or class to bind an implementation to.
-	 * @param string $to   Interface or class that provides the implementation.
+	 * @param class-string $from Interface or class to bind an implementation to.
+	 * @param class-string $to   Interface or class that provides the implementation.
 	 * @return Injector
 	 */
 	public function bind( string $from, string $to ): Injector;
@@ -59,10 +59,10 @@ interface Injector extends Service {
 	/**
 	 * Bind an argument for a class to a specific value.
 	 *
-	 * @param string $interface_or_class Interface or class to bind an argument
+	 * @param class-string $interface_or_class Interface or class to bind an argument
 	 *                                   for.
-	 * @param string $argument_name      Argument name to bind a value to.
-	 * @param mixed  $value              Value to bind the argument to.
+	 * @param string       $argument_name      Argument name to bind a value to.
+	 * @param mixed        $value              Value to bind the argument to.
 	 *
 	 * @return Injector
 	 */
@@ -76,7 +76,7 @@ interface Injector extends Service {
 	 * Always reuse and share the same instance for the provided interface or
 	 * class.
 	 *
-	 * @param string $interface_or_class Interface or class to reuse.
+	 * @param class-string $interface_or_class Interface or class to reuse.
 	 * @return Injector
 	 */
 	public function share( string $interface_or_class ): Injector;
@@ -84,9 +84,9 @@ interface Injector extends Service {
 	/**
 	 * Delegate instantiation of an interface or class to a callable.
 	 *
-	 * @param string   $interface_or_class Interface or class to delegate the
+	 * @param class-string $interface_or_class Interface or class to delegate the
 	 *                                     instantiation of.
-	 * @param callable $delegation         Callable to use for instantiation.
+	 * @param callable     $delegation         Callable to use for instantiation.
 	 * @return Injector
 	 */
 	public function delegate( string $interface_or_class, callable $delegation ): Injector;

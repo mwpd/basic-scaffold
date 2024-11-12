@@ -42,6 +42,11 @@ final class SimpleServiceContainer extends ArrayObject implements ServiceContain
 			throw InvalidService::from_service_id( $id );
 		}
 
+		/**
+		 * The offsetGet method returns null if the key does not exist.
+		 *
+		 * @var Service|null
+		 */
 		$service = $this->offsetGet( $id );
 
 		if ( null === $service ) {

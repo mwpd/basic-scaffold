@@ -34,9 +34,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	public static function from_service( $service ) {
 		$message = \sprintf(
 			'The service "%s" is not recognized and cannot be registered.',
-			\is_object( $service )
-				? \get_class( $service )
-				: (string) $service
+			self::stringify( $service )
 		);
 
 		return new self( $message );
@@ -85,6 +83,40 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 		$message = \sprintf(
 			'The identifier "%s" is not a string and cannot be registered as a service.',
 			self::stringify( $identifier )
+		);
+
+		return new self( $message );
+	}
+
+	/**
+	 * Create a new instance of the exception for an invalid delegation.
+	 *
+	 * @param string $class_name Class name that is not callable.
+	 * @param mixed  $delegation Delegation that is not callable.
+	 * @return static
+	 */
+	public static function from_invalid_delegation( string $class_name, $delegation ) {
+		$message = \sprintf(
+			'The delegation for "%s" is not a callable: %s',
+			self::stringify( $class_name ),
+			self::stringify( $delegation )
+		);
+
+		return new self( $message );
+	}
+
+	/**
+	 * Create a new instance of the exception for an invalid argument map.
+	 *
+	 * @param string $class_name Class name that is not an array.
+	 * @param mixed  $argument_map Argument map that is not an array.
+	 * @return static
+	 */
+	public static function from_invalid_argument_map( string $class_name, $argument_map ) {
+		$message = \sprintf(
+			'The argument map for "%s" is not an array: %s',
+			self::stringify( $class_name ),
+			self::stringify( $argument_map )
 		);
 
 		return new self( $message );

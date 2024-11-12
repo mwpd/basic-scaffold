@@ -174,6 +174,11 @@ final class Autoloader {
 
 			// Require the file if it exists and is readable.
 			if ( \is_readable( $filepath ) ) {
+				/**
+				 * This include cannot be followed to be statically analyzed.
+				 *
+				 * @psalm-suppress UnresolvableInclude
+				 */
 				require $filepath;
 			}
 		}

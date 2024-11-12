@@ -100,6 +100,11 @@ class SimpleView extends stdClass implements View {
 		\ob_start();
 
 		try {
+			/**
+			 * This include cannot be followed to be statically analyzed.
+			 *
+			 * @psalm-suppress UnresolvableInclude
+			 */
 			include $this->path;
 		} catch ( Throwable $exception ) {
 			// Remove whatever levels were added up until now.
@@ -112,7 +117,9 @@ class SimpleView extends stdClass implements View {
 			);
 		}
 
-		return \ob_get_clean() ?: '';
+		$buffer = \ob_get_clean();
+
+		return false === $buffer ? '' : $buffer;
 	}
 
 	/**
@@ -133,7 +140,7 @@ class SimpleView extends stdClass implements View {
 	 */
 	public function render_partial( string $path, array $context = null ): string {
 		return $this->view_factory->create( $path )
-									->render( $context ?: $this->_context_ );
+									->render( null === $context ? $this->_context_ : $context );
 	}
 
 	/**

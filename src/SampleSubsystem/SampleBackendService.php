@@ -77,7 +77,7 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 		 * The register method now hooks our actual sample functionality into
 		 * the WordPress execution flow.
 		 */
-		\add_action( 'admin_notices', [ $this, 'render_notice' ] );
+		\add_action( 'admin_notices', [ $this, 'render_notice' ], 10, 0 );
 	}
 
 	/**

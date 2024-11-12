@@ -224,8 +224,8 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Register a single service.
 	 *
-	 * @param string $id         Identifier of the service.
-	 * @param string $class_name Class name of the service.
+	 * @param string       $id         Identifier of the service.
+	 * @param class-string $class_name Class name of the service.
 	 */
 	protected function register_service( string $id, string $class_name ): void {
 		// Only instantiate services that are actually needed.
@@ -256,7 +256,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Instantiate a single service.
 	 *
-	 * @param string $class_name Service class to instantiate.
+	 * @param class-string $class_name Service class to instantiate.
 	 *
 	 * @throws InvalidService If the service could not be properly instantiated.
 	 *
@@ -381,6 +381,13 @@ abstract class ServiceBasedPlugin implements Plugin {
 				throw InvalidService::from_invalid_identifier( $to );
 			}
 
+			/**
+			 * The resolved values are guaranteed to be strings at this point.
+			 *
+			 * @var class-string $from
+			 * @var class-string $to
+			 */
+
 			$injector = $injector->bind( $from, $to );
 		}
 
@@ -389,6 +396,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 			if ( ! is_string( $class_name ) ) {
 				throw InvalidService::from_invalid_identifier( $class_name );
+			}
+
+			/**
+			 * The resolved value is guaranteed to be a string at this point.
+			 *
+			 * @var class-string $class_name
+			 */
+
+			if ( ! is_array( $argument_map ) ) {
+				throw InvalidService::from_invalid_argument_map( $class_name, $argument_map );
 			}
 
 			foreach ( $argument_map as $name => $value ) {
@@ -411,6 +428,12 @@ abstract class ServiceBasedPlugin implements Plugin {
 				throw InvalidService::from_invalid_identifier( $shared_instance );
 			}
 
+			/**
+			 * The resolved value is guaranteed to be a string at this point.
+			 *
+			 * @var class-string $shared_instance
+			 */
+
 			$injector = $injector->share( $shared_instance );
 		}
 
@@ -421,6 +444,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 			if ( ! is_string( $class_name ) ) {
 				throw InvalidService::from_invalid_identifier( $class_name );
+			}
+
+			/**
+			 * The resolved value is guaranteed to be a string at this point.
+			 *
+			 * @var class-string $class_name
+			 */
+
+			if ( ! is_callable( $delegation ) ) {
+				throw InvalidService::from_invalid_delegation( $class_name, $delegation );
 			}
 
 			$injector = $injector->delegate( $class_name, $delegation );

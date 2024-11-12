@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <psalm
-	errorLevel="4"
+	errorLevel="2"
 	resolveFromConfigFile="true"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xmlns="https://getpsalm.org/schema/config"
@@ -9,29 +9,33 @@
 	findUnusedCode="false"
 >
 	<projectFiles>
-		<directory name="src" />
-		<directory name="tests" />
-		<directory name="views" />
+		<directory name="src"/>
+		<directory name="tests"/>
+		<directory name="views"/>
 		<ignoreFiles>
-			<directory name="vendor" />
-			<file name="tests/php/Fixture/views/broken-view.php" />
+			<directory name="vendor"/>
+			<file name="tests/php/Fixture/views/broken-view.php"/>
 		</ignoreFiles>
 	</projectFiles>
 	<stubs>
-		<file name="vendor/php-stubs/wordpress-stubs/wordpress-stubs.php" />
+		<file name="vendor/php-stubs/wordpress-stubs/wordpress-stubs.php"/>
 	</stubs>
 	<issueHandlers>
 		<InvalidScope>
 			<errorLevel type="suppress">
-				<directory name="tests/php/Fixture/views/" />
-				<directory name="views/" />
+				<directory name="tests/php/Fixture/views/"/>
+				<directory name="views/"/>
 			</errorLevel>
 		</InvalidScope>
 		<NoInterfaceProperties>
 			<errorLevel type="suppress">
-				<directory name="tests/php/Fixture/views/" />
-				<directory name="views/" />
+				<directory name="tests/php/Fixture/views/"/>
+				<directory name="views/"/>
 			</errorLevel>
 		</NoInterfaceProperties>
 	</issueHandlers>
+	<plugins>
+		<pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
+		<pluginClass class="PsalmWordPress\Plugin"/>
+	</plugins>
 </psalm>
