@@ -173,6 +173,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * code, there hooks and service identifiers are scoped and don't clash.
 	 */
 	protected const HOOK_PREFIX    = 'mwpd.basic_scaffold.';
+
 	protected const SERVICE_PREFIX = 'mwpd.basic_scaffold.';
 
 	/*
@@ -182,6 +183,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * service when talking to the service container.
 	 */
 	public const VIEW_FACTORY_ID           = self::SERVICE_PREFIX . 'view-factory';
+
 	public const SAMPLE_BACKEND_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-backend-service';
+
 	public const SAMPLE_LOOP_SERVICE_ID    = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
 }

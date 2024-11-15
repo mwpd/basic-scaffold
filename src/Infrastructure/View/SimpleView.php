@@ -108,14 +108,15 @@ class SimpleView extends stdClass implements View {
 			 * @psalm-suppress UnresolvableInclude
 			 */
 			include $this->path;
-		} catch ( Throwable $exception ) {
+		} catch ( Throwable $throwable ) {
 			// Remove whatever levels were added up until now.
 			while ( \ob_get_level() > $buffer_level ) {
 				\ob_end_clean();
 			}
+
 			throw FailedToLoadView::from_view_exception(
 				$this->path,
-				$exception
+				$throwable
 			);
 		}
 
@@ -265,12 +266,15 @@ class SimpleView extends stdClass implements View {
 		if ( is_object( $value ) && method_exists( $value, '__toString' ) ) {
 			$value = (string) $value;
 		}
+
 		if ( is_scalar( $value ) ) {
 			$value = (string) $value;
 		}
+
 		if ( ! is_string( $value ) ) {
 			throw FailedToEscapeValue::from_value( $value );
 		}
+
 		return htmlspecialchars( $value, ENT_COMPAT, 'UTF-8' );
 	}
 

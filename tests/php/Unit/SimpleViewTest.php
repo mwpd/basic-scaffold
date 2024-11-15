@@ -97,6 +97,7 @@ final class SimpleViewTest extends TestCase {
 			$this->debug_mode
 		);
 		$view->render( [ 'some_value' => '42' ] );
+
 		$_ = $view->nonexistent_property;
 	}
 

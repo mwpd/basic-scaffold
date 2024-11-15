@@ -440,7 +440,7 @@ final class SimpleInjector implements Injector {
 			if ( $parameter->isDefaultValueAvailable() ) {
 				return $parameter->getDefaultValue();
 			}
-		} catch ( Throwable $exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		} catch ( Throwable $throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			// Just fall through into the FailedToMakeInstance exception.
 		}
 
@@ -516,9 +516,10 @@ final class SimpleInjector implements Injector {
 			}
 
 			return $reflection;
-		} catch ( Throwable $exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		} catch ( Throwable $throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			// Just fall through into the FailedToMakeInstance exception.
 		}
+
 		throw FailedToMakeInstance::for_unreflectable_class( $class_name );
 	}
 

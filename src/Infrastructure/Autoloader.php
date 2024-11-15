@@ -37,13 +37,19 @@ final class Autoloader {
 
 
 	private const ROOT        = 'root';
+
 	private const BASE_DIR    = 'base_dir';
+
 	private const PREFIX      = 'prefix';
+
 	private const SUFFIX      = 'suffix';
+
 	private const LOWERCASE   = 'lowercase';
+
 	private const UNDERSCORES = 'underscores';
 
 	private const DEFAULT_PREFIX = '';
+
 	private const DEFAULT_SUFFIX = '.php';
 
 	private const AUTOLOAD_METHOD = 'autoload';

@@ -28,9 +28,11 @@ trait Stringify {
 		if ( \is_object( $value ) && \method_exists( $value, '__toString' ) ) {
 			return (string) $value;
 		}
+
 		if ( \is_scalar( $value ) ) {
 			return (string) $value;
 		}
+
 		return '{' . \gettype( $value ) . '}';
 	}
 }
