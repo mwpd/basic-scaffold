@@ -27,7 +27,6 @@ final class FailedToEscapeValue extends RuntimeException implements BasicScaffol
 	 * an exception.
 	 *
 	 * @param mixed $value Value that could not be escaped.
-	 * @return static
 	 */
 	public static function from_value( $value ): self {
 		$message = \sprintf(

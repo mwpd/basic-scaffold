@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
 use Rector\Set\ValueObject\SetList;
-use Rector\ValueObject\PhpVersion;
+use Rector\DeadCode\Rector\Assign\RemoveUnusedVariableAssignRector;
 
 return RectorConfig::configure()
     ->withPaths([
         __DIR__ . '/src',
         __DIR__ . '/tests',
+    ])
+    ->withSkip([
+        __DIR__ . '/tests/php/Fixture/views/broken-view.php',
+        RemoveUnusedVariableAssignRector::class => [
+            __DIR__ . '/tests/php/Unit/SimpleViewTest.php',
+        ],
     ])
     ->withIndent('  ', 4)
     ->withImportNames(true, true, true, true)
@@ -31,4 +37,5 @@ return RectorConfig::configure()
         SetList::EARLY_RETURN,
         SetList::INSTANCEOF,
         SetList::TYPE_DECLARATION,
+        SetList::DEAD_CODE,
     ]);

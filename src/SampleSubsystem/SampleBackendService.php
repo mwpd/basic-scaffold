@@ -67,8 +67,6 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 
 	/**
 	 * Register the service.
-	 *
-	 * @return void
 	 */
 	public function register(): void {
 		/*
@@ -80,8 +78,6 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 
 	/**
 	 * Render the admin notice.
-	 *
-	 * @return void
 	 */
 	public function render_notice(): void {
 		/*

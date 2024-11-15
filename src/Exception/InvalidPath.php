@@ -26,8 +26,6 @@ final class InvalidPath extends InvalidArgumentException implements BasicScaffol
 	 *
 	 * @param string $path Path of the file that is not accessible or not
 	 *                     readable.
-	 *
-	 * @return static
 	 */
 	public static function from_path( $path ): self {
 		$message = \sprintf(

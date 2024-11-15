@@ -143,8 +143,6 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 	/**
 	 * Activate the plugin.
-	 *
-	 * @return void
 	 */
 	public function activate(): void {
 		$this->register_services();
@@ -160,8 +158,6 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 	/**
 	 * Deactivate the plugin.
-	 *
-	 * @return void
 	 */
 	public function deactivate(): void {
 		$this->register_services();
@@ -178,7 +174,6 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Register the plugin with the WordPress system.
 	 *
-	 * @return void
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function register(): void {
@@ -194,8 +189,6 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * Register the individual services of this plugin.
 	 *
 	 * @throws InvalidService If a service is not valid.
-	 *
-	 * @return void
 	 */
 	public function register_services(): void {
 		// Bail early so we don't instantiate services twice.

@@ -26,8 +26,6 @@ final class InvalidContextProperty extends InvalidArgumentException implements B
 	 *
 	 * @param string $property Name of the context property that was not
 	 *                         recognized.
-	 *
-	 * @return static
 	 */
 	public static function from_property( string $property ): self {
 		$message = \sprintf(

@@ -28,8 +28,6 @@ final class FailedToLoadView extends RuntimeException implements BasicScaffoldEx
 	 * @param string    $uri       URI of the file that is not accessible or
 	 *                             not readable.
 	 * @param Throwable $exception Exception that was thrown by the view file.
-	 *
-	 * @return static
 	 */
 	public static function from_view_exception( $uri, $exception ): self {
 		$message = \sprintf(

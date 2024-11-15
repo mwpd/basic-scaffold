@@ -26,8 +26,6 @@ interface Deactivateable {
 
 	/**
 	 * Deactivate the service.
-	 *
-	 * @return void
 	 */
 	public function deactivate(): void;
 }

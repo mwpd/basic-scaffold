@@ -27,8 +27,6 @@ final class InvalidArgument extends InvalidArgumentException implements BasicSca
 	 * not recognized.
 	 *
 	 * @param mixed $name Name of the argument that was not recognized.
-	 *
-	 * @return static
 	 */
 	public static function from_name( $name ): self {
 		$message = \sprintf(

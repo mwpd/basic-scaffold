@@ -76,7 +76,6 @@ final class Autoloader {
 	/**
 	 * Registers the autoload callback with the SPL autoload system.
 	 *
-	 * @return void
 	 * @throws Exception If the autoloader could not be registered.
 	 */
 	public function register(): void {
@@ -85,8 +84,6 @@ final class Autoloader {
 
 	/**
 	 * Unregisters the autoload callback with the SPL autoload system.
-	 *
-	 * @return void
 	 */
 	public function unregister(): void {
 		\spl_autoload_unregister( [ $this, self::AUTOLOAD_METHOD ] );
@@ -105,8 +102,6 @@ final class Autoloader {
 	 *                             changed to lowercase. Defaults to false.
 	 * @param boolean $underscores Optional. Whether the underscores should be
 	 *                             changed to hyphens. Defaults to false.
-	 *
-	 * @return self
 	 */
 	public function add_namespace(
 		string $root,
@@ -199,9 +194,8 @@ final class Autoloader {
 	 */
 	private function normalize_root( string $root ): string {
 		$root = $this->remove_leading_backslash( $root );
-		$root = $this->ensure_trailing_backslash( $root );
 
-		return $root;
+		return $this->ensure_trailing_backslash( $root );
 	}
 
 	/**

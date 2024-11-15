@@ -329,7 +329,6 @@ final class SimpleInjector implements Injector {
 	 * Ensure that a given reflected class is instantiable.
 	 *
 	 * @param ReflectionClass $reflection Reflected class to check.
-	 * @return void
 	 * @throws FailedToMakeInstance If the interface could not be resolved.
 	 */
 	private function ensure_is_instantiable( ReflectionClass $reflection ): void {

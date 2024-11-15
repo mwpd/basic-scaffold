@@ -42,8 +42,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @param string $interface_or_class Interface or class name that generated
 	 *                                   the circular reference.
-	 *
-	 * @return static
 	 */
 	public static function for_circular_reference( string $interface_or_class ): self {
 		$message = \sprintf(
@@ -59,8 +57,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 * be resolved to an instantiable class.
 	 *
 	 * @param string $interface_name Interface that was left unresolved.
-	 *
-	 * @return static
 	 */
 	public static function for_unresolved_interface( string $interface_name ): self {
 		$message = \sprintf(
@@ -77,8 +73,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @param string $interface_or_class Interface or class that could not be
 	 *                                   reflected upon.
-	 *
-	 * @return static
 	 */
 	public static function for_unreflectable_class( string $interface_or_class ): self {
 		$message = \sprintf(
@@ -97,7 +91,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *                              resolved.
 	 * @param string $class_name         Class that had the argument in its
 	 *                              constructor.
-	 * @return static
 	 */
 	public static function for_unresolved_argument( string $argument_name, string $class_name ): self {
 		$message = \sprintf(
@@ -114,8 +107,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 * reused but was not yet instantiated.
 	 *
 	 * @param string $class_name Class that was not yet instantiated.
-	 *
-	 * @return static
 	 */
 	public static function for_uninstantiated_shared_instance( string $class_name ): self {
 		$message = \sprintf(
@@ -131,8 +122,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 * for a class that doesn't have one.
 	 *
 	 * @param string $class_name Class for which there is no delegate.
-	 *
-	 * @return static
 	 */
 	public static function for_invalid_delegate( string $class_name ): self {
 		$message = \sprintf(
@@ -147,8 +136,6 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 * Create a new instance of the exception for a reflection that is not valid.
 	 *
 	 * @param string $class_name Class that was reflected upon.
-	 *
-	 * @return static
 	 */
 	public static function for_invalid_reflection( string $class_name ): self {
 		$message = \sprintf(

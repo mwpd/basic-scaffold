@@ -48,8 +48,6 @@ interface ServiceContainer extends Traversable, Countable, ArrayAccess {
 	 * identifier.
 	 *
 	 * @param string $id Identifier of the service to look for.
-	 *
-	 * @return bool
 	 */
 	public function has( string $id ): bool;
 

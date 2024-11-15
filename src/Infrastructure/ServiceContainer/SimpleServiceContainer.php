@@ -71,8 +71,6 @@ final class SimpleServiceContainer extends ArrayObject implements ServiceContain
 	 * identifier.
 	 *
 	 * @param string $id Identifier of the service to look for.
-	 *
-	 * @return bool
 	 */
 	public function has( string $id ): bool {
 		return $this->offsetExists( $id );

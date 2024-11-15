@@ -26,8 +26,6 @@ interface Activateable {
 
 	/**
 	 * Activate the service.
-	 *
-	 * @return void
 	 */
 	public function activate(): void;
 }

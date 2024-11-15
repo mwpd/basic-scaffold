@@ -29,8 +29,6 @@ interface Registerable {
 
 	/**
 	 * Register the service.
-	 *
-	 * @return void
 	 */
 	public function register(): void;
 }

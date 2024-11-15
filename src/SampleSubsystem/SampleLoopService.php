@@ -99,8 +99,6 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 
 	/**
 	 * Register the service.
-	 *
-	 * @return void
 	 */
 	public function register(): void {
 		/*

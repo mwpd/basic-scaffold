@@ -28,8 +28,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 *
 	 * @param string|object $service Class name of the service that was not
 	 *                               recognized.
-	 *
-	 * @return static
 	 */
 	public static function from_service( $service ): self {
 		$message = \sprintf(
@@ -46,8 +44,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 *
 	 * @param string $service_id Identifier of the service that is not being
 	 *                           recognized.
-	 *
-	 * @return static
 	 */
 	public static function from_service_id( string $service_id ): self {
 		$message = \sprintf(
@@ -62,7 +58,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * Create a new instance of the exception for an invalid class name.
 	 *
 	 * @param mixed $class_name Class name that is not a string.
-	 * @return static
 	 */
 	public static function from_invalid_class_name( $class_name ): self {
 		$message = \sprintf(
@@ -77,7 +72,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * Create a new instance of the exception for an invalid identifier.
 	 *
 	 * @param mixed $identifier Identifier that is not a string.
-	 * @return static
 	 */
 	public static function from_invalid_identifier( $identifier ): self {
 		$message = \sprintf(
@@ -93,7 +87,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 *
 	 * @param string $class_name Class name that is not callable.
 	 * @param mixed  $delegation Delegation that is not callable.
-	 * @return static
 	 */
 	public static function from_invalid_delegation( string $class_name, $delegation ): self {
 		$message = \sprintf(
@@ -110,7 +103,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 *
 	 * @param string $class_name Class name that is not an array.
 	 * @param mixed  $argument_map Argument map that is not an array.
-	 * @return static
 	 */
 	public static function from_invalid_argument_map( string $class_name, $argument_map ): self {
 		$message = \sprintf(
@@ -126,7 +118,6 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * Create a new instance of the exception for a lazy service.
 	 *
 	 * @param mixed $service Service that is not an object of type Service.
-	 * @return static
 	 */
 	public static function from_lazy_service( $service ): self {
 		$message = \sprintf(
