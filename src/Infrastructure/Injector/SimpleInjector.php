@@ -114,18 +114,15 @@ final class SimpleInjector implements Injector {
 			}
 
 			return $object;
-		} else {
-			$reflection = $this->get_class_reflection( $class_name );
-			$this->ensure_is_instantiable( $reflection );
-
-			$dependencies = $this->get_dependencies_for(
-				$injection_chain,
-				$reflection,
-				$arguments
-			);
-
-			$object = $this->instantiator->instantiate( $class_name, $dependencies );
 		}
+		$reflection = $this->get_class_reflection( $class_name );
+		$this->ensure_is_instantiable( $reflection );
+		$dependencies = $this->get_dependencies_for(
+			$injection_chain,
+			$reflection,
+			$arguments
+		);
+		$object       = $this->instantiator->instantiate( $class_name, $dependencies );
 
 		if ( \array_key_exists( $class_name, $this->shared_instances ) ) {
 			$this->shared_instances[ $class_name ] = $object;
@@ -319,12 +316,12 @@ final class SimpleInjector implements Injector {
 			 *
 			 * @return mixed
 			 */
-			fn(ReflectionParameter $parameter) => $this->resolve_argument(
-					$injection_chain,
-					$class,
-					$parameter,
-					$arguments
-				),
+			fn( ReflectionParameter $parameter ) => $this->resolve_argument(
+				$injection_chain,
+				$class,
+				$parameter,
+				$arguments
+			),
 			$constructor->getParameters()
 		);
 	}

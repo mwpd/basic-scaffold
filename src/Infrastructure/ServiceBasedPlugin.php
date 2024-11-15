@@ -594,7 +594,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 */
 	protected function maybe_resolve( $value ) {
 		if ( is_callable( $value ) ) {
-			$value = $value( $this->injector, $this->service_container );
+			return $value( $this->injector, $this->service_container );
 		}
 
 		return $value;
