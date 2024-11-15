@@ -27,4 +27,5 @@ return RectorConfig::configure()
         SetList::STRICT_BOOLEANS,
         SetList::PRIVATIZATION,
         SetList::CODING_STYLE,
+        SetList::EARLY_RETURN,
     ]);

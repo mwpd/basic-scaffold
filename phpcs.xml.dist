@@ -46,6 +46,9 @@
 
         <!-- Allow short open echo tag without semicolon -->
         <exclude name="Squiz.PHP.EmbeddedPhp.ShortOpenEchoNoSemicolon"/>
+
+        <!-- Don't enforce Yoda conditions -->
+        <exclude name="WordPress.PHP.YodaConditions"/>
     </rule>
 
     <!-- Rules: PHP version compatibility -->
