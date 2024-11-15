@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
+use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService;
@@ -94,24 +96,18 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 	/**
 	 * Whether to enable filtering of the injector configuration.
-	 *
-	 * @var bool
 	 */
-	protected $enable_filters;
+	protected bool $enable_filters;
 
 	/**
 	 * Injector instance.
-	 *
-	 * @var Injector
 	 */
-	protected $injector;
+	protected Injector $injector;
 
 	/**
 	 * Service container instance.
-	 *
-	 * @var ServiceContainer
 	 */
-	protected $service_container;
+	protected ServiceContainer $service_container;
 
 	/**
 	 * Instantiate a Plugin object.
@@ -139,10 +135,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 */
 
 		$this->enable_filters = $enable_filters;
-		$this->injector       = $injector ?? new Injector\SimpleInjector();
+		$this->injector       = $injector ?? new SimpleInjector();
 		$this->injector       = $this->configure_injector( $this->injector );
 
-		$this->service_container = $service_container ?? new ServiceContainer\SimpleServiceContainer();
+		$this->service_container = $service_container ?? new SimpleServiceContainer();
 	}
 
 	/**
@@ -263,7 +259,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 				\add_action(
 					$class_name::get_registration_action(),
-					function () use ( $id, $class_name ) {
+					function () use ( $id, $class_name ): void {
 						$this->register_service( $id, $class_name );
 					},
 					10,

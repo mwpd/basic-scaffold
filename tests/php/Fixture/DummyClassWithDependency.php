@@ -15,8 +15,7 @@ namespace MWPD\BasicScaffold\Tests\Fixture;
 
 final class DummyClassWithDependency implements DummyInterface {
 
-	/** @var DummyClass */
-	private $dummy;
+	private DummyClass $dummy;
 
 	public function __construct( DummyClass $dummy ) {
 		$this->dummy = $dummy;

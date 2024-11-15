@@ -29,7 +29,7 @@ final class TemplatedView extends SimpleView {
 	 *
 	 * @var array<string>
 	 */
-	private $locations;
+	private array $locations;
 
 	/**
 	 * Instantiate a TemplatedView object.

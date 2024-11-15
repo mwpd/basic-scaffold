@@ -6,7 +6,6 @@ namespace MWPD\BasicScaffold\Tests\Unit\Exception;
 
 use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 use stdClass;
 
 class FailedToEscapeValueTest extends TestCase {
@@ -20,7 +19,7 @@ class FailedToEscapeValueTest extends TestCase {
 
 	public function test_from_value_with_object_with_to_string(): void {
 		$value = new class() {
-			public function __toString() {
+			public function __toString(): string {
 				return 'custom string';
 			}
 		};

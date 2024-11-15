@@ -31,7 +31,7 @@ final class FailedToLoadView extends RuntimeException implements BasicScaffoldEx
 	 *
 	 * @return static
 	 */
-	public static function from_view_exception( $uri, $exception ) {
+	public static function from_view_exception( $uri, $exception ): self {
 		$message = \sprintf(
 			'Could not load the View URI "%1$s". Reason: "%2$s".',
 			$uri,

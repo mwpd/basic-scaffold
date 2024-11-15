@@ -80,6 +80,14 @@
     <!-- Enforce proper docblock alignment -->
     <rule ref="Squiz.Commenting.DocCommentAlignment"/>
 
+    <!-- Don't enforce missing variable type in docblocks, as we're using strict typing -->
+    <rule ref="Squiz.Commenting.VariableComment.MissingVar">
+        <severity>0</severity>
+    </rule>
+    <rule ref="Squiz.Commenting.VariableComment.Missing">
+        <severity>0</severity>
+    </rule>
+
     <!-- Verify that all class properties have their visibility declared -->
     <rule ref="PSR2.Classes.PropertyDeclaration"/>
 

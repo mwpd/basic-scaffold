@@ -13,7 +13,7 @@ final class TemplatedViewTest extends TestCase {
 	/**
 	 * @var MockObject&ViewFactory
 	 */
-	private $view_factory_mock;
+	private MockObject $view_factory_mock;
 
 	protected function setUp(): void {
 		$this->view_factory_mock = $this->createMock( ViewFactory::class );

@@ -33,7 +33,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 *
 	 * @var array<string>
 	 */
-	private $locations;
+	private array $locations;
 
 	/**
 	 * Instantiate a TemplatedViewFactory object.

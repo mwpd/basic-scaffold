@@ -34,10 +34,8 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 
 	/**
 	 * View factory.
-	 *
-	 * @var ViewFactory
 	 */
-	private $view_factory;
+	private ViewFactory $view_factory;
 
 	/**
 	 * Check whether the conditional service is currently needed.

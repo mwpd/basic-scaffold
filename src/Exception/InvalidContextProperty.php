@@ -29,7 +29,7 @@ final class InvalidContextProperty extends InvalidArgumentException implements B
 	 *
 	 * @return static
 	 */
-	public static function from_property( string $property ) {
+	public static function from_property( string $property ): self {
 		$message = \sprintf(
 			'The property "%s" could not be found within the context of the currently rendered view.',
 			$property

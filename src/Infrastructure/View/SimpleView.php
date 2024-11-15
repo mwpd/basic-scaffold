@@ -42,10 +42,8 @@ class SimpleView extends stdClass implements View {
 
 	/**
 	 * Path to the view file to render.
-	 *
-	 * @var string
 	 */
-	protected $path;
+	protected string $path;
 
 	/**
 	 * Internal storage for passed-in context.
@@ -56,17 +54,13 @@ class SimpleView extends stdClass implements View {
 
 	/**
 	 * View factory instance to use.
-	 *
-	 * @var ViewFactory
 	 */
-	protected $view_factory;
+	protected ViewFactory $view_factory;
 
 	/**
 	 * Debug mode instance to use.
-	 *
-	 * @var DebugMode
 	 */
-	private $debug_mode;
+	private DebugMode $debug_mode;
 
 	/**
 	 * Instantiate a SimpleView object.

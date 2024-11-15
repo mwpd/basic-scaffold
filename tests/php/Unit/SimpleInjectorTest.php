@@ -3,11 +3,14 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Unit;
 
+use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
+use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithNamedArguments;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\Instantiator;
-use MWPD\BasicScaffold\Tests\Fixture;
 use stdClass;
 use PHPUnit\Framework\MockObject\MockObject;
 final class SimpleInjectorTest extends TestCase {
@@ -26,45 +29,45 @@ final class SimpleInjectorTest extends TestCase {
 
 	public function test_it_can_instantiate_a_concrete_class(): void {
 		$object = ( new SimpleInjector() )
-			->make( Fixture\DummyClass::class );
+			->make( DummyClass::class );
 
-		$this->assertInstanceOf( Fixture\DummyClass::class, $object );
+		$this->assertInstanceOf( DummyClass::class, $object );
 	}
 
 	public function test_it_can_autowire_a_class_with_a_dependency(): void {
 		$object = ( new SimpleInjector() )
-			->make( Fixture\DummyClassWithDependency::class );
+			->make( DummyClassWithDependency::class );
 
-		$this->assertInstanceOf( Fixture\DummyClassWithDependency::class, $object );
-		$this->assertInstanceOf( Fixture\DummyClass::class, $object->get_dummy() );
+		$this->assertInstanceOf( DummyClassWithDependency::class, $object );
+		$this->assertInstanceOf( DummyClass::class, $object->get_dummy() );
 	}
 
 	public function test_it_can_instantiate_a_bound_interface(): void {
 		$injector = ( new SimpleInjector() )
 			->bind(
-				Fixture\DummyInterface::class,
-				Fixture\DummyClassWithDependency::class
+				DummyInterface::class,
+				DummyClassWithDependency::class
 			);
-		$object   = $injector->make( Fixture\DummyInterface::class );
+		$object   = $injector->make( DummyInterface::class );
 
-		$this->assertInstanceOf( Fixture\DummyInterface::class, $object );
-		$this->assertInstanceOf( Fixture\DummyClassWithDependency::class, $object );
-		$this->assertInstanceOf( Fixture\DummyClass::class, $object->get_dummy() );
+		$this->assertInstanceOf( DummyInterface::class, $object );
+		$this->assertInstanceOf( DummyClassWithDependency::class, $object );
+		$this->assertInstanceOf( DummyClass::class, $object->get_dummy() );
 	}
 
 	public function test_it_returns_separate_instances_by_default(): void {
 		$injector = new SimpleInjector();
-		$object_a = $injector->make( Fixture\DummyClass::class );
-		$object_b = $injector->make( Fixture\DummyClass::class );
+		$object_a = $injector->make( DummyClass::class );
+		$object_b = $injector->make( DummyClass::class );
 
 		$this->assertNotSame( $object_a, $object_b );
 	}
 
 	public function test_it_returns_same_instances_if_shared(): void {
 		$injector = ( new SimpleInjector() )
-			->share( Fixture\DummyClass::class );
-		$object_a = $injector->make( Fixture\DummyClass::class );
-		$object_b = $injector->make( Fixture\DummyClass::class );
+			->share( DummyClass::class );
+		$object_a = $injector->make( DummyClass::class );
+		$object_b = $injector->make( DummyClass::class );
 
 		$this->assertSame( $object_a, $object_b );
 	}
@@ -72,14 +75,14 @@ final class SimpleInjectorTest extends TestCase {
 	public function test_it_can_instantiate_a_class_with_named_arguments(): void {
 		$object = ( new SimpleInjector() )
 			->make(
-				Fixture\DummyClassWithNamedArguments::class,
+				DummyClassWithNamedArguments::class,
 				[
 					'argument_a' => 42,
 					'argument_b' => 'Mr Alderson',
 				]
 			);
 
-		$this->assertInstanceOf( Fixture\DummyClassWithNamedArguments::class, $object );
+		$this->assertInstanceOf( DummyClassWithNamedArguments::class, $object );
 		$this->assertEquals( 42, $object->get_argument_a() );
 		$this->assertEquals( 'Mr Alderson', $object->get_argument_b() );
 	}
@@ -87,11 +90,11 @@ final class SimpleInjectorTest extends TestCase {
 	public function test_it_allows_for_skipping_named_arguments_with_default_values(): void {
 		$object = ( new SimpleInjector() )
 			->make(
-				Fixture\DummyClassWithNamedArguments::class,
+				DummyClassWithNamedArguments::class,
 				[ 'argument_a' => 42 ]
 			);
 
-		$this->assertInstanceOf( Fixture\DummyClassWithNamedArguments::class, $object );
+		$this->assertInstanceOf( DummyClassWithNamedArguments::class, $object );
 		$this->assertEquals( 42, $object->get_argument_a() );
 		$this->assertEquals( 'Mr Meeseeks', $object->get_argument_b() );
 	}
@@ -100,7 +103,7 @@ final class SimpleInjectorTest extends TestCase {
 		$this->expectException( FailedToMakeInstance::class );
 
 		( new SimpleInjector() )
-			->make( Fixture\DummyClassWithNamedArguments::class );
+			->make( DummyClassWithNamedArguments::class );
 	}
 
 	public function test_it_throws_if_a_circular_reference_is_detected(): void {
@@ -109,54 +112,54 @@ final class SimpleInjectorTest extends TestCase {
 
 		( new SimpleInjector() )
 			->bind(
-				Fixture\DummyClass::class,
-				Fixture\DummyClassWithDependency::class
+				DummyClass::class,
+				DummyClassWithDependency::class
 			)
-			->make( Fixture\DummyClassWithDependency::class );
+			->make( DummyClassWithDependency::class );
 	}
 
 	public function test_it_can_delegate_instantiation(): void {
 		$injector = ( new SimpleInjector() )
 			->delegate(
-				Fixture\DummyInterface::class,
-				function ( string $class_name ) {
+				DummyInterface::class,
+				function ( string $class_name ): stdClass {
 					$object             = new stdClass();
 					$object->class_name = $class_name;
 					return $object;
 				}
 			);
-		$object   = $injector->make( Fixture\DummyInterface::class );
+		$object   = $injector->make( DummyInterface::class );
 
 		$this->assertInstanceOf( stdClass::class, $object );
 		$this->assertObjectHasProperty( 'class_name', $object );
-		$this->assertEquals( Fixture\DummyInterface::class, $object->class_name );
+		$this->assertEquals( DummyInterface::class, $object->class_name );
 	}
 
 	public function test_delegation_works_across_resolution(): void {
 		$injector = ( new SimpleInjector() )
 			->bind(
-				Fixture\DummyInterface::class,
-				Fixture\DummyClassWithDependency::class
+				DummyInterface::class,
+				DummyClassWithDependency::class
 			)
 			->delegate(
-				Fixture\DummyClassWithDependency::class,
-				function ( string $class_name ) {
+				DummyClassWithDependency::class,
+				function ( string $class_name ): stdClass {
 					$object             = new stdClass();
 					$object->class_name = $class_name;
 					return $object;
 				}
 			);
-		$object   = $injector->make( Fixture\DummyInterface::class );
+		$object   = $injector->make( DummyInterface::class );
 
 		$this->assertInstanceOf( stdClass::class, $object );
 		$this->assertObjectHasProperty( 'class_name', $object );
-		$this->assertEquals( Fixture\DummyClassWithDependency::class, $object->class_name );
+		$this->assertEquals( DummyClassWithDependency::class, $object->class_name );
 	}
 
 	public function test_arguments_can_be_bound(): void {
 		$object = ( new SimpleInjector() )
 			->bind_argument(
-				Fixture\DummyClassWithNamedArguments::class,
+				DummyClassWithNamedArguments::class,
 				'argument_a',
 				42
 			)
@@ -165,9 +168,9 @@ final class SimpleInjectorTest extends TestCase {
 				'argument_b',
 				'Mr Alderson'
 			)
-			->make( Fixture\DummyClassWithNamedArguments::class );
+			->make( DummyClassWithNamedArguments::class );
 
-		$this->assertInstanceOf( Fixture\DummyClassWithNamedArguments::class, $object );
+		$this->assertInstanceOf( DummyClassWithNamedArguments::class, $object );
 		$this->assertEquals( 42, $object->get_argument_a() );
 		$this->assertEquals( 'Mr Alderson', $object->get_argument_b() );
 	}
@@ -177,12 +180,12 @@ final class SimpleInjectorTest extends TestCase {
 		$mock_instantiator = $this->createMock( Instantiator::class );
 		$mock_instantiator->expects( $this->once() )
 			->method( 'instantiate' )
-			->with( Fixture\DummyClass::class, [] )
-			->willReturn( new Fixture\DummyClass() );
+			->with( DummyClass::class, [] )
+			->willReturn( new DummyClass() );
 
 		$injector = new SimpleInjector( $mock_instantiator );
-		$instance = $injector->make( Fixture\DummyClass::class );
+		$instance = $injector->make( DummyClass::class );
 
-		$this->assertInstanceOf( Fixture\DummyClass::class, $instance );
+		$this->assertInstanceOf( DummyClass::class, $instance );
 	}
 }

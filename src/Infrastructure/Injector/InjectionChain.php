@@ -29,14 +29,14 @@ final class InjectionChain {
 	 *
 	 * @var array<string>
 	 */
-	private $chain = [];
+	private array $chain = [];
 
 	/**
 	 * Resolutions.
 	 *
 	 * @var array<bool>
 	 */
-	private $resolutions = [];
+	private array $resolutions = [];
 
 	/**
 	 * Add class to injection chain.

@@ -37,10 +37,8 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 
 	/**
 	 * View factory.
-	 *
-	 * @var ViewFactory
 	 */
-	private $view_factory;
+	private ViewFactory $view_factory;
 
 	/**
 	 * Post.
@@ -118,7 +116,7 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	 * @param string $content The content to be filtered.
 	 * @return string Filtered content prepended with a post header.
 	 */
-	public function prepend_post_header( $content ): string {
+	public function prepend_post_header( string $content ): string {
 		/*
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.

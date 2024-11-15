@@ -41,37 +41,35 @@ final class SimpleInjector implements Injector {
 	 *
 	 * @var array<class-string,class-string>
 	 */
-	private $mappings = [];
+	private array $mappings = [];
 
 	/**
 	 * Mapping of shared instances.
 	 *
 	 * @var array<object|null>
 	 */
-	private $shared_instances = [];
+	private array $shared_instances = [];
 
 	/**
 	 * Mapping of delegates.
 	 *
 	 * @var array<callable>
 	 */
-	private $delegates = [];
+	private array $delegates = [];
 
 	/**
 	 * Mapping of argument names to values.
 	 *
 	 * @var array<array<string, mixed>>
 	 */
-	private $argument_mappings = [
+	private array $argument_mappings = [
 		self::GLOBAL_ARGUMENTS => [],
 	];
 
 	/**
 	 * Instantiator to use.
-	 *
-	 * @var Instantiator
 	 */
-	private $instantiator;
+	private Instantiator $instantiator;
 
 	/**
 	 * Instantiate a SimpleInjector object.
@@ -115,6 +113,7 @@ final class SimpleInjector implements Injector {
 
 			return $object;
 		}
+
 		$reflection = $this->get_class_reflection( $class_name );
 		$this->ensure_is_instantiable( $reflection );
 		$dependencies = $this->get_dependencies_for(

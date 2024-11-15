@@ -12,6 +12,7 @@ return RectorConfig::configure()
         __DIR__ . '/tests',
     ])
     ->withIndent('  ', 4)
+    ->withImportNames(true, true, true, true)
     ->withSets([
         SetList::PHP_52,
         SetList::PHP_53,
@@ -28,4 +29,6 @@ return RectorConfig::configure()
         SetList::PRIVATIZATION,
         SetList::CODING_STYLE,
         SetList::EARLY_RETURN,
+        SetList::INSTANCEOF,
+        SetList::TYPE_DECLARATION,
     ]);

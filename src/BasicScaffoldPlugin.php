@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 
+use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
+use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\Infrastructure\{
 	ServiceBasedPlugin,
 	View\TemplatedViewFactory,
@@ -53,8 +55,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 */
 	protected function get_service_classes(): array {
 		return [
-			self::SAMPLE_BACKEND_SERVICE_ID => SampleSubsystem\SampleBackendService::class,
-			self::SAMPLE_LOOP_SERVICE_ID    => SampleSubsystem\SampleLoopService::class,
+			self::SAMPLE_BACKEND_SERVICE_ID => SampleBackendService::class,
+			self::SAMPLE_LOOP_SERVICE_ID    => SampleLoopService::class,
 
 			// Add your service definitions here.
 		];

@@ -30,7 +30,7 @@ final class InvalidArgument extends InvalidArgumentException implements BasicSca
 	 *
 	 * @return static
 	 */
-	public static function from_name( $name ) {
+	public static function from_name( $name ): self {
 		$message = \sprintf(
 			'The argument "%s" is not recognized and cannot be registered.',
 			self::stringify( $name )

@@ -31,7 +31,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 *
 	 * @return static
 	 */
-	public static function from_service( $service ) {
+	public static function from_service( $service ): self {
 		$message = \sprintf(
 			'The service "%s" is not recognized and cannot be registered.',
 			self::stringify( $service )
@@ -49,7 +49,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 *
 	 * @return static
 	 */
-	public static function from_service_id( string $service_id ) {
+	public static function from_service_id( string $service_id ): self {
 		$message = \sprintf(
 			'The service ID "%s" is not recognized and cannot be retrieved.',
 			$service_id
@@ -64,7 +64,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * @param mixed $class_name Class name that is not a string.
 	 * @return static
 	 */
-	public static function from_invalid_class_name( $class_name ) {
+	public static function from_invalid_class_name( $class_name ): self {
 		$message = \sprintf(
 			'The class name "%s" is not a string and cannot be registered as a service.',
 			self::stringify( $class_name )
@@ -79,7 +79,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * @param mixed $identifier Identifier that is not a string.
 	 * @return static
 	 */
-	public static function from_invalid_identifier( $identifier ) {
+	public static function from_invalid_identifier( $identifier ): self {
 		$message = \sprintf(
 			'The identifier "%s" is not a string and cannot be registered as a service.',
 			self::stringify( $identifier )
@@ -95,7 +95,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * @param mixed  $delegation Delegation that is not callable.
 	 * @return static
 	 */
-	public static function from_invalid_delegation( string $class_name, $delegation ) {
+	public static function from_invalid_delegation( string $class_name, $delegation ): self {
 		$message = \sprintf(
 			'The delegation for "%s" is not a callable: %s',
 			self::stringify( $class_name ),
@@ -112,7 +112,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * @param mixed  $argument_map Argument map that is not an array.
 	 * @return static
 	 */
-	public static function from_invalid_argument_map( string $class_name, $argument_map ) {
+	public static function from_invalid_argument_map( string $class_name, $argument_map ): self {
 		$message = \sprintf(
 			'The argument map for "%s" is not an array: %s',
 			self::stringify( $class_name ),
@@ -128,7 +128,7 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 	 * @param mixed $service Service that is not an object of type Service.
 	 * @return static
 	 */
-	public static function from_lazy_service( $service ) {
+	public static function from_lazy_service( $service ): self {
 		$message = \sprintf(
 			'The lazy service "%s" cannot be instantiated into an object of type Service.',
 			self::stringify( $service )

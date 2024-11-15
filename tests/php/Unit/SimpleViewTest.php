@@ -15,10 +15,10 @@ use PHPUnit\Framework\MockObject\MockObject;
 final class SimpleViewTest extends TestCase {
 
 	/** @var MockObject&ViewFactory */
-	private $view_factory;
+	private MockObject $view_factory;
 
 	/** @var MockObject&DebugMode */
-	private $debug_mode;
+	private MockObject $debug_mode;
 
 	protected function setUp(): void {
 		$this->view_factory = $this->createMock( ViewFactory::class );

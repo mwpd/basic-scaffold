@@ -45,7 +45,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @return static
 	 */
-	public static function for_circular_reference( string $interface_or_class ) {
+	public static function for_circular_reference( string $interface_or_class ): self {
 		$message = \sprintf(
 			'Circular reference detected while trying to resolve the interface or class "%s".',
 			$interface_or_class
@@ -62,7 +62,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @return static
 	 */
-	public static function for_unresolved_interface( string $interface_name ) {
+	public static function for_unresolved_interface( string $interface_name ): self {
 		$message = \sprintf(
 			'Could not resolve the interface "%s" to an instantiable class, probably forgot to bind an implementation.',
 			$interface_name
@@ -80,7 +80,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @return static
 	 */
-	public static function for_unreflectable_class( string $interface_or_class ) {
+	public static function for_unreflectable_class( string $interface_or_class ): self {
 		$message = \sprintf(
 			'Could not reflect on the interface or class "%s", probably not a valid FQCN.',
 			$interface_or_class
@@ -99,7 +99,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *                              constructor.
 	 * @return static
 	 */
-	public static function for_unresolved_argument( string $argument_name, string $class_name ) {
+	public static function for_unresolved_argument( string $argument_name, string $class_name ): self {
 		$message = \sprintf(
 			'Could not resolve the argument "%s" while trying to instantiate the class "%s".',
 			$argument_name,
@@ -117,7 +117,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @return static
 	 */
-	public static function for_uninstantiated_shared_instance( string $class_name ) {
+	public static function for_uninstantiated_shared_instance( string $class_name ): self {
 		$message = \sprintf(
 			'Could not retrieve the shared instance for "%s" as it was not instantiated yet.',
 			$class_name
@@ -134,7 +134,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @return static
 	 */
-	public static function for_invalid_delegate( string $class_name ) {
+	public static function for_invalid_delegate( string $class_name ): self {
 		$message = \sprintf(
 			'Could not retrieve a delegate for "%s", none was defined.',
 			$class_name
@@ -150,7 +150,7 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 *
 	 * @return static
 	 */
-	public static function for_invalid_reflection( string $class_name ) {
+	public static function for_invalid_reflection( string $class_name ): self {
 		$message = \sprintf(
 			'Could not create a reflection for the class "%s".',
 			$class_name

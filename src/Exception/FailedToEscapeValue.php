@@ -14,7 +14,6 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
-use Throwable;
 
 /**
  * Exception thrown when a value cannot be escaped.
@@ -30,7 +29,7 @@ final class FailedToEscapeValue extends RuntimeException implements BasicScaffol
 	 * @param mixed $value Value that could not be escaped.
 	 * @return static
 	 */
-	public static function from_value( $value ) {
+	public static function from_value( $value ): self {
 		$message = \sprintf(
 			'Could not escape the value "%1$s".',
 			self::stringify( $value )

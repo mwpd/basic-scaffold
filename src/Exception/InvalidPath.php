@@ -29,7 +29,7 @@ final class InvalidPath extends InvalidArgumentException implements BasicScaffol
 	 *
 	 * @return static
 	 */
-	public static function from_path( $path ) {
+	public static function from_path( $path ): self {
 		$message = \sprintf(
 			'The view path "%s" is not accessible or readable.',
 			$path

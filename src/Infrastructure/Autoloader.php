@@ -59,7 +59,7 @@ final class Autoloader {
 	 *
 	 * @var array<int, AutoloaderNamespace>
 	 */
-	private $namespaces = [];
+	private array $namespaces = [];
 
 	/**
 	 * Destructor for the Autoloader class.
