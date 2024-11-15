@@ -9,4 +9,4 @@
  * @suppress PHP0415
  */
 
-nonsense;
+\NONSENSE;
