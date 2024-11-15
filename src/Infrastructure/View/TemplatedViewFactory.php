@@ -41,7 +41,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * @param array<string> $locations Array of locations to use.
 	 */
 	public function __construct( array $locations = [] ) {
-		if ( empty( $locations ) ) {
+		if ( $locations === [] ) {
 			$locations = $this->get_default_locations();
 		}
 

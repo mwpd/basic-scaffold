@@ -70,7 +70,7 @@ final class InjectionChain {
 	 * @phpstan-return class-string
 	 */
 	public function get_class(): string {
-		if ( empty( $this->chain ) ) {
+		if ( $this->chain === [] ) {
 			throw new LogicException(
 				'Access to injection chain before any resolution was made.'
 			);

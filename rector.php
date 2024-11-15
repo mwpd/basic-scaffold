@@ -18,4 +18,5 @@ return RectorConfig::configure()
         SetList::PHP_73,
         SetList::PHP_74,
         SetList::PHP_80,
+        SetList::CODE_QUALITY,
     ]);
