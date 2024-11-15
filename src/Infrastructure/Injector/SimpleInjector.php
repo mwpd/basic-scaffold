@@ -319,14 +319,12 @@ final class SimpleInjector implements Injector {
 			 *
 			 * @return mixed
 			 */
-			function ( ReflectionParameter $parameter ) use ( $injection_chain, $class, $arguments ) {
-				return $this->resolve_argument(
+			fn(ReflectionParameter $parameter) => $this->resolve_argument(
 					$injection_chain,
 					$class,
 					$parameter,
 					$arguments
-				);
-			},
+				),
 			$constructor->getParameters()
 		);
 	}

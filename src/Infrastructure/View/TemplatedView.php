@@ -92,9 +92,7 @@ final class TemplatedView extends SimpleView {
 	 */
 	private function get_locations( string $path ): array {
 		return array_map(
-			function ( string $location ) use ( $path ): string {
-				return "{$location}{$path}";
-			},
+			fn(string $location): string => "{$location}{$path}",
 			$this->locations
 		);
 	}
