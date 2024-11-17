@@ -50,8 +50,9 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * The services array contains a map of <identifier> => <service class name>
 	 * associations.
 	 *
-	 * @return array<string> Associative array of identifiers mapped to fully
-	 *                       qualified class names.
+	 * @return array<string,class-string|callable> Associative array of identifiers
+	 *                                             mapped to fully qualified class
+	 *                                             names or callables.
 	 */
 	protected function get_service_classes(): array {
 		return [

@@ -16,6 +16,7 @@ namespace MWPD\BasicScaffold\Infrastructure;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
+use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService;
 
@@ -211,10 +212,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 * This can be used to add services to the service container for
 			 * this plugin.
 			 *
-			 * @param array<string> $services Associative array of identifier =>
-			 *                                class mappings. The provided
-			 *                                classes need to implement the
-			 *                                Service interface.
+			 * @param array<string,class-string|callable> $services Associative array of
+			 *                                                      identifiers mapped to
+			 *                                                      fully qualified class
+			 *                                                      names or callables.
 			 */
 			$services = \apply_filters(
 				static::HOOK_PREFIX . static::SERVICES_FILTER,
@@ -222,9 +223,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 			);
 		}
 
-		foreach ( $services as $id => $class_name ) {
-			$id         = $this->maybe_resolve( $id );
-			$class_name = $this->maybe_resolve( $class_name );
+		while ( null !== key( $services ) ) {
+			$id         = key( $services );
+			$class_name = $this->maybe_resolve( current( $services ) );
 
 			if ( ! is_string( $id ) ) {
 				throw InvalidService::from_invalid_identifier( $id );
@@ -235,52 +236,107 @@ abstract class ServiceBasedPlugin implements Plugin {
 			}
 
 			/**
-			 * The class name is guaranteed to be a string at this point.
+			 * The resolved value is guaranteed to be a class name at this point.
 			 *
 			 * @var class-string $class_name
 			 */
 
-			// Allow the services to delay their registration.
-			if ( is_a( $class_name, Delayed::class, true ) ) {
-				$registration_action = $class_name::get_registration_action();
+			if ( $class_name !== current( $services ) ) {
+				$services[ $id ] = $class_name;
+			}
 
-				if ( \did_action( $registration_action ) ) {
-					$this->register_service( $id, $class_name );
+			/**
+			 * The resolved value is guaranteed to be a class name at this point.
+			 *
+			 * @var class-string $class_name
+			 */
 
-					continue;
-				}
-
-				\add_action(
-					$class_name::get_registration_action(),
-					function () use ( $id, $class_name ): void {
-						$this->register_service( $id, $class_name );
-					},
-					10,
-					0
-				);
-
+			// Delay registering the service until all dependencies are met.
+			if ( is_a( $class_name, HasDependencies::class, true ) &&
+				! $this->dependencies_are_met( $id, $class_name, $services ) ) {
+				next( $services );
 				continue;
 			}
 
-			$this->register_service( $id, $class_name );
+			$this->schedule_potential_service_registration( $id, $class_name );
+			next( $services );
 		}
 	}
 
 	/**
-	 * Register a single service.
+	 * The service registration works in three steps:
 	 *
-	 * @param string       $id         Identifier of the service.
-	 * @param class-string $class_name Class name of the service.
+	 * 1. All services that need to be registered are gathered.
+	 * 2. A first pass over the services registers all those that either don't have
+	 *    dependencies or where all dependencies are met already.
+	 * 3. A second pass registers the remaining services as soon as their
+	 *    dependencies are met.
+	 *
+	 * The first pass is done directly from the register_services() method, as it
+	 * needs to ensure that the services are registered in the order they were
+	 * provided.
+	 *
+	 * The second pass is done through schedule_potential_service_registration(),
+	 * which adds the service to the registration schedule. For regular services,
+	 * this means they are registered immediately. For delayed services, this means
+	 * they are only registered upon their registration action.
+	 *
+	 * Services that have delayed dependencies are registered as soon as all their
+	 * dependencies are available. This is done by registering a callback to each
+	 * dependency's registration action hook with a high priority. This means that
+	 * the service's registration is triggered by the first dependency that was
+	 * registered. It then checks if all other dependencies are available as well,
+	 * and if so, registers the service.
+	 *
+	 * @param string       $id         ID of the service to register.
+	 * @param class-string $class_name Class of the service to register.
 	 */
-	protected function register_service( string $id, string $class_name ): void {
+	protected function schedule_potential_service_registration( string $id, string $class_name ): void {
+		if ( is_a( $class_name, Delayed::class, true ) ) {
+			$registration_action = $class_name::get_registration_action();
+
+			if ( \did_action( $registration_action ) ) {
+				$this->maybe_register_service( $id, $class_name );
+			} else {
+				\add_action(
+					$registration_action,
+					function () use ( $id, $class_name ): void {
+						$this->maybe_register_service( $id, $class_name );
+					},
+					10,
+					0
+				);
+			}
+		} else {
+			$this->maybe_register_service( $id, $class_name );
+		}
+	}
+
+	/**
+	 * The maybe_register_service() method is the third step of registering a service.
+	 * It checks whether the service was registered before and whether it is actually
+	 * needed, and only then registers it.
+	 *
+	 * The three checks being done are:
+	 * 1. Is the service already registered? => Skip if yes.
+	 * 2. Is the service conditional? => Skip if conditions not met.
+	 * 3. Register the service.
+	 *
+	 * @param string       $id         ID of the service to register.
+	 * @param class-string $class_name Class of the service to register.
+	 */
+	protected function maybe_register_service( string $id, string $class_name ): void {
+		// Ensure we don't register the same service more than once.
+		if ( $this->service_container->has( $id ) ) {
+			return;
+		}
+
 		// Only instantiate services that are actually needed.
-		if ( is_a( $class_name, Conditional::class, true )
-			&& ! $class_name::is_needed() ) {
+		if ( is_a( $class_name, Conditional::class, true ) && ! $class_name::is_needed() ) {
 			return;
 		}
 
 		$service = $this->instantiate_service( $class_name );
-
 		$this->service_container->put( $id, $service );
 
 		if ( $service instanceof Registerable ) {
@@ -344,7 +400,8 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @param Injector $injector Injector instance to configure.
 	 * @return Injector Configured injector instance.
 	 * @throws InvalidArgument If an argument is not recognized.
-	 * @throws InvalidService If the injector configuration is invalid.
+	 * @throws InvalidConfiguration If the injector configuration structure is invalid.
+	 * @throws InvalidService If the injector configuration details are invalid.
 	 */
 	protected function configure_injector( Injector $injector ): Injector {
 		$bindings         = $this->get_bindings();
@@ -358,12 +415,15 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *
 			 * This can be used to swap implementations out for alternatives.
 			 *
-			 * @param array<string> $bindings Associative array of interface =>
-			 *                                implementation bindings. Both
-			 *                                should be FQCNs.
-			 * @psalm-suppress RedundantCast
+			 * @param array<class-string,class-string|callable> $bindings Associative array of
+			 *                                                            interface =>
+			 *                                                            implementation
+			 *                                                            bindings. Both
+			 *                                                            should be FQCNs.
+			 * @return array<class-string,class-string|callable> Modified bindings.
+			 * @psalm-suppress InvalidArgument
 			 */
-			$bindings = (array) \apply_filters(
+			$bindings = \apply_filters(
 				static::HOOK_PREFIX . static::BINDINGS_FILTER,
 				$bindings
 			);
@@ -379,9 +439,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *                                               mappings. The arguments
 			 *                                               array maps argument names
 			 *                                               to values.
-			 * @psalm-suppress RedundantCast,InvalidArgument
+			 * @return array<array<string, mixed>> Modified arguments.
 			 */
-			$arguments = (array) \apply_filters(
+			$arguments = \apply_filters(
 				static::HOOK_PREFIX . static::ARGUMENTS_FILTER,
 				$arguments
 			);
@@ -392,34 +452,56 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 * This can be used to turn objects that were added externally into
 			 * shared instances.
 			 *
-			 * @param array<string> $shared_instances Array of FQCNs to turn
-			 *                                        into shared objects.
-			 * @psalm-suppress RedundantCast
+			 * @param array<class-string|callable> $shared_instances Array of FQCNs to turn
+			 *                                              into shared objects.
+			 * @return array<class-string|callable> Modified shared instances.
+			 * @psalm-suppress InvalidArgument
 			 */
-			$shared_instances = (array) \apply_filters(
+			$shared_instances = \apply_filters(
 				static::HOOK_PREFIX . static::SHARED_INSTANCES_FILTER,
 				$shared_instances
 			);
 
 			/**
-			 * Filter the instances that are shared by default by the plugin.
+			 * Filter the delegations that are provided by the plugin.
 			 *
-			 * This can be used to turn objects that were added externally into
-			 * shared instances.
+			 * This can be used to override the default delegation logic for a
+			 * class.
 			 *
-			 * @param array<callable> $delegations Associative array of class =>
-			 *                                     callable mappings.
-			 * @psalm-suppress RedundantCast,InvalidArgument
+			 * @param array<class-string,callable> $delegations Associative array of class =>
+			 *                                                  callable mappings.
+			 * @return array<class-string,callable> Modified delegations.
 			 */
-			$delegations = (array) \apply_filters(
+			$delegations = \apply_filters(
 				static::HOOK_PREFIX . static::DELEGATIONS_FILTER,
 				$delegations
 			);
 		}
 
+		$injector = $this->parse_bindings( $bindings, $injector );
+		$injector = $this->parse_arguments( $arguments, $injector );
+		$injector = $this->parse_shared_instances( $shared_instances, $injector );
+		$injector = $this->parse_delegations( $delegations, $injector );
+
+		return $injector;
+	}
+
+	/**
+	 * Parse the bindings configuration.
+	 *
+	 * @param mixed    $bindings Associative array of fully qualified class names.
+	 * @param Injector $injector Injector instance to configure.
+	 * @return Injector Configured injector instance.
+	 * @throws InvalidConfiguration If the bindings configuration is invalid.
+	 * @throws InvalidService If the bindings configuration details are invalid.
+	 */
+	protected function parse_bindings( $bindings, Injector $injector ): Injector {
+		if ( ! is_array( $bindings ) ) {
+			throw InvalidConfiguration::from_invalid_bindings( $bindings );
+		}
+
 		foreach ( $bindings as $from => $to ) {
-			$from = $this->maybe_resolve( $from );
-			$to   = $this->maybe_resolve( $to );
+			$to = $this->maybe_resolve( $to );
 
 			if ( ! is_string( $from ) ) {
 				throw InvalidService::from_invalid_identifier( $from );
@@ -437,6 +519,24 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 */
 
 			$injector = $injector->bind( $from, $to );
+		}
+
+		return $injector;
+	}
+
+	/**
+	 * Parse the arguments configuration.
+	 *
+	 * @param mixed    $arguments Associative array of class names and argument maps.
+	 * @param Injector $injector Injector instance to configure.
+	 * @return Injector Configured injector instance.
+	 * @throws InvalidArgument If the argument name is not a string.
+	 * @throws InvalidConfiguration If the arguments configuration is invalid.
+	 * @throws InvalidService If the arguments configuration details are invalid.
+	 */
+	protected function parse_arguments( $arguments, Injector $injector ): Injector {
+		if ( ! is_array( $arguments ) ) {
+			throw InvalidConfiguration::from_invalid_arguments( $arguments );
 		}
 
 		foreach ( $arguments as $class_name => $argument_map ) {
@@ -469,6 +569,23 @@ abstract class ServiceBasedPlugin implements Plugin {
 			}
 		}
 
+		return $injector;
+	}
+
+	/**
+	 * Parse the shared instances configuration.
+	 *
+	 * @param mixed    $shared_instances Array of class names.
+	 * @param Injector $injector Injector instance to configure.
+	 * @return Injector Configured injector instance.
+	 * @throws InvalidConfiguration If the shared instances configuration is invalid.
+	 * @throws InvalidService If the shared instances configuration details are invalid.
+	 */
+	protected function parse_shared_instances( $shared_instances, Injector $injector ): Injector {
+		if ( ! is_array( $shared_instances ) ) {
+			throw InvalidConfiguration::from_invalid_shared_instances( $shared_instances );
+		}
+
 		foreach ( $shared_instances as $shared_instance ) {
 			$shared_instance = $this->maybe_resolve( $shared_instance );
 
@@ -483,6 +600,23 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 */
 
 			$injector = $injector->share( $shared_instance );
+		}
+
+		return $injector;
+	}
+
+	/**
+	 * Parse the delegations configuration.
+	 *
+	 * @param mixed    $delegations Associative array of class names and callables.
+	 * @param Injector $injector Injector instance to configure.
+	 * @return Injector Configured injector instance.
+	 * @throws InvalidConfiguration If the delegations configuration is invalid.
+	 * @throws InvalidService If the delegations configuration details are invalid.
+	 */
+	protected function parse_delegations( $delegations, Injector $injector ): Injector {
+		if ( ! is_array( $delegations ) ) {
+			throw InvalidConfiguration::from_invalid_delegations( $delegations );
 		}
 
 		foreach ( $delegations as $class_name => $delegation ) {
@@ -513,8 +647,9 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Get the list of services to register.
 	 *
-	 * @return array<string> Associative array of identifiers mapped to fully
-	 *                       qualified class names.
+	 * @return array<string,class-string|callable> Associative array of identifiers
+	 *                                             mapped to fully qualified class
+	 *                                             names or callables.
 	 */
 	protected function get_service_classes(): array {
 		return [];
@@ -526,7 +661,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * The bindings let you map interfaces (or classes) to the classes that
 	 * should be used to implement them.
 	 *
-	 * @return array<string> Associative array of fully qualified class names.
+	 * @return array<class-string,class-string|callable> Associative array of fully qualified class names.
 	 */
 	protected function get_bindings(): array {
 		return [];
@@ -538,7 +673,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * The argument bindings let you map specific argument values for specific
 	 * classes.
 	 *
-	 * @return array<array<string, mixed>> Associative array of arrays mapping
+	 * @return array<array<string,mixed>> Associative array of arrays mapping
 	 *                                     argument names to argument values.
 	 */
 	protected function get_arguments(): array {
@@ -554,7 +689,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * This effectively turns them into singletons, without any of the
 	 * drawbacks of the actual Singleton anti-pattern.
 	 *
-	 * @return array<string> Array of fully qualified class names.
+	 * @return array<class-string|callable> Array of fully qualified class names.
 	 */
 	protected function get_shared_instances(): array {
 		return [];
@@ -566,7 +701,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * These are basically factories to provide custom instantiation logic for
 	 * classes.
 	 *
-	 * @return array<callable> Associative array of callables.
+	 * @return array<class-string,callable> Associative array of callables.
 	 */
 	protected function get_delegations(): array {
 		return [];
@@ -587,5 +722,128 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		return $value;
+	}
+
+	/**
+	 * The collect_missing_dependencies() method is a helper for the dependency
+	 * resolution process. It returns an array of service IDs that are required by
+	 * the current service but not yet registered.
+	 *
+	 * Note: This is different from requirements in that dependencies are always
+	 * other services, while requirements can be arbitrary conditions.
+	 *
+	 * @param class-string                        $class_name Service class name of the service with dependencies.
+	 * @param array<string,class-string|callable> $services List of services to register.
+	 *
+	 * @throws InvalidService If the required service is not recognized.
+	 *
+	 * @return array<string,class-string|callable> List of missing dependencies as a
+	 *                                             $service_id => $service_class mapping.
+	 */
+	protected function collect_missing_dependencies( string $class_name, array $services ): array {
+		if ( ! is_a( $class_name, HasDependencies::class, true ) ) {
+			return [];
+		}
+
+		$dependencies = $class_name::get_dependencies();
+		$missing      = [];
+
+		foreach ( $dependencies as $dependency ) {
+			// Bail if it depends on a service that is not recognized.
+			if ( ! array_key_exists( $dependency, $services ) ) {
+				throw InvalidService::from_service_id( $dependency );
+			}
+
+			if ( $this->service_container->has( $dependency ) ) {
+				continue;
+			}
+
+			$missing[ $dependency ] = $services[ $dependency ];
+		}
+
+		return $missing;
+	}
+
+	/**
+	 * Determine if the dependencies for a service to be registered are met.
+	 *
+	 * @param string                              $id         Service ID of the service with dependencies.
+	 * @param class-string                        $class_name Service class name of the service with dependencies.
+	 * @param array<string,class-string|callable> $services   List of services to be registered.
+	 *
+	 * @throws InvalidService If the required service is not recognized.
+	 *
+	 * @return bool Whether the dependencies for the service have been met.
+	 */
+	protected function dependencies_are_met( string $id, string $class_name, array &$services ): bool {
+		$missing_dependencies = $this->collect_missing_dependencies( $class_name, $services );
+
+		if ( empty( $missing_dependencies ) ) {
+			return true;
+		}
+
+		$registration_actions = [];
+		foreach ( $missing_dependencies as $dependency_id => $dependency_class ) {
+			$resolved_dependency_class = $this->maybe_resolve( $dependency_class );
+
+			if ( ! is_string( $resolved_dependency_class ) ) {
+				throw InvalidService::from_invalid_identifier( $dependency_id );
+			}
+
+			/**
+			 * The resolved value is guaranteed to be a string at this point.
+			 *
+			 * @var class-string $resolved_dependency_class
+			 */
+
+			if ( $resolved_dependency_class !== $dependency_class ) {
+				$services[ $dependency_id ] = $resolved_dependency_class;
+				$dependency_class           = $resolved_dependency_class;
+			}
+
+			// Check if dependency is delayed.
+			if ( is_a( $dependency_class, Delayed::class, true ) ) {
+				$action = $dependency_class::get_registration_action();
+
+				if ( ! \did_action( $action ) ) {
+					$registration_actions[ $action ][] = [
+						'id'    => $dependency_id,
+						'class' => $dependency_class,
+					];
+				}
+			}
+		}
+
+		// If we have delayed dependencies, schedule registration after they're loaded.
+		if ( ! empty( $registration_actions ) ) {
+			foreach ( $registration_actions as $action => $dependencies ) {
+				\add_action(
+					$action,
+					function () use ( $id, $class_name, $services, $dependencies ): void {
+						// Check if all dependencies from this action are now available.
+						foreach ( $dependencies as $dependency ) {
+							if ( ! $this->service_container->has( $dependency['id'] ) ) {
+								return;
+							}
+						}
+
+						// Recheck all dependencies in case there are others.
+						if ( $this->dependencies_are_met( $id, $class_name, $services ) ) {
+							$this->maybe_register_service( $id, $class_name );
+						}
+					},
+					PHP_INT_MAX,
+					0
+				);
+			}
+			return false;
+		}
+
+		// Move this service to the end of the services array since its dependencies
+		// haven't been registered yet but will be encountered later.
+		unset( $services[ $id ] );
+		$services[ $id ] = $class_name;
+
+		return false;
 	}
 }
