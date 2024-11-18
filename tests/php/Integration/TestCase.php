@@ -19,16 +19,16 @@ use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 
 abstract class TestCase extends PHPUnitTestCase {
 
-    // Adds Mockery expectations to the PHPUnit assertions count.
-    use MockeryPHPUnitIntegration;
+	// Adds Mockery expectations to the PHPUnit assertions count.
+	use MockeryPHPUnitIntegration;
 
-    protected function set_up() {
-        parent::set_up();
-        Monkey\setUp();
-    }
+	protected function set_up() {
+		parent::set_up();
+		Monkey\setUp();
+	}
 
-    protected function tear_down() {
-        Monkey\tearDown();
-        parent::tear_down();
-    }
+	protected function tear_down() {
+		Monkey\tearDown();
+		parent::tear_down();
+	}
 }
