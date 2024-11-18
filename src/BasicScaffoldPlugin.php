@@ -81,7 +81,11 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * Whenever you ask the injector to "make()" an <interface>, it will resolve
 	 * these mappings and return an instance of the final <class> it found.
 	 *
-	 * @return array<string> Associative array of fully qualified class names.
+	 * @return array<class-string,class-string|callable> Associative array of
+	 *                                                   fully qualified class names
+	 *                                                   mapped to fully
+	 *                                                   qualified class names or
+	 *                                                   callables.
 	 */
 	protected function get_bindings(): array {
 		return [
@@ -125,7 +129,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * This effectively turns these FQCNs into a "singleton", without incurring
 	 * all the drawbacks of the Singleton design anti-pattern.
 	 *
-	 * @return array<string> Array of fully qualified class names.
+	 * @return array<class-string> Array of fully qualified class names.
 	 */
 	protected function get_shared_instances(): array {
 		return [
@@ -148,7 +152,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * The <callable> is basically a factory to provide custom instantiation
 	 * logic for the given <class>.
 	 *
-	 * @return array<callable> Associative array of callables.
+	 * @return array<class-string,callable> Associative array of callables.
 	 */
 	protected function get_delegations(): array {
 		return [

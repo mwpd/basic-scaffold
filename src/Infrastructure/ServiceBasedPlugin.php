@@ -216,6 +216,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 *                                                      identifiers mapped to
 			 *                                                      fully qualified class
 			 *                                                      names or callables.
+			 * @psalm-suppress InvalidArgument
 			 */
 			$services = \apply_filters(
 				static::HOOK_PREFIX . static::SERVICES_FILTER,

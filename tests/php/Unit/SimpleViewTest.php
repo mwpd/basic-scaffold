@@ -28,7 +28,7 @@ final class SimpleViewTest extends TestCase {
 	public function test_it_can_render_static_view(): void {
 		$view = new SimpleView( 'tests/php/Fixture/views/plugin/static-view.php', $this->view_factory );
 
-		$this->assertEquals( '<p>Rendering works.</p>', trim( $view->render() ) );
+		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
 	}
 
 	public function test_it_can_render_with_context(): void {
@@ -38,7 +38,7 @@ final class SimpleViewTest extends TestCase {
 
 		$this->assertEquals(
 			'<p>Rendering works with context: perfectly.</p>',
-			trim( $result )
+			$this->normalize( $result )
 		);
 	}
 
@@ -146,7 +146,7 @@ final class SimpleViewTest extends TestCase {
 	public function test_it_adds_php_extension_if_missing(): void {
 		$view = new SimpleView( 'tests/php/Fixture/views/plugin/static-view', $this->view_factory );
 
-		$this->assertEquals( '<p>Rendering works.</p>', trim( $view->render() ) );
+		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
 	}
 
 	public function test_it_preserves_parent_context_in_partial_views(): void {
@@ -160,5 +160,20 @@ final class SimpleViewTest extends TestCase {
 		$result  = $view->render( $context );
 
 		$this->assertStringContainsString( 'shared context', $result );
+	}
+
+	/**
+	 * Helper function to normalize output so tests can avoid flaky behavior.
+	 *
+	 * @param string $output The string to normalize.
+	 * @return string The normalized string.
+	 */
+	private function normalize( string $output ): string {
+		// Right now, Patchwork seems to have a bug and injects code in some of the stream wrappers.
+		// See https://github.com/antecedent/patchwork/issues/151.
+		// This piece of logic can be removed once the above bug was fixed.
+		$output = str_replace( ';\Patchwork\CodeManipulation\Stream::reinstateWrapper();', '', $output );
+
+		return trim( $output );
 	}
 }
