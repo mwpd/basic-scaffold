@@ -103,22 +103,22 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
  * For more information on why to avoid a Singleton,
  * @see https://www.alainschlesser.com/singletons-shared-instances/
  */
-$plugin = BasicScaffoldPluginFactory::create();
+$pluginObject = BasicScaffoldPluginFactory::create();
 
 /*
  * We register activation and deactivation hooks by using closures, as these
  * need static access to work correctly.
  */
-\register_activation_hook( __FILE__, function () use ( $plugin ) {
-	$plugin->activate();
+\register_activation_hook( __FILE__, function () use ( $pluginObject ) {
+	$pluginObject->activate();
 } );
 
-\register_deactivation_hook( __FILE__, function () use ( $plugin ) {
-	$plugin->deactivate();
+\register_deactivation_hook( __FILE__, function () use ( $pluginObject ) {
+	$pluginObject->deactivate();
 } );
 
 /*
  * Finally, we run the plugin's register method to Hook the plugin into the
  * WordPress request lifecycle.
  */
-$plugin->register();
+$pluginObject->register();
