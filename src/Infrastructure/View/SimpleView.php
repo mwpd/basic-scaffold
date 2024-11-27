@@ -250,6 +250,16 @@ class SimpleView extends stdClass implements View {
 	}
 
 	/**
+	 * Magic isset to enable usage of isset() or empty() on context properties.
+	 *
+	 * @param string $property Property to check.
+	 * @return bool
+	 */
+	public function __isset( $property ): bool {
+		return isset( $this->_context_[ $property ] );
+	}
+
+	/**
 	 * Escape a value for output.
 	 *
 	 * @param mixed $value Value to escape.
