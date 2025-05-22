@@ -35,7 +35,7 @@ final class BasicScaffoldPluginFactory {
 	 *
 	 * @return Plugin Plugin instance.
 	 */
-	public static function create(): Plugin {
+	public static function create(array $providers): Plugin {
 		/**
 		 * We use a static variable to ensure that the plugin is only instantiated
 		 * once. This is important for performance reasons and to ensure that the
@@ -49,7 +49,7 @@ final class BasicScaffoldPluginFactory {
 		static $plugin = null;
 
 		if ( null === $plugin ) {
-			$plugin = new BasicScaffoldPlugin();
+			$plugin = new BasicScaffoldPlugin( $providers );
 		}
 
 		return $plugin;

@@ -13,12 +13,12 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
-use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
-use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
 use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Exception\InvalidService;
+use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 
 /**
  * This abstract base plugin provides all the boilerplate code for working with

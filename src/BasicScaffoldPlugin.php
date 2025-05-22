@@ -15,11 +15,7 @@ namespace MWPD\BasicScaffold;
 
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
-use MWPD\BasicScaffold\Infrastructure\{
-	ServiceBasedPlugin,
-	View\TemplatedViewFactory,
-	ViewFactory
-};
+use MWPD\BasicScaffold\Infrastructure\{Provider, ServiceBasedPlugin, View\TemplatedViewFactory, ViewFactory};
 
 /**
  * The BasicScaffoldPlugin class is the composition root of the plugin.
@@ -29,6 +25,11 @@ use MWPD\BasicScaffold\Infrastructure\{
  * can hook themselves into the WordPress lifecycle.
  */
 final class BasicScaffoldPlugin extends ServiceBasedPlugin {
+
+	protected $providers = [];
+
+
+
 	/*
 	 * --------------------------------------------------------------------------
 	 * -- 1. Define the services that make up this plugin.                     --
@@ -43,6 +44,12 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * what makes up the actual plugin, and they provide self-contained pieces
 	 * of code that can work independently.
 	 */
+	/**
+	 * @param array $providers
+	 */
+	public function __construct(array $providers ) {
+		$this->providers   = $providers;
+	}
 
 	/**
 	 * Get the list of services to register.
@@ -55,12 +62,21 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 *                                             names or callables.
 	 */
 	protected function get_service_classes(): array {
-		return [
-			self::SAMPLE_BACKEND_SERVICE_ID => SampleBackendService::class,
-			self::SAMPLE_LOOP_SERVICE_ID    => SampleLoopService::class,
 
-			// Add your service definitions here.
-		];
+		$services = [];
+
+		foreach ($this->providers as $provider) {
+			/**
+			 * @var Provider $provider
+			 */
+			$provider = new $provider();
+			$services = array_merge(
+				$services,
+				$provider->get_service_classes(),
+			);
+		}
+
+		return $services;
 	}
 
 	/*
@@ -88,12 +104,20 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 *                                                   callables.
 	 */
 	protected function get_bindings(): array {
-		return [
-			// Map the ViewFactory interface to a concrete implementation.
-			ViewFactory::class => TemplatedViewFactory::class,
+		$bindings = [];
 
-			// Add your bindings here.
-		];
+		foreach ($this->providers as $provider) {
+			/**
+			 * @var Provider $provider
+			 */
+			$provider = new $provider();
+			$bindings = array_merge(
+				$bindings,
+				$provider->get_bindings(),
+			);
+		}
+
+		return $bindings;
 	}
 
 	/**
@@ -108,15 +132,20 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 *                                     argument names to argument values.
 	 */
 	protected function get_arguments(): array {
-		return [
+		$arguments = [];
 
-			/*
-			 * Example - add a scalar value to an argument for SampleService:
-			 * SampleService::class => [ 'argument_name' => 'value' ],
+		foreach ($this->providers as $provider) {
+			/**
+			 * @var Provider $provider
 			 */
+			$provider = new $provider();
+			$arguments = array_merge(
+				$arguments,
+				$provider->get_arguments(),
+			);
+		}
 
-			// Add your argument mappings here.
-		];
+		return $arguments;
 	}
 
 	/**
@@ -132,15 +161,20 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * @return array<class-string> Array of fully qualified class names.
 	 */
 	protected function get_shared_instances(): array {
-		return [
+		$shared_instances = [];
 
-			/*
-			 * Example - make SampleService be shared amongst instantiations:
-			 * SampleService::class,
+		foreach ($this->providers as $provider) {
+			/**
+			 * @var Provider $provider
 			 */
+			$provider = new $provider();
+			$shared_instances = array_merge(
+				$shared_instances,
+				$provider->get_shared_instances(),
+			);
+		}
 
-			// Add your shared instances here.
-		];
+		return $shared_instances;
 	}
 
 	/**
@@ -155,43 +189,19 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * @return array<class-string,callable> Associative array of callables.
 	 */
 	protected function get_delegations(): array {
-		return [
+		$delegations = [];
 
-			/*
-			 * Add a factory for instantiating WP_Post objects:
-			 * \WP_Post::class => function () {
-			 *     return \get_post( \get_the_ID() ); },
+		foreach ($this->providers as $provider) {
+			/**
+			 * @var Provider $provider
 			 */
+			$provider = new $provider();
+			$delegations = array_merge(
+				$delegations,
+				$provider->get_delegations(),
+			);
+		}
 
-			// Add your delegations here.
-		];
+		return $delegations;
 	}
-
-	/*
-	 * --------------------------------------------------------------------------
-	 * -- 3. Define prefixes and identifiers for outside access.               --
-	 * --------------------------------------------------------------------------
-	 */
-
-	/*
-	 * Prefixes to use.
-	 *
-	 * These are provided so that if multiple plugins use the same boilerplate
-	 * code, there hooks and service identifiers are scoped and don't clash.
-	 */
-	protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
-
-	protected const SERVICE_PREFIX = 'mwpd.basic_scaffold.';
-
-	/*
-	 * Service identifiers we know about.
-	 *
-	 * These can be used from outside code as well to directly refer to a
-	 * service when talking to the service container.
-	 */
-	public const VIEW_FACTORY_ID = self::SERVICE_PREFIX . 'view-factory';
-
-	public const SAMPLE_BACKEND_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-backend-service';
-
-	public const SAMPLE_LOOP_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
 }
