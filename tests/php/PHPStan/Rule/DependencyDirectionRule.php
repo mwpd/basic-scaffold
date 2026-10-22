@@ -19,6 +19,7 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Function_;
@@ -178,7 +179,7 @@ final class DependencyDirectionRule implements Rule {
 		$mentions = [];
 		$file     = $scope->getFile();
 		$nodes    = $node->getNodes();
-		$this->collect( $nodes, $file, '', $this->get_file_source( $nodes, '', $file ), $mentions );
+		$this->collect( $nodes, $scope, '', $this->get_file_source( $nodes, '', $file ), null, $mentions );
 
 		$errors = [];
 		foreach ( $mentions as [ $name, $dependency, $line ] ) {
@@ -206,23 +207,26 @@ final class DependencyDirectionRule implements Rule {
 	 * Collect what the given nodes mention, each with the code it counts for.
 	 *
 	 * @param array<Node>                                        $nodes             Nodes to search.
-	 * @param string                                             $file              Path of the file.
+	 * @param Scope                                              $scope             Scope of the file.
 	 * @param string                                             $current_namespace Current namespace.
 	 * @param string                                             $source            Code the mentions
 	 *                                                                              count for.
+	 * @param string|null                                        $doc_class         Class whose context
+	 *                                                                              resolves documentation.
 	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions          Mentions found, each
 	 *                                                                              as source, dependency
 	 *                                                                              and line.
 	 */
 	private function collect(
 		array $nodes,
-		string $file,
+		Scope $scope,
 		string $current_namespace,
 		string $source,
+		?string $doc_class,
 		array &$mentions
 	): void {
 		foreach ( $nodes as $node ) {
-			$this->collect_node( $node, $file, $current_namespace, $source, $mentions );
+			$this->collect_node( $node, $scope, $current_namespace, $source, $doc_class, $mentions );
 		}
 	}
 
@@ -230,30 +234,37 @@ final class DependencyDirectionRule implements Rule {
 	 * Collect what a node and its children mention.
 	 *
 	 * @param Node                                               $node              Node to search.
-	 * @param string                                             $file              Path of the file.
+	 * @param Scope                                              $scope             Scope of the file.
 	 * @param string                                             $current_namespace Current namespace.
 	 * @param string                                             $source            Code the mentions
 	 *                                                                              count for.
+	 * @param string|null                                        $doc_class         Class whose context
+	 *                                                                              resolves documentation.
 	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions          Mentions found.
 	 */
 	private function collect_node(
 		Node $node,
-		string $file,
+		Scope $scope,
 		string $current_namespace,
 		string $source,
+		?string $doc_class,
 		array &$mentions
 	): void {
 		if ( $node instanceof Namespace_ ) {
 			$current_namespace = $node->name === null ? '' : $node->name->toString();
-			$file_source       = $this->get_file_source( $node->stmts, $current_namespace, $file );
-			$this->collect( $node->stmts, $file, $current_namespace, $file_source, $mentions );
+			$file_source       = $this->get_file_source( $node->stmts, $current_namespace, $scope->getFile() );
+			$this->collect( $node->stmts, $scope, $current_namespace, $file_source, null, $mentions );
 			return;
 		}
 
-		if ( $node instanceof ClassLike ) {
-			$source = $node->name === null
-				? ltrim( $current_namespace . '\\class@anonymous', '\\' )
-				: ltrim( $current_namespace . '\\' . $node->name->toString(), '\\' );
+		if ( $node instanceof Class_ && $node->name === null ) {
+			// PHPStan knows an anonymous class by a generated name, which its
+			// documentation is resolved with.
+			$source    = ltrim( $current_namespace . '\\class@anonymous', '\\' );
+			$doc_class = $this->reflection->getAnonymousClassReflection( $node, $scope )->getName();
+		} elseif ( $node instanceof ClassLike && $node->name !== null ) {
+			$source    = ltrim( $current_namespace . '\\' . $node->name->toString(), '\\' );
+			$doc_class = $this->reflection->hasClass( $source ) ? $source : null;
 		}
 
 		if ( $node instanceof Use_ || $node instanceof GroupUse ) {
@@ -263,7 +274,7 @@ final class DependencyDirectionRule implements Rule {
 
 		$doc = $node->getDocComment();
 		if ( $doc !== null ) {
-			$this->collect_documented( $doc, $node, $file, $source, $mentions );
+			$this->collect_documented( $doc, $node, $scope->getFile(), $source, $doc_class, $mentions );
 		}
 
 		if ( $node instanceof Name ) {
@@ -274,15 +285,18 @@ final class DependencyDirectionRule implements Rule {
 		}
 
 		foreach ( $node->getSubNodeNames() as $sub_node_name ) {
-			// Names of functions and constants are not classes.
-			if ( ( $node instanceof FuncCall || $node instanceof ConstFetch ) && $sub_node_name === 'name' ) {
+			// Names of functions and constants are not classes, but a function
+			// called through an expression, such as a closure, is code.
+			if ( ( $node instanceof FuncCall || $node instanceof ConstFetch )
+				&& $sub_node_name === 'name'
+				&& $node->name instanceof Name ) {
 				continue;
 			}
 
 			$children = $node->$sub_node_name;
 			foreach ( is_array( $children ) ? $children : [ $children ] as $child ) {
 				if ( $child instanceof Node ) {
-					$this->collect_node( $child, $file, $current_namespace, $source, $mentions );
+					$this->collect_node( $child, $scope, $current_namespace, $source, $doc_class, $mentions );
 				}
 			}
 		}
@@ -301,9 +315,12 @@ final class DependencyDirectionRule implements Rule {
 		foreach ( $node->uses as $use ) {
 			$type = $use->type !== Use_::TYPE_UNKNOWN ? $use->type : $node->type;
 
-			// Imported functions and constants are not classes.
-			if ( $type === Use_::TYPE_NORMAL ) {
-				$this->add( $mentions, $source, $prefix . $use->name->toString(), $use->getStartLine() );
+			$imported = $prefix . $use->name->toString();
+
+			// Imported functions and constants are not classes, and neither is
+			// an alias of a namespace; the names used through it count instead.
+			if ( $type === Use_::TYPE_NORMAL && $this->reflection->hasClass( $imported ) ) {
+				$this->add( $mentions, $source, $imported, $use->getStartLine() );
 			}
 		}
 	}
@@ -311,22 +328,35 @@ final class DependencyDirectionRule implements Rule {
 	/**
 	 * Collect the classes a doc comment mentions, in any of its tags.
 	 *
-	 * @param Doc                                                $doc      Doc comment.
-	 * @param Node                                               $node     Node it documents.
-	 * @param string                                             $file     Path of the file.
-	 * @param string                                             $source   Code it counts for.
-	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions Mentions found.
+	 * @param Doc                                                $doc       Doc comment.
+	 * @param Node                                               $node      Node it documents.
+	 * @param string                                             $file      Path of the file.
+	 * @param string                                             $source    Code it counts for.
+	 * @param string|null                                        $doc_class Class whose context
+	 *                                                                      resolves it.
+	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions  Mentions found.
 	 */
-	private function collect_documented( Doc $doc, Node $node, string $file, string $source, array &$mentions ): void {
+	private function collect_documented(
+		Doc $doc,
+		Node $node,
+		string $file,
+		string $source,
+		?string $doc_class,
+		array &$mentions
+	): void {
 		// A trait's own code resolves its names like a class does.
-		$class    = $source !== '' && $this->reflection->hasClass( $source ) ? $source : null;
 		$function = $node instanceof ClassMethod || $node instanceof Function_ ? $node->name->toString() : null;
-		$phpdoc   = $this->file_type_mapper->getResolvedPhpDoc( $file, $class, null, $function, $doc->getText() );
+		$phpdoc   = $this->file_type_mapper->getResolvedPhpDoc( $file, $doc_class, null, $function, $doc->getText() );
 
 		foreach ( self::get_documented_types( $phpdoc ) as $type ) {
 			foreach ( $type->getReferencedClasses() as $referenced ) {
 				$this->add( $mentions, $source, $referenced, $doc->getStartLine() );
 			}
+		}
+
+		// A type alias imported from another class depends on that class.
+		foreach ( $phpdoc->getTypeAliasImportTags() as $tag ) {
+			$this->add( $mentions, $source, $tag->getImportedFrom(), $doc->getStartLine() );
 		}
 	}
 
@@ -346,6 +376,18 @@ final class DependencyDirectionRule implements Rule {
 		}
 
 		foreach ( [ $phpdoc->getExtendsTags(), $phpdoc->getImplementsTags(), $phpdoc->getUsesTags() ] as $tags ) {
+			foreach ( $tags as $tag ) {
+				$types[] = $tag->getType();
+			}
+		}
+
+		foreach ( [ $phpdoc->getAssertTags(), $phpdoc->getParamOutTags() ] as $tags ) {
+			foreach ( $tags as $tag ) {
+				$types[] = $tag->getType();
+			}
+		}
+
+		foreach ( [ $phpdoc->getRequireExtendsTags(), $phpdoc->getRequireImplementsTags() ] as $tags ) {
 			foreach ( $tags as $tag ) {
 				$types[] = $tag->getType();
 			}

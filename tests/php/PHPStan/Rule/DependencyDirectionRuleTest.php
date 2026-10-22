@@ -79,6 +79,7 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 				'Infrastructure/Contract',
 				'Infrastructure/Concrete',
 				'Infrastructure/ImportOnly',
+				'Infrastructure/InvokesClosure',
 				'Infrastructure/LeakyInfrastructure',
 				'Infrastructure/LeakyTrait'
 			),
@@ -86,6 +87,14 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 				$this->error(
 					7,
 					'Infrastructure\ImportOnly',
+					'the infrastructure',
+					'Feature\Service',
+					'the Feature subsystem',
+					self::INFRASTRUCTURE_FIX
+				),
+				$this->error(
+					10,
+					'Infrastructure\InvokesClosure',
 					'the infrastructure',
 					'Feature\Service',
 					'the Feature subsystem',
@@ -121,8 +130,31 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 
 	public function test_a_subsystem_depends_on_interfaces_exceptions_and_other_subsystems(): void {
 		$this->analyse(
-			$this->fixtures( 'Feature/Documented', 'Feature/Service', 'Other/Helper' ),
+			$this->fixtures(
+				'Feature/Aliased',
+				'Feature/AnonymousDocumented',
+				'Feature/Asserted',
+				'Feature/Documented',
+				'Feature/Service',
+				'Other/Helper'
+			),
 			[
+				$this->error(
+					12,
+					'Feature\class@anonymous',
+					'the Feature subsystem',
+					'Infrastructure\Concrete',
+					'the infrastructure',
+					self::CONTRACT_FIX
+				),
+				$this->error(
+					9,
+					'Feature\Asserted',
+					'the Feature subsystem',
+					'Infrastructure\Concrete',
+					'the infrastructure',
+					self::CONTRACT_FIX
+				),
 				$this->error(
 					7,
 					'Feature\Documented',
