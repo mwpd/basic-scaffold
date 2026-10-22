@@ -23,6 +23,8 @@ use Yoast\PHPUnitPolyfills\TestCases\TestCase;
  */
 final class RepositoryStructureTest extends TestCase {
 
+	private const SIDE_EFFECT_FIX = 'move this into a method of a service, called from register()';
+
 	/**
 	 * Temporary repository of the current test, if any.
 	 */
@@ -50,17 +52,33 @@ final class RepositoryStructureTest extends TestCase {
 				$this->php( "if ( ! function_exists( 'helper' ) ) {", '	function helper() {', '	}', '}' )
 			)
 			->write( 'views/closure.php', $this->php( '$format = static function ( $value ) {', '};' ) )
+			->write( 'views/reference.php', $this->php( 'function &helper() {', '}' ) )
+			->write( 'views/reference-closure.php', $this->php( '$format = static function &( $value ) {', '};' ) )
 			->write( 'views/fine.php', "<p><?= 'Fine.' ?></p>\n" )
 			->checks()
 			->check_strict_types();
 
 		$this->assertProblems(
 			[
-				'[architecture.strictTypes] src/Service.php does not declare strict types.',
-				'[architecture.strictTypes] views/conditional.php is a view template but declares a class,'
-					. ' interface, trait or function.',
-				'[architecture.strictTypes] views/notice.php is a view template but declares a class, interface,'
-					. ' trait or function.',
+				[
+					'[architecture.strictTypes] src/Service.php does not declare strict types.',
+					'Add declare( strict_types=1 ); right after the file header',
+				],
+				[
+					'[architecture.strictTypes] views/conditional.php is a view template but declares a class,'
+						. ' interface, trait or function.',
+					'move the declaration to its own class file',
+				],
+				[
+					'[architecture.strictTypes] views/notice.php is a view template but declares a class,'
+						. ' interface, trait or function.',
+					'move the declaration to its own class file',
+				],
+				[
+					'[architecture.strictTypes] views/reference.php is a view template but declares a class,'
+						. ' interface, trait or function.',
+					'move the declaration to its own class file',
+				],
 			],
 			$problems
 		);
@@ -108,14 +126,26 @@ final class RepositoryStructureTest extends TestCase {
 
 		$this->assertProblems(
 			[
-				'[architecture.declarationsFollowPsr4] src/Pair.php declares 2 classes, interfaces or traits'
-					. ' instead of one.',
-				"[architecture.declarationsFollowPsr4] src/Service.php declares {$namespace}\\Servise, but its"
-					. " path makes the autoloaders look for {$namespace}\\Service.",
-				'[architecture.declarationsFollowPsr4] src/Switched.php declares Other\\Switched, but its path'
-					. " makes the autoloaders look for {$namespace}\\Switched.",
-				"[architecture.declarationsFollowPsr4] src/lowercase.php declares {$namespace}\\Lowercase, but"
-					. " its path makes the autoloaders look for {$namespace}\\lowercase.",
+				[
+					'[architecture.declarationsFollowPsr4] src/Pair.php declares 2 classes, interfaces or traits'
+						. ' instead of one.',
+					'a file of its own',
+				],
+				[
+					"[architecture.declarationsFollowPsr4] src/Service.php declares {$namespace}\\Servise, but its"
+						. " path makes the autoloaders look for {$namespace}\\Service.",
+					'Rename the class or move the file',
+				],
+				[
+					'[architecture.declarationsFollowPsr4] src/Switched.php declares Other\\Switched, but its path'
+						. " makes the autoloaders look for {$namespace}\\Switched.",
+					'Rename the class or move the file',
+				],
+				[
+					"[architecture.declarationsFollowPsr4] src/lowercase.php declares {$namespace}\\Lowercase, but"
+						. " its path makes the autoloaders look for {$namespace}\\lowercase.",
+					'Rename the class or move the file',
+				],
 			],
 			$problems
 		);
@@ -133,7 +163,12 @@ final class RepositoryStructureTest extends TestCase {
 			->check_declarations_follow_psr4();
 
 		$this->assertProblems(
-			[ '[architecture.declarationsFollowPsr4] lib/Helper.php declares ' ],
+			[
+				[
+					'[architecture.declarationsFollowPsr4] lib/Helper.php declares ',
+					'Rename the class or move the file',
+				],
+			],
 			$problems
 		);
 	}
@@ -165,21 +200,48 @@ final class RepositoryStructureTest extends TestCase {
 					'}'
 				)
 			)
-			->write( 'src/Ticks.php', $this->php( 'declare( ticks=1 ) {', "	echo 'Tick.';", '}' ) )
+			->write(
+				'src/Ticks.php',
+				$this->php(
+					'declare( ticks=1 ) {',
+					"	echo 'Tick.';",
+					'}',
+					'',
+					'',
+					"declare( ticks=1 ) echo 'Tick.';"
+				)
+			)
 			->write( 'src/Trailing.php', $this->php( 'final class Trailing {', '}', '?>', '', ' ' ) )
 			->checks()
 			->check_no_side_effects_on_include();
 
 		$this->assertProblems(
 			[
-				'[architecture.noSideEffectsOnInclude] src/Service.php:15 runs code when the file is included'
-					. ' (add_action',
-				'[architecture.noSideEffectsOnInclude] src/Service.php:17 runs code when the file is included'
-					. ' (function helper',
-				'[architecture.noSideEffectsOnInclude] src/Ticks.php:3 runs code when the file is included'
-					. ' (declare ( ticks = 1 )',
-				'[architecture.noSideEffectsOnInclude] src/Trailing.php:6 runs code when the file is included'
-					. ' (output outside the PHP tags)',
+				[
+					'[architecture.noSideEffectsOnInclude] src/Service.php:15 runs code when the file is included'
+						. ' (add_action',
+					self::SIDE_EFFECT_FIX,
+				],
+				[
+					'[architecture.noSideEffectsOnInclude] src/Service.php:17 runs code when the file is included'
+						. ' (function helper',
+					self::SIDE_EFFECT_FIX,
+				],
+				[
+					'[architecture.noSideEffectsOnInclude] src/Ticks.php:3 runs code when the file is included'
+						. ' (declare ( ticks = 1 ) {',
+					self::SIDE_EFFECT_FIX,
+				],
+				[
+					'[architecture.noSideEffectsOnInclude] src/Ticks.php:8 runs code when the file is included'
+						. " (declare ( ticks = 1 ) echo 'Tick.'",
+					self::SIDE_EFFECT_FIX,
+				],
+				[
+					'[architecture.noSideEffectsOnInclude] src/Trailing.php:6 runs code when the file is included'
+						. ' (output outside the PHP tags)',
+					self::SIDE_EFFECT_FIX,
+				],
 			],
 			$problems
 		);
@@ -196,7 +258,12 @@ final class RepositoryStructureTest extends TestCase {
 			->check_runtime_requirements();
 
 		$this->assertProblems(
-			[ '[architecture.noRuntimeDependencies] composer.json requires acme/library at runtime.' ],
+			[
+				[
+					'[architecture.noRuntimeDependencies] composer.json requires acme/library at runtime.',
+					'move the package to require-dev',
+				],
+			],
 			$problems
 		);
 	}
@@ -212,16 +279,37 @@ final class RepositoryStructureTest extends TestCase {
 			->write( 'tests/php/Unit/TestCase.php', $this->test_case( 'Unit', 'abstract class TestCase' ) )
 			->write( 'tests/php/Unit/Forgotten.php', $this->test_case( 'Unit', 'final class Forgotten' ) )
 			->write( 'tests/php/Elsewhere/LostTest.php', $this->test_case( 'Elsewhere', 'final class LostTest' ) )
+			->write(
+				'tests/php/Unit/Skipped/SkippedTest.php',
+				$this->test_case( 'Unit\\Skipped', 'final class SkippedTest' )
+			)
+			->write(
+				'phpunit.xml.dist',
+				'<phpunit><testsuites><testsuite name="unit">'
+				. '<directory suffix="Test.php">tests/php/Unit</directory>'
+				. '<exclude>tests/php/Unit/Skipped</exclude>'
+				. '</testsuite></testsuites></phpunit>'
+			)
 			->checks()
 			->check_tests_are_discovered();
 
 		$this->assertProblems(
 			[
-				'[architecture.testsAreDiscovered] tests/php/Elsewhere/LostTest.php looks like a test, but no'
-					. ' PHPUnit suite in phpunit.xml.dist includes it, so it never runs. Move it into one of the'
-					. ' suite directories (tests/php/Unit).',
-				"[architecture.testsAreDiscovered] {$namespace}\\Tests\\Unit\\Forgotten is a test case, but"
-					. ' PHPUnit never runs it from tests/php/Unit/Forgotten.php.',
+				[
+					'[architecture.testsAreDiscovered] tests/php/Elsewhere/LostTest.php looks like a test, but no'
+						. ' PHPUnit suite in phpunit.xml.dist includes it, so it never runs.',
+					'Move it into one of the suite directories (tests/php/Unit)',
+				],
+				[
+					"[architecture.testsAreDiscovered] {$namespace}\\Tests\\Unit\\Forgotten is a test case, but"
+						. ' PHPUnit never runs it from tests/php/Unit/Forgotten.php.',
+					'Name the file after the class with a Test.php suffix',
+				],
+				[
+					'[architecture.testsAreDiscovered] tests/php/Unit/Skipped/SkippedTest.php looks like a test,'
+						. ' but no PHPUnit suite in phpunit.xml.dist includes it, so it never runs.',
+					'and out of their excluded paths',
+				],
 			],
 			$problems
 		);
@@ -275,17 +363,18 @@ final class RepositoryStructureTest extends TestCase {
 	}
 
 	/**
-	 * Assert that each problem starts as expected and ends with the rule's
-	 * explanation.
+	 * Assert that each problem starts as expected, says what to do instead,
+	 * and ends with the rule's explanation.
 	 *
-	 * @param array<string> $expected Expected beginnings of the problems.
-	 * @param array<string> $problems Problems a check found.
+	 * @param array<int, array{0: string, 1: string}> $expected Expected beginning and fix of each problem.
+	 * @param array<string>                           $problems Problems a check found.
 	 */
 	private function assertProblems( array $expected, array $problems ): void {
 		$this->assertCount( count( $expected ), $problems, implode( "\n\n", $problems ) );
 
-		foreach ( array_values( $expected ) as $index => $beginning ) {
+		foreach ( array_values( $expected ) as $index => [ $beginning, $fix ] ) {
 			$this->assertStringStartsWith( $beginning, $problems[ $index ] );
+			$this->assertStringContainsString( $fix, $problems[ $index ] );
 			$this->assertStringContainsString( 'Rule: docs/architecture-rules.md#', $problems[ $index ] );
 		}
 	}

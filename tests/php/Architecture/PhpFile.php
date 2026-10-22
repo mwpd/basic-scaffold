@@ -42,6 +42,15 @@ final class PhpFile {
 	private const IGNORABLE = [ 'T_WHITESPACE', 'T_COMMENT', 'T_DOC_COMMENT', 'T_OPEN_TAG' ];
 
 	/**
+	 * Tokens for `&`, which PHP 8.1 split by what follows them.
+	 */
+	private const AMPERSANDS = [
+		'&',
+		'T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG',
+		'T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG',
+	];
+
+	/**
 	 * Tokens that make up a name.
 	 */
 	private const NAME_PARTS = [ 'T_STRING', 'T_NS_SEPARATOR', 'T_NAME_QUALIFIED', 'T_NAME_FULLY_QUALIFIED' ];
@@ -174,11 +183,7 @@ final class PhpFile {
 		$side_effects = [];
 
 		foreach ( $this->statements as $statement ) {
-			$is_directive = $statement['kind'] === 'T_DECLARE'
-				&& ! in_array( '{', array_column( $statement['tokens'], 0 ), true )
-				&& ! in_array( ':', array_column( $statement['tokens'], 0 ), true );
-
-			if ( $is_directive
+			if ( self::is_directive( $statement )
 				|| in_array( $statement['kind'], [ 'T_NAMESPACE', 'T_USE' ], true )
 				|| in_array( $statement['kind'], self::DECLARATIONS, true ) ) {
 				continue;
@@ -193,6 +198,26 @@ final class PhpFile {
 		}
 
 		return $side_effects;
+	}
+
+	/**
+	 * Check whether a statement is a `declare` directive without a body.
+	 *
+	 * `declare( strict_types=1 );` only configures the file, but
+	 * `declare( ticks=1 ) echo 'Tick.';` runs code.
+	 *
+	 * @param Statement $statement Statement.
+	 * @return bool Whether it is a directive without a body.
+	 */
+	private static function is_directive( array $statement ): bool {
+		if ( $statement['kind'] !== 'T_DECLARE' ) {
+			return false;
+		}
+
+		$kinds = array_column( $statement['tokens'], 0 );
+		$end   = array_search( ')', $kinds, true );
+
+		return $end !== false && $kinds[ $end + 1 ] === ';' && count( $kinds ) === $end + 2;
 	}
 
 	/**
@@ -211,11 +236,16 @@ final class PhpFile {
 				$previous = $tokens[ $index - 1 ][0] ?? '';
 				$next     = $tokens[ $index + 1 ][0] ?? '';
 
+				// A function that returns by reference: `function &name()`.
+				if ( in_array( $next, self::AMPERSANDS, true ) ) {
+					$next = $tokens[ $index + 2 ][0] ?? '';
+				}
+
 				// An anonymous class, a class name constant and a closure do not
 				// declare anything.
 				if ( in_array( $token[0], [ 'T_INTERFACE', 'T_TRAIT' ], true )
 					|| ( $token[0] === 'T_CLASS' && ! in_array( $previous, [ 'T_NEW', 'T_DOUBLE_COLON' ], true ) )
-					|| ( $token[0] === 'T_FUNCTION' && ( $next === 'T_STRING' || $next === '&' ) ) ) {
+					|| ( $token[0] === 'T_FUNCTION' && $next === 'T_STRING' ) ) {
 					return true;
 				}
 			}

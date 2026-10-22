@@ -221,8 +221,8 @@ final class RepositoryLayout {
 	/**
 	 * Get the directories PHPUnit discovers tests in.
 	 *
-	 * @return array<string, string> File suffix of each suite, keyed by its
-	 *                               absolute directory.
+	 * @return array<int, array{directory: string, suffix: string, excluded: array<string>}> Absolute
+	 *         directory, file suffix and absolute excluded paths of each suite directory.
 	 */
 	public function get_suite_directories(): array {
 		$path = $this->absolute( 'phpunit.xml.dist' );
@@ -232,11 +232,20 @@ final class RepositoryLayout {
 
 		$directories = [];
 		$config      = new SimpleXMLElement( (string) file_get_contents( $path ) );
-		$nodes       = $config->xpath( '//testsuite/directory' );
-		foreach ( is_array( $nodes ) ? $nodes : [] as $directory ) {
-			$suffix = (string) ( $directory['suffix'] ?? 'Test.php' );
+		$suites      = $config->xpath( '//testsuite' );
+		foreach ( is_array( $suites ) ? $suites : [] as $suite ) {
+			$excluded = [];
+			foreach ( $suite->exclude as $exclude ) {
+				$excluded[] = $this->absolute( rtrim( (string) $exclude, '/' ) );
+			}
 
-			$directories[ $this->absolute( rtrim( (string) $directory, '/' ) ) ] = $suffix;
+			foreach ( $suite->directory as $directory ) {
+				$directories[] = [
+					'directory' => $this->absolute( rtrim( (string) $directory, '/' ) ),
+					'suffix'    => (string) ( $directory['suffix'] ?? 'Test.php' ),
+					'excluded'  => $excluded,
+				];
+			}
 		}
 
 		return $directories;

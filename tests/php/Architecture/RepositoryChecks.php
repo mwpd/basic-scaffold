@@ -218,7 +218,8 @@ final class RepositoryChecks {
 					RuleManifest::TESTS_ARE_DISCOVERED,
 					sprintf(
 						'%1$s looks like a test, but no PHPUnit suite in phpunit.xml.dist includes it, so it never'
-						. ' runs. Move it into one of the suite directories (%2$s).',
+						. ' runs. Move it into one of the suite directories (%2$s), and out of their excluded'
+						. ' paths.',
 						$relative,
 						$this->describe_suites( $suites )
 					)
@@ -270,16 +271,24 @@ final class RepositoryChecks {
 	/**
 	 * Check whether PHPUnit discovers a file.
 	 *
-	 * @param string                $path   Absolute path of the file.
-	 * @param array<string, string> $suites Suffix of each suite, keyed by
-	 *                                      directory.
+	 * @param string                                                                $path   Absolute path.
+	 * @param array<int, array{directory: string, suffix: string, excluded: array<string>}> $suites Suite directories.
 	 * @return bool Whether a suite includes the file.
 	 */
 	private function is_discovered( string $path, array $suites ): bool {
-		foreach ( $suites as $directory => $suffix ) {
-			if ( strpos( $path, $directory . '/' ) === 0 && substr( $path, -strlen( $suffix ) ) === $suffix ) {
-				return true;
+		foreach ( $suites as $suite ) {
+			if ( strpos( $path, $suite['directory'] . '/' ) !== 0
+				|| substr( $path, -strlen( $suite['suffix'] ) ) !== $suite['suffix'] ) {
+				continue;
 			}
+
+			foreach ( $suite['excluded'] as $excluded ) {
+				if ( $path === $excluded || strpos( $path, $excluded . '/' ) === 0 ) {
+					continue 2;
+				}
+			}
+
+			return true;
 		}
 
 		return false;
@@ -315,12 +324,16 @@ final class RepositoryChecks {
 	/**
 	 * Describe the suite directories for a message.
 	 *
-	 * @param array<string, string> $suites Suffix of each suite, keyed by
-	 *                                      directory.
+	 * @param array<int, array{directory: string, suffix: string, excluded: array<string>}> $suites Suite directories.
 	 * @return string Suite directories, relative to the root.
 	 */
 	private function describe_suites( array $suites ): string {
-		return implode( ', ', array_map( [ $this->layout, 'relative' ], array_keys( $suites ) ) );
+		$directories = array_map(
+			fn( array $suite ): string => $this->layout->relative( $suite['directory'] ),
+			$suites
+		);
+
+		return implode( ', ', array_unique( $directories ) );
 	}
 
 	/**
