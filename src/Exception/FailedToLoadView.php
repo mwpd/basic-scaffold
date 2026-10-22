@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,31 +9,33 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
+use Throwable;
 
-class FailedToLoadView
-	extends RuntimeException
-	implements BasicScaffoldException {
+/**
+ * Exception thrown when a view file cannot be loaded.
+ */
+final class FailedToLoadView extends RuntimeException implements BasicScaffoldException {
 
 	/**
 	 * Create a new instance of the exception if the view file itself created
 	 * an exception.
 	 *
-	 * @param string     $uri       URI of the file that is not accessible or
-	 *                              not readable.
-	 * @param \Exception $exception Exception that was thrown by the view file.
-	 *
-	 * @return static
+	 * @param string    $uri       URI of the file that is not accessible or
+	 *                             not readable.
+	 * @param Throwable $exception Exception that was thrown by the view file.
 	 */
-	public static function from_view_exception( $uri, $exception ) {
+	public static function from_view_exception( $uri, $exception ): self {
 		$message = \sprintf(
 			'Could not load the View URI "%1$s". Reason: "%2$s".',
 			$uri,
 			$exception->getMessage()
 		);
 
-		return new static( $message, (int) $exception->getCode(), $exception );
+		return new self( $message, (int) $exception->getCode(), $exception );
 	}
 }

@@ -1,4 +1,5 @@
 <?php
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Integration;
 
@@ -16,7 +17,8 @@ final class TemplatedViewTest extends TestCase {
 		);
 
 		$this->assertStringStartsWith(
-			'partial A from plugin - partial B from parent theme - partial C from child theme - partial D from parent theme - partial E from plugin',
+			'partial A from plugin - partial B from parent theme - partial C from child theme - '
+			. 'partial D from parent theme - partial E from plugin',
 			$partials->render()
 		);
 	}

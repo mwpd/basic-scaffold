@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,8 +9,11 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Infrastructure;
 
+use stdClass;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 
@@ -24,13 +26,15 @@ use MWPD\BasicScaffold\Exception\InvalidPath;
  *
  * As an example, with a default PHP-based view, the context information will be
  * available as properties of the '$this' variable.
+ *
+ * @phpstan-require-extends stdClass
  */
 interface View extends Renderable {
 
 	/**
 	 * Render the current view with a given context.
 	 *
-	 * @param array $context Context in which to render.
+	 * @param array<string, mixed> $context Context in which to render.
 	 *
 	 * @return string Rendered HTML.
 	 * @throws FailedToLoadView If the view could not be loaded.
@@ -46,8 +50,8 @@ interface View extends Renderable {
 	 * The passed-in context is optional, and will fall back to the parent's
 	 * context if omitted.
 	 *
-	 * @param string     $path    Path of the partial to render.
-	 * @param array|null $context Context in which to render the partial.
+	 * @param string                    $path    Path of the partial to render.
+	 * @param array<string, mixed>|null $context Context in which to render the partial.
 	 *
 	 * @return string Rendered HTML.
 	 * @throws InvalidPath If the provided path was not valid.
@@ -66,4 +70,14 @@ interface View extends Renderable {
 	 * @return mixed Raw context property value.
 	 */
 	public function raw( $property );
+
+	/**
+	 * Return the escaped value of a context property.
+	 *
+	 * Use the raw() method to skip automatic escaping.
+	 *
+	 * @param string $property Property for which to return the escaped value.
+	 * @return string Escaped context property value.
+	 */
+	public function __get( string $property );
 }

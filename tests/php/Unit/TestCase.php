@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,10 +9,26 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Tests\Unit;
 
-use PHPUnit\Framework\TestCase as PHPUnitTestCase;
+use Brain\Monkey;
+use Yoast\PHPUnitPolyfills\TestCases\TestCase as PHPUnitTestCase;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 
 abstract class TestCase extends PHPUnitTestCase {
 
+	// Adds Mockery expectations to the PHPUnit assertions count.
+	use MockeryPHPUnitIntegration;
+
+	protected function set_up() {
+		parent::set_up();
+		Monkey\setUp();
+	}
+
+	protected function tear_down() {
+		Monkey\tearDown();
+		parent::tear_down();
+	}
 }

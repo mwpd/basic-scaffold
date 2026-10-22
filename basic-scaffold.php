@@ -15,9 +15,9 @@
  * @wordpress-plugin
  * Plugin Name:  MWPD Basic Plugin Scaffold
  * Plugin URI:   https://www.mwpd.io/
- * Description:  Basic plugin scaffold for the "Modern WordPress Plugin Development" book,
+ * Description:  Basic plugin scaffold for the "Modern WordPress Plugin Development" book
  * Version:      0.1.0
- * Requires PHP: 7.2
+ * Requires PHP: 7.4
  * Author:       Alain Schlesser <alain.schlesser@gmail.com>
  * Author URI:   https://www.alainschlesser.com/
  * Text Domain:  mwpd-basic
@@ -25,6 +25,8 @@
  * License:      MIT
  * License URI:  https://opensource.org/licenses/MIT
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 

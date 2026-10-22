@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -25,6 +26,9 @@ use Traversable;
  * be able to easily swap out the implementation for something else later on.
  *
  * @see https://www.php-fig.org/psr/psr-11/
+ *
+ * @extends Traversable<string, Service>
+ * @extends ArrayAccess<string, Service>
  */
 interface ServiceContainer extends Traversable, Countable, ArrayAccess {
 
@@ -44,8 +48,6 @@ interface ServiceContainer extends Traversable, Countable, ArrayAccess {
 	 * identifier.
 	 *
 	 * @param string $id Identifier of the service to look for.
-	 *
-	 * @return bool
 	 */
 	public function has( string $id ): bool;
 

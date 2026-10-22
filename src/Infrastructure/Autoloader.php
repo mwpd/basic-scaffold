@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare(strict_types=1);
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -21,17 +22,34 @@ use Exception;
  *
  * WordPress being far from ideal, though, it makes sense to include this for
  * the average plugin.
+ *
+ * @phpstan-type AutoloaderNamespace array{
+ *     root: string,
+ *     base_dir: string,
+ *     prefix: string,
+ *     suffix: string,
+ *     lowercase: bool,
+ *     underscores: bool,
+ * }
  */
 final class Autoloader {
 
-	private const ROOT        = 'root';
-	private const BASE_DIR    = 'base_dir';
-	private const PREFIX      = 'prefix';
-	private const SUFFIX      = 'suffix';
-	private const LOWERCASE   = 'lowercase';
+
+
+	private const ROOT = 'root';
+
+	private const BASE_DIR = 'base_dir';
+
+	private const PREFIX = 'prefix';
+
+	private const SUFFIX = 'suffix';
+
+	private const LOWERCASE = 'lowercase';
+
 	private const UNDERSCORES = 'underscores';
 
 	private const DEFAULT_PREFIX = '';
+
 	private const DEFAULT_SUFFIX = '.php';
 
 	private const AUTOLOAD_METHOD = 'autoload';
@@ -39,9 +57,9 @@ final class Autoloader {
 	/**
 	 * Array containing the registered namespace structures.
 	 *
-	 * @var array<array>
+	 * @var array<int, AutoloaderNamespace>
 	 */
-	private $namespaces = [];
+	private array $namespaces = [];
 
 	/**
 	 * Destructor for the Autoloader class.
@@ -58,7 +76,6 @@ final class Autoloader {
 	/**
 	 * Registers the autoload callback with the SPL autoload system.
 	 *
-	 * @return void
 	 * @throws Exception If the autoloader could not be registered.
 	 */
 	public function register(): void {
@@ -67,8 +84,6 @@ final class Autoloader {
 
 	/**
 	 * Unregisters the autoload callback with the SPL autoload system.
-	 *
-	 * @return void
 	 */
 	public function unregister(): void {
 		\spl_autoload_unregister( [ $this, self::AUTOLOAD_METHOD ] );
@@ -87,8 +102,6 @@ final class Autoloader {
 	 *                             changed to lowercase. Defaults to false.
 	 * @param boolean $underscores Optional. Whether the underscores should be
 	 *                             changed to hyphens. Defaults to false.
-	 *
-	 * @return self
 	 */
 	public function add_namespace(
 		string $root,
@@ -114,22 +127,23 @@ final class Autoloader {
 	 * The autoload function that gets registered with the SPL Autoloader
 	 * system.
 	 *
-	 * @param string $class The class that got requested by the spl_autoloader.
+	 * @param string $class_string The class that got requested by the spl_autoloader.
 	 */
-	public function autoload( string $class ): void {
+	public function autoload( string $class_string ): void {
 
 		// Iterate over namespaces to find a match.
 		foreach ( $this->namespaces as $namespace ) {
 
 			// Move on if the object does not belong to the current namespace.
-			if ( 0 !== \strpos( $class, (string) $namespace[ self::ROOT ] ) ) {
+			if ( 0 !== \strpos( $class_string, $namespace[ self::ROOT ] ) ) {
 				continue;
 			}
 
 			// Remove namespace root level to correspond with root filesystem.
 			$filename = \str_replace(
-				(string) $namespace[ self::ROOT ], '',
-				$class
+				$namespace[ self::ROOT ],
+				'',
+				$class_string
 			);
 
 			// Remove a leading backslash from the class name.
@@ -138,7 +152,8 @@ final class Autoloader {
 			// Replace the namespace separator "\" by the system-dependent
 			// directory separator.
 			$filename = \str_replace(
-				'\\', DIRECTORY_SEPARATOR,
+				'\\',
+				DIRECTORY_SEPARATOR,
 				$filename
 			);
 
@@ -154,12 +169,17 @@ final class Autoloader {
 
 			// Add base_dir, prefix and suffix.
 			$filepath = $namespace[ self::BASE_DIR ]
-			            . $namespace[ self::PREFIX ]
-			            . $filename
-			            . $namespace[ self::SUFFIX ];
+				. $namespace[ self::PREFIX ]
+				. $filename
+				. $namespace[ self::SUFFIX ];
 
 			// Require the file if it exists and is readable.
 			if ( \is_readable( $filepath ) ) {
+				/**
+				 * This include cannot be followed to be statically analyzed.
+				 *
+				 * @psalm-suppress UnresolvableInclude
+				 */
 				require $filepath;
 			}
 		}
@@ -174,31 +194,30 @@ final class Autoloader {
 	 */
 	private function normalize_root( string $root ): string {
 		$root = $this->remove_leading_backslash( $root );
-		$root = $this->ensure_trailing_backslash( $root );
 
-		return $root;
+		return $this->ensure_trailing_backslash( $root );
 	}
 
 	/**
 	 * Remove a leading backslash from a namespace.
 	 *
-	 * @param string $namespace Namespace to remove the leading backslash from.
+	 * @param string $namespace_string Namespace to remove the leading backslash from.
 	 *
 	 * @return string Modified namespace.
 	 */
-	private function remove_leading_backslash( string $namespace ): string {
-		return \ltrim( $namespace, '\\' );
+	private function remove_leading_backslash( string $namespace_string ): string {
+		return \ltrim( $namespace_string, '\\' );
 	}
 
 	/**
 	 * Make sure a namespace ends with a trailing backslash.
 	 *
-	 * @param string $namespace Namespace to check the trailing backslash of.
+	 * @param string $namespace_string Namespace to check the trailing backslash of.
 	 *
 	 * @return string Modified namespace.
 	 */
-	private function ensure_trailing_backslash( string $namespace ): string {
-		return \rtrim( $namespace, '\\' ) . '\\';
+	private function ensure_trailing_backslash( string $namespace_string ): string {
+		return \rtrim( $namespace_string, '\\' ) . '\\';
 	}
 
 	/**

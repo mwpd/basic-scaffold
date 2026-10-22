@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
@@ -27,16 +28,20 @@ use MWPD\BasicScaffold\Infrastructure\ViewFactory;
  */
 final class TemplatedViewFactory implements Service, ViewFactory {
 
-	/** @var array<string> */
-	private $locations;
+	/**
+	 * Array of locations to use.
+	 *
+	 * @var array<string>
+	 */
+	private array $locations;
 
 	/**
 	 * Instantiate a TemplatedViewFactory object.
 	 *
-	 * @param array $locations Array of locations to use.
+	 * @param array<string> $locations Array of locations to use.
 	 */
 	public function __construct( array $locations = [] ) {
-		if ( empty( $locations ) ) {
+		if ( $locations === [] ) {
 			$locations = $this->get_default_locations();
 		}
 
@@ -47,7 +52,8 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * Create a new view object for a given relative path.
 	 *
 	 * @param string $relative_path Relative path to create the view for.
-	 * @return View Instantiated view object.
+	 *
+	 * @return TemplatedView Instantiated view object.
 	 */
 	public function create( string $relative_path ): View {
 		return new TemplatedView( $relative_path, $this, $this->locations );
@@ -59,9 +65,12 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * Uses internal caching to avoid retrieving the paths multiple times across
 	 * instantiations.
 	 *
-	 * @return array Array of default locations.
+	 * @return array<string> Array of default locations.
 	 */
 	private function get_default_locations(): array {
+		/**
+		 * Internal storage for the default locations.
+		 */
 		static $default_locations = null;
 
 		if ( null === $default_locations ) {
@@ -69,7 +78,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 			// on WordPress being loaded here.
 			// This makes the code more flexible and testing easier.
 			$default_locations = ( function_exists( 'get_stylesheet_directory' )
-			                       && function_exists( 'get_template_directory' ) )
+									&& function_exists( 'get_template_directory' ) )
 				? [
 					\get_stylesheet_directory(),
 					\get_template_directory(),

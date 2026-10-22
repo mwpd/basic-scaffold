@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,13 +9,16 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Exception;
 
 use InvalidArgumentException;
 
-class InvalidPath
-	extends InvalidArgumentException
-	implements BasicScaffoldException {
+/**
+ * Exception for invalid paths.
+ */
+final class InvalidPath extends InvalidArgumentException implements BasicScaffoldException {
 
 	/**
 	 * Create a new instance of the exception for a file that is not accessible
@@ -24,15 +26,13 @@ class InvalidPath
 	 *
 	 * @param string $path Path of the file that is not accessible or not
 	 *                     readable.
-	 *
-	 * @return static
 	 */
-	public static function from_path( $path ) {
+	public static function from_path( $path ): self {
 		$message = \sprintf(
 			'The view path "%s" is not accessible or readable.',
 			$path
 		);
 
-		return new static( $message );
+		return new self( $message );
 	}
 }
