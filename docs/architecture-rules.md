@@ -62,6 +62,11 @@ the rules follow.
 
 Settings that belong to one rule are listed in its section.
 
+The checks of the repository's structure read the PSR-4 roots from
+`composer.json` and the test suites from `phpunit.xml.dist`. What those files
+cannot tell, such as the main plugin file and the view template directories,
+`RepositoryLayout` in `tests/php/Architecture/` declares.
+
 ## Adding a rule
 
 1. Add an entry to `RuleManifest`: identifier, principle and its anchor in
@@ -200,3 +205,93 @@ exception's own static methods.
 
 **Fix:** call the named constructor the message lists, or add one that states
 the new cause, so the same failure always reads the same.
+
+### `architecture.strictTypes`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) that every PHP class
+file declares `strict_types=1`.
+
+**Checks:** the main plugin file and every file below the PSR-4 roots of
+`composer.json` that declares a class, interface or trait declare
+`strict_types=1`. View templates declare no class, interface, trait or
+function, not even conditionally.
+
+**Allows:** view templates without `strict_types`, since they are templates
+and not class files.
+
+**Configuration:** `RepositoryLayout` in `tests/php/Architecture/` names the
+main file and the view template directories.
+
+**Fix:** add `declare( strict_types=1 );` after the file header, or move a
+declaration out of a template into its own class file.
+
+### `architecture.declarationsFollowPsr4`
+
+**Principle:** [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone),
+whose bundled autoloader finds classes the same way Composer does.
+
+**Checks:** every PHP file below a PSR-4 root of `composer.json` declares
+exactly one class, interface or trait, and its name matches the file's path
+exactly, including case.
+
+**Allows:** anonymous classes, view templates, and the fixtures of the
+architecture rules, which break rules on purpose.
+
+**Configuration:** the `autoload` and `autoload-dev` sections of
+`composer.json`, and the rule fixture directories in `RepositoryLayout`.
+
+**Fix:** give each class, interface or trait its own file, named after it, in
+the directory its namespace points to.
+
+### `architecture.noSideEffectsOnInclude`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
+only the main plugin file has side effects.
+
+**Checks:** files in the production directories contain nothing at their top
+level but `declare` directives, `namespace`, `use` and class, interface or
+trait declarations. Function declarations, function calls, `define()`,
+includes, the body of a `declare` block and output outside the PHP tags, even
+whitespace after a closing `?>`, all count as side effects.
+
+**Allows:** anything inside a class.
+
+**Configuration:** the production directories in `RepositoryLayout`.
+
+**Fix:** move the code into a service method that `register()` hooks in at
+the right time, or into the main plugin file.
+
+### `architecture.noRuntimeDependencies`
+
+**Principle:** [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone).
+
+**Checks:** `composer.json` requires nothing but PHP, and
+`composer-dependency-analyser` finds no package used by the code that runs in
+production: the main plugin file, `src/` and `views/`. That covers packages in
+`require-dev` and packages only installed because another package needs them.
+
+**Allows:** the tests use any package.
+
+**Configuration:** the production paths in `RepositoryLayout`, which
+`composer-dependency-analyser.php` in the plugin root hands to the analyser
+through `RuntimeDependencyConfiguration`.
+
+**Fix:** move the package to `require-dev` and the code that needs it into the
+tests, or bundle what the plugin needs into `src/`.
+
+### `architecture.testsAreDiscovered`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the
+gates: a test PHPUnit never runs never fails.
+
+**Checks:** every file ending in `Test.php` below `tests/` lies in a directory
+a suite in `phpunit.xml.dist` discovers, and every concrete PHPUnit test case
+lives in such a file.
+
+**Allows:** abstract base test cases anywhere.
+
+**Configuration:** the test suites in `phpunit.xml.dist`, and the tests
+directory in `RepositoryLayout`.
+
+**Fix:** move the test into a suite directory and name its file after the
+class with a `Test.php` suffix, or add a suite for its directory.

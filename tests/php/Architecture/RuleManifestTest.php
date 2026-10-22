@@ -23,18 +23,18 @@ use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 final class RuleManifestTest extends TestCase {
 
 	public function test_every_rule_links_to_an_existing_principle(): void {
-		$anchors = $this->get_heading_anchors( RuleManifest::DESIGN_PRINCIPLES );
-
 		foreach ( RuleManifest::get_rules() as $identifier => $rule ) {
+			$document = RuleManifest::get_principle_document( $identifier );
+
 			$this->assertContains(
 				$rule['principle_anchor'],
-				$anchors,
+				$this->get_heading_anchors( $document ),
 				sprintf(
 					'%1$s links to #%2$s, which is not a heading in %3$s. '
 					. 'Point principle_anchor in RuleManifest at the principle the rule enforces.',
 					$identifier,
 					$rule['principle_anchor'],
-					RuleManifest::DESIGN_PRINCIPLES
+					$document
 				)
 			);
 		}
@@ -65,7 +65,7 @@ final class RuleManifestTest extends TestCase {
 	 */
 	private function get_heading_anchors( string $file ): array {
 		$path     = dirname( __DIR__, 3 ) . '/' . $file;
-		$contents = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		$contents = file_get_contents( $path );
 
 		$this->assertIsString( $contents, "{$file} cannot be read." );
 
