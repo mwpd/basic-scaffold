@@ -16,6 +16,7 @@ namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Throw_ as ThrowExpression;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\Throw_ as ThrowStatement;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\IdentifierRuleError;
@@ -32,8 +33,10 @@ use PHPStan\Type\VerbosityLevel;
  * own class and named constructor instead of a generic exception with a
  * message.
  *
- * Passing on what a catch block caught stays allowed; RethrowVisitor marks
- * those throws.
+ * Throwing a variable is not checked here. A variable holds either an
+ * exception a catch block caught, which may be passed on, or one the plugin
+ * created, and CreateOnlyPluginExceptionsRule checks every exception the
+ * plugin creates.
  *
  * PHP-Parser 4, which PHPStan 1 uses, parses a throw statement as a
  * statement, and PHP-Parser 5, which PHPStan 2 uses, as an expression, so
@@ -91,7 +94,7 @@ final class ThrowOnlyPluginExceptionsRule implements Rule {
 	 */
 	public function processNode( Node $node, Scope $scope ): array {
 		if ( ! ( $node instanceof ThrowStatement || $node instanceof ThrowExpression )
-			|| $node->getAttribute( RethrowVisitor::ATTRIBUTE ) === true
+			|| $node->expr instanceof Variable
 			|| ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
 			return [];
 		}

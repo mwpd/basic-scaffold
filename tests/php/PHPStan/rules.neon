@@ -117,6 +117,15 @@ services:
             - phpstan.rules.rule
 
     -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\CreateOnlyPluginExceptionsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            marker: %architecture.exceptions.marker%
+            exception_namespace: %architecture.exceptions.namespace%
+        tags:
+            - phpstan.rules.rule
+
+    -
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ExceptionShapeRule
         arguments:
             plugin_namespace: @architecturePluginNamespace
@@ -133,6 +142,3 @@ services:
             marker: %architecture.exceptions.marker%
         tags:
             - phpstan.rules.rule
-
-includes:
-    - visitors.neon

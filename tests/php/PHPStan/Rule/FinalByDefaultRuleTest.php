@@ -14,11 +14,12 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
 
 /**
- * @extends ArchitectureRuleTestCase<FinalByDefaultRule>
+ * @extends RuleTestCase<FinalByDefaultRule>
  */
-final class FinalByDefaultRuleTest extends ArchitectureRuleTestCase {
+final class FinalByDefaultRuleTest extends RuleTestCase {
 
 	private const FIXTURES = __DIR__ . '/../Fixture/FinalByDefault/';
 

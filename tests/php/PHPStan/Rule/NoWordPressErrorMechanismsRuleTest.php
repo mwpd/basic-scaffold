@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
 
 /**
  * The rules that share the architecture.noWordPressErrorMechanisms
@@ -28,9 +29,9 @@ use PHPStan\Rules\Rule;
  *     | NoWordPressErrorInArrowFunctionsRule
  *     | NoWordPressErrorInPropertiesRule
  * )
- * @extends ArchitectureRuleTestCase<TestedRule>
+ * @extends RuleTestCase<TestedRule>
  */
-final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase {
+final class NoWordPressErrorMechanismsRuleTest extends RuleTestCase {
 
 	private const FIXTURES = __DIR__ . '/../Fixture/Errors/';
 

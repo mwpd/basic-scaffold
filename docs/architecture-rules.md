@@ -69,15 +69,13 @@ Settings that belong to one rule are listed in its section.
 2. Write the rule in `tests/php/PHPStan/Rule/`, using the identifier and
    `RuleManifest::get_explanation()` as the tip, or write the check as a test
    in `tests/php/Architecture/`.
-3. Test a PHPStan rule with `ArchitectureRuleTestCase` against fixtures in
+3. Test a PHPStan rule with PHPStan's `RuleTestCase` against fixtures in
    `tests/php/PHPStan/Fixture/`: one that breaks the rule, with the full
    message asserted, and one for each case it allows. Fixtures that refer to
    each other's classes need one class per file, following PSR-4, because
    PHPStan's test case only finds classes it can autoload.
 4. Register it in `tests/php/PHPStan/rules.neon`, and put its settings under
-   `parameters.architecture` in `phpstan.neon.dist`. A parser visitor a rule
-   relies on goes into `tests/php/PHPStan/visitors.neon`, which the rule tests
-   load too.
+   `parameters.architecture` in `phpstan.neon.dist`.
 5. Add its section below. `RuleManifestTest` fails until it exists.
 
 The tree must pass a new rule without a baseline. Fix what it finds, or file
@@ -155,11 +153,12 @@ WordPress catches it and decides what the user sees.
 **Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
 
 **Checks:** everything the plugin throws implements its marker interface,
-`BasicScaffoldException`.
+`BasicScaffoldException`. The rule checks two places: every exception the
+plugin creates with `new`, and every `throw` of anything but a variable.
 
-**Allows:** rethrowing the exception a `catch` block caught, also from a
-closure that imports it with `use`, as long as the variable was not assigned
-something else in between.
+**Allows:** throwing a variable, such as passing on what a `catch` block
+caught. A variable holds either a caught exception or one the plugin created,
+and creating one is checked.
 
 **Configuration:** `exceptions.marker` and `exceptions.namespace` name the
 marker interface and the namespace the exceptions live in.

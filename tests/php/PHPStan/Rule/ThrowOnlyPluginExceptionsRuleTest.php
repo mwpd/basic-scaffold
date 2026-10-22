@@ -14,11 +14,15 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
 
 /**
- * @extends ArchitectureRuleTestCase<ThrowOnlyPluginExceptionsRule>
+ * The rules that share the architecture.throwOnlyPluginExceptions
+ * identifier, each tested against the same fixtures.
+ *
+ * @extends RuleTestCase<ThrowOnlyPluginExceptionsRule|CreateOnlyPluginExceptionsRule>
  */
-final class ThrowOnlyPluginExceptionsRuleTest extends ArchitectureRuleTestCase {
+final class ThrowOnlyPluginExceptionsRuleTest extends RuleTestCase {
 
 	private const FIXTURES = __DIR__ . '/../Fixture/Errors/';
 
@@ -26,37 +30,71 @@ final class ThrowOnlyPluginExceptionsRuleTest extends ArchitectureRuleTestCase {
 
 	private const MARKER = self::FIXTURE_NAMESPACE . '\Exception\PluginException';
 
+	private const EXCEPTIONS = self::FIXTURE_NAMESPACE . '\Exception';
+
 	private const TIP = 'Principle 10: Errors are exceptions, see docs/design-principles.md#10-errors-are-exceptions. '
 		. 'Rule: docs/architecture-rules.md#architecturethrowonlypluginexceptions';
 
+	/**
+	 * Rule under test.
+	 *
+	 * @var ThrowOnlyPluginExceptionsRule|CreateOnlyPluginExceptionsRule
+	 */
+	private Rule $rule;
+
 	protected function getRule(): Rule {
-		return new ThrowOnlyPluginExceptionsRule(
-			new PluginNamespace( self::FIXTURE_NAMESPACE ),
-			self::MARKER,
-			self::FIXTURE_NAMESPACE . '\Exception'
-		);
+		return $this->rule;
 	}
 
 	public function test_it_reports_throwing_anything_but_the_plugins_exceptions(): void {
+		$this->rule = new ThrowOnlyPluginExceptionsRule(
+			new PluginNamespace( self::FIXTURE_NAMESPACE ),
+			self::MARKER,
+			self::EXCEPTIONS
+		);
+
 		$this->analyse(
-			[ self::FIXTURES . 'Service.php', self::FIXTURES . 'Adapter.php' ],
+			[ self::FIXTURES . 'Service.php' ],
 			[
-				[ $this->message( 'RuntimeException' ), 41, self::TIP ],
-				[ $this->message( 'LogicException' ), 58, self::TIP ],
-				[ $this->message( 'Throwable' ), 82, self::TIP ],
-				[ $this->message( 'mixed' ), 85, self::TIP ],
-				[ $this->message( 'LogicException' ), 95, self::TIP ],
+				[
+					$this->message( 'Throwing RuntimeException, which does not implement %2$s.', 'throw that' ),
+					41,
+					self::TIP,
+				],
 			]
 		);
 	}
 
-	private function message( string $thrown ): string {
-		return sprintf(
-			'Throwing %1$s, which does not implement %2$s. Add an exception to %3$s that extends the'
-			. ' matching SPL exception, implements %2$s and has a named constructor, and throw that.',
-			$thrown,
+	public function test_it_reports_creating_anything_but_the_plugins_exceptions(): void {
+		$this->rule = new CreateOnlyPluginExceptionsRule(
+			new PluginNamespace( self::FIXTURE_NAMESPACE ),
 			self::MARKER,
-			self::FIXTURE_NAMESPACE . '\Exception'
+			self::EXCEPTIONS
+		);
+
+		$this->analyse(
+			[ self::FIXTURES . 'Service.php' ],
+			[
+				[ $this->creation_message( 'RuntimeException' ), 41, self::TIP ],
+				[ $this->creation_message( 'LogicException' ), 53, self::TIP ],
+				[ $this->creation_message( 'LogicException' ), 94, self::TIP ],
+			]
+		);
+	}
+
+	private function creation_message( string $created ): string {
+		return $this->message(
+			'new ' . $created . ' creates an exception that does not implement %2$s.',
+			'create that instead'
+		);
+	}
+
+	private function message( string $problem, string $fix ): string {
+		return sprintf(
+			$problem . ' Add an exception to %1$s that extends the matching SPL exception, implements %2$s and'
+			. ' has a named constructor, and ' . $fix . '.',
+			self::EXCEPTIONS,
+			self::MARKER
 		);
 	}
 }

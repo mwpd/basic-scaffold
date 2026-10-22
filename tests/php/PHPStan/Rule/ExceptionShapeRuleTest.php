@@ -14,11 +14,12 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
 
 /**
- * @extends ArchitectureRuleTestCase<ExceptionShapeRule>
+ * @extends RuleTestCase<ExceptionShapeRule>
  */
-final class ExceptionShapeRuleTest extends ArchitectureRuleTestCase {
+final class ExceptionShapeRuleTest extends RuleTestCase {
 
 	private const FIXTURES = __DIR__ . '/../Fixture/Errors/';
 
