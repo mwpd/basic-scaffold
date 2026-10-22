@@ -1,0 +1,10 @@
+# Parser visitors the architecture rules rely on.
+#
+# Kept apart from rules.neon so that the rule tests can load them without the
+# rules' settings.
+
+services:
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\RethrowVisitor
+        tags:
+            - phpstan.parser.richParserNodeVisitor
