@@ -49,12 +49,18 @@ before writing to it; skip it if it closed or became `agent-ready` meanwhile.
 
    | Gap | Label |
    | --- | --- |
-   | API or structural judgment the code cannot settle | `needs: design` |
+   | Visual design (UI, website, graphics) not settled | `needs: design` |
    | Scope, policy or breaking-change ruling, or a conflict with a design principle | `needs: decision` |
    | Reported failure without a reproduction | `needs: repro` |
    | Access or a verification only a human can do | `needs: human` |
    | No driving scenario | `needs: use-case` |
    | Waits on another issue | `blocked` + a `Blocked by #N` line |
+
+   Unsettled **software** design (an API, an interface, the orchestration)
+   is not a gap label. If no proposal exists yet, the issue can be
+   `agent-ready` with "design proposal" as its next deliverable; if one
+   exists and awaits a ruling, it is `needs: decision`. See the GitHub skill,
+   "Unsettled software design".
 
 5. **Classify.** Exactly one `type:` (by deliverable: `fix` restores documented
    behaviour, `feat` changes it, `refactor` preserves it), at least one `area:`

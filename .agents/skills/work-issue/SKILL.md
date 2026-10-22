@@ -34,7 +34,13 @@ Read the issue, all comments, its epic and links. Check the task against
 citation against the fetched source. Repair drift that the source settles,
 folding corrections into the body with a dated note.
 
-If a real gap remains (a missing ruling, design, reproduction, or human
+If the issue's next deliverable is a **design proposal** (the software design
+is not settled yet), the proposal is the whole job: post it as the GitHub
+skill's "Unsettled software design" describes, add `needs: decision`, remove
+`agent-ready`, and go to **Finish or hand off**. No branch, no PR, no
+implementation before the ruling.
+
+If a real gap remains (a missing ruling, visual design, reproduction, or human
 action), apply the matching `needs:` label with a comment naming what is
 missing and what would resolve it, remove `agent-ready`, and go to **Finish
 or hand off**. Do not invent a design or a ruling to keep moving.

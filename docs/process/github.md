@@ -46,6 +46,18 @@ Labels that carry weight beyond their description:
   an interface or base class in `src/Infrastructure/`, a hook or service
   identifier convention, or the bootstrap contract. It needs a maintainer
   ruling on the issue before code is written.
+- **`needs: design`** means the issue waits on **visual** design: a user
+  interface, the project website, graphics. That work happens outside the
+  coding-agent workflow, so the issue is not pickable until the design is in.
+  It never stands for software design.
+- **Unsettled software design** (an API, an interface, how the infrastructure
+  orchestrates something) is not a blocker label. It is work: the issue stays
+  `agent-ready`, and its next deliverable is a **design proposal** posted on
+  the issue, with the options, their trade-offs, how each fits the
+  [design principles](../design-principles.md) and a recommendation. Once the
+  proposal is posted, the issue gets `needs: decision` until the maintainer
+  rules; then the ruling is folded into the body and the issue is
+  `agent-ready` again, for implementation.
 - **`needs: human`** means the next action can only be performed by a human,
   such as granting access or a verification reserved for the maintainer. Put the
   exact action and what evidence completes it in the issue body, and remove
