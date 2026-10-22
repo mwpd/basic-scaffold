@@ -43,6 +43,8 @@
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=unit",
         "test:integration": "phpunit --testsuite=integration",
+        "test:architecture": "phpunit --testsuite=architecture",
+        "test:phpstan-rules": "phpunit --testsuite=phpstan-rules",
         "phpstan": "phpstan analyze --memory-limit=1G",
         "psalm": "psalm",
         "analyze": [
@@ -53,7 +55,8 @@
         "phpcs:fix": "phpcbf",
         "lint": [
             "@phpcs",
-            "@analyze"
+            "@analyze",
+            "@test:phpstan-rules"
         ]
     },
     "config": {

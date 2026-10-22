@@ -73,6 +73,8 @@ The reasoning behind all of this is written down in the
      domain;
    - the `MWPD\BasicScaffold` namespace in `src/`, `tests/` and the `autoload`
      sections of `composer.json`, and the package `name`;
+   - the namespaces under `parameters.architecture` in `phpstan.neon.dist`, so
+     the [architecture rules](docs/architecture-rules.md) check your code;
    - `BasicScaffoldPlugin`, `BasicScaffoldPluginFactory` and
      `BasicScaffoldException`;
    - the `HOOK_PREFIX` and `SERVICE_PREFIX` constants in
@@ -86,9 +88,14 @@ The reasoning behind all of this is written down in the
 
 ```sh
 composer install
-composer test   # unit and integration tests
-composer lint   # PHPCS, PHPStan and Psalm
+composer test   # unit, integration and architecture tests
+composer lint   # PHPCS, PHPStan and Psalm, plus the PHPStan rule tests
 ```
+
+The architecture rules check that new code follows the
+[design principles](docs/design-principles.md), and say what to do instead
+when it does not. [docs/architecture-rules.md](docs/architecture-rules.md)
+lists them.
 
 Psalm 5 supports PHP up to 8.3, so run the lint step on PHP 8.3. CI
 (`.github/workflows/ci.yml`) is the reference environment.
