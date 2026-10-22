@@ -34,6 +34,35 @@ Psalm 5 runs on PHP 8.3 at most, and `composer.lock` was resolved for PHP 8.
 CI (`.github/workflows/ci.yml`) is the reference environment: lint on 8.3,
 tests on 7.4 and 8.3.
 
+## Design principles
+
+Every technical decision is measured against
+[docs/design-principles.md](docs/design-principles.md). Read it before
+choosing between approaches. In short:
+
+1. **Runs on PHP and WordPress alone.** Composer is a development tool, never
+   a runtime requirement; the fallback autoloader keeps the plugin working
+   without `vendor/`, and nothing needs building before it runs.
+2. **Self-contained infrastructure, replaceable by design.** Simple in-house
+   implementations (injector, container, views) behind interfaces, rather than
+   third-party packages, so a stronger implementation can be swapped in later.
+3. **SOLID at the top, WordPress at the edges.** The high-level design
+   (infrastructure, composition root, service boundaries, interfaces) strictly
+   follows SOLID; implementation details may use WordPress and its plugin API
+   directly.
+4. **Show the alternative to WordPress anti-patterns.** No hooks in
+   constructors, no singletons, no `new` or globals for collaborators, no side
+   effects on include. The doc lists each with the scaffold's alternative.
+5. **One plugin, to arbitrary complexity.** No cross-plugin interoperability
+   or synchronization mechanisms; those belong in a separate mechanism.
+6. **Types name concepts, not just data.** Distinct concepts get distinct
+   types, even when they share a data structure.
+7. **Never trust what WordPress hands over.** Sanitize, validate and normalize
+   at the boundary into internal types; internal code then relies on those.
+
+A change that contradicts a principle needs `needs: decision` and a maintainer
+ruling on its issue before code.
+
 ## Hard rules
 
 - **`basic-scaffold.php` is the only file with side effects.** Everything under
@@ -42,8 +71,8 @@ tests on 7.4 and 8.3.
   `tests/` or `views/`. `phpcs` enforces it through PHPCompatibility.
 - **Every PHP class file declares `strict_types=1`**: the bootstrap, `src/`
   and `tests/php`. View templates (`views/`, `tests/php/Fixture/views/`) do not.
-- **No runtime Composer dependencies** without a maintainer ruling. The bundled
-  fallback autoloader exists so the plugin works without `composer install`.
+- **No runtime Composer dependencies** (principle 1). `require` holds nothing
+  but PHP; class loading must work both with and without `vendor/`.
 - **Infrastructure changes are API changes.** Anything a generated plugin
   extends or calls in `src/Infrastructure/` needs the `breaking` label and a
   ruling on the issue before code if it changes shape.
