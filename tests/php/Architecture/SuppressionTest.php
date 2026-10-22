@@ -74,6 +74,7 @@ final class SuppressionTest extends TestCase {
 						'    - vendor/package/extension.neon',
 						'    # The baseline holds the errors left to fix.',
 						"    - 'phpstan-baseline.neon'",
+						'    - %currentWorkingDirectory%/more.neon',
 						'',
 						'parameters:',
 						'    level: max',
@@ -83,6 +84,7 @@ final class SuppressionTest extends TestCase {
 						"        - '#Some other error#'",
 						"        - '#is not final#'",
 						'        - {identifier: architecture.noStaticState}',
+						"        - {identifier: class.notFound, message: '#not#'}",
 						'        -',
 						"            message: '#^Class Acme\\\\Service is not final\\. Declare it final#'",
 						'            path: src/Service.php',
@@ -91,6 +93,10 @@ final class SuppressionTest extends TestCase {
 						'',
 					]
 				)
+			)
+			->write(
+				'more.neon',
+				"parameters:\n    ignoreErrors!:\n        - {identifier: architecture.prefixedNames}\n"
 			)
 			->write(
 				'phpstan-baseline.neon',
@@ -107,6 +113,7 @@ final class SuppressionTest extends TestCase {
 				'phpstan.neon.dist ignores errors of architecture.noStaticState.',
 				'phpstan.neon.dist ignores errors of architecture.finalByDefault.',
 				'phpstan-baseline.neon ignores errors of architecture.finalByDefault.',
+				'more.neon ignores errors of architecture.prefixedNames.',
 			],
 			$problems
 		);

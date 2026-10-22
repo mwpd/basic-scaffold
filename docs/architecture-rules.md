@@ -490,7 +490,10 @@ allowance in the rule's configuration.
 
 An ignore counts as aimed at a rule when it names its identifier, or when its
 message pattern matches, or spells out, one of the phrases the rule's manifest
-entry lists as `signatures`.
+entry lists as `signatures`. An ignore limited to other identifiers does not
+count. The check reads the configuration the way PHPStan does: replacing keys
+such as `ignoreErrors!`, and includes given relative, absolute or with
+`%currentWorkingDirectory%`.
 
 `RuleRegistrationTest` also keeps the rules, `RuleManifest` and this page in
 step:

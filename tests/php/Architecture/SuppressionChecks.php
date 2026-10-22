@@ -94,7 +94,7 @@ final class SuppressionChecks {
 		}
 
 		$problems = [];
-		$files    = self::collect_configuration( $config, [] );
+		$files    = $this->collect_configuration( $config, [] );
 
 		foreach ( $files as $file => $decoded ) {
 			$parameters = is_array( $decoded['parameters'] ?? null ) ? $decoded['parameters'] : [];
@@ -131,32 +131,67 @@ final class SuppressionChecks {
 	 * Decode a configuration and the configuration files it includes, such
 	 * as a baseline, apart from those of installed packages.
 	 *
-	 * @param string               $file  Path of the configuration.
-	 * @param array<string, mixed> $found Configurations decoded so far.
+	 * @param string                      $file  Path of the configuration.
+	 * @param array<string, array<mixed>> $found Configurations decoded so far.
 	 * @return array<string, array<mixed>> Decoded configurations, keyed by path.
 	 */
-	private static function collect_configuration( string $file, array $found ): array {
-		$decoded        = Neon::decodeFile( $file );
-		$found[ $file ] = is_array( $decoded ) ? $decoded : [];
-		$includes       = is_array( $decoded ) && is_array( $decoded['includes'] ?? null ) ? $decoded['includes'] : [];
+	private function collect_configuration( string $file, array $found ): array {
+		/**
+		 * Neon::decodeFile() declares a native mixed return type, which Psalm
+		 * reads as a reserved word when it targets PHP 7.4.
+		 *
+		 * @psalm-suppress ReservedWord
+		 */
+		$decoded        = self::normalize_keys( Neon::decodeFile( $file ) );
+		$found[ $file ] = $decoded;
+		$includes       = is_array( $decoded['includes'] ?? null ) ? $decoded['includes'] : [];
 
 		foreach ( $includes as $include ) {
-			$path = is_string( $include ) ? dirname( $file ) . '/' . $include : '';
+			$path = is_string( $include ) ? $this->resolve_include( $include, $file ) : null;
 
-			if ( $path !== ''
-				&& strpos( $include, 'vendor/' ) !== 0
-				&& is_readable( $path )
-				&& ! isset( $found[ $path ] ) ) {
-				$found = self::collect_configuration( $path, $found );
+			if ( $path !== null && is_readable( $path ) && ! isset( $found[ $path ] ) ) {
+				$found = $this->collect_configuration( $path, $found );
 			}
 		}
 
-		/**
-		 * Every value is a decoded configuration.
-		 *
-		 * @var array<string, array<mixed>> $found
-		 */
 		return $found;
+	}
+
+	/**
+	 * Resolve an included file the way PHPStan does.
+	 *
+	 * @param string $included Included path, as written.
+	 * @param string $file     Configuration that includes it.
+	 * @return string|null Absolute path, or null for a file of an installed
+	 *                     package.
+	 */
+	private function resolve_include( string $included, string $file ): ?string {
+		$root = dirname( $this->layout->get_phpstan_config() );
+		$path = str_replace( [ '%currentWorkingDirectory%', '%rootDir%' ], $root, $included );
+
+		if ( strpos( $path, '/' ) !== 0 ) {
+			$path = dirname( $file ) . '/' . $path;
+		}
+
+		return strpos( $path, $root . '/vendor/' ) === 0 ? null : $path;
+	}
+
+	/**
+	 * Drop the `!` that tells NEON to replace a value rather than merge it.
+	 *
+	 * @param mixed $value Decoded configuration.
+	 * @return array<mixed> Configuration with plain keys.
+	 */
+	private static function normalize_keys( $value ): array {
+		$normalized = [];
+
+		foreach ( is_array( $value ) ? $value : [] as $key => $item ) {
+			$normalized[ is_string( $key ) ? rtrim( $key, '!' ) : $key ] = is_array( $item )
+				? self::normalize_keys( $item )
+				: $item;
+		}
+
+		return $normalized;
 	}
 
 	/**
@@ -180,6 +215,12 @@ final class SuppressionChecks {
 			}
 		}
 
+		// An entry limited to other identifiers cannot hide an architecture
+		// error, whatever its message says.
+		if ( $identifiers !== [] ) {
+			return null;
+		}
+
 		// A pattern either is a fragment of the message, or spells the whole
 		// message out, so it either matches the phrase or contains it.
 		$texts = $raw;
@@ -194,7 +235,7 @@ final class SuppressionChecks {
 				foreach ( $patterns as $pattern ) {
 					// An invalid pattern ignores nothing; PHPStan reports it.
 					// phpcs:ignore WordPress.PHP.NoSilencedErrors
-					if ( is_string( $pattern ) && @preg_match( $pattern, $signature ) === 1 ) {
+					if ( is_string( $pattern ) && $pattern !== '' && @preg_match( $pattern, $signature ) === 1 ) {
 						return $identifier;
 					}
 				}

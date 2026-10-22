@@ -36,6 +36,12 @@ final class RuleRegistry {
 	 * @return array<string> Fully qualified class names.
 	 */
 	public static function find_registered_rules( string $neon ): array {
+		/**
+		 * Neon::decode() declares a native mixed return type, which Psalm
+		 * reads as a reserved word when it targets PHP 7.4.
+		 *
+		 * @psalm-suppress ReservedWord
+		 */
 		$config     = Neon::decode( $neon );
 		$services   = is_array( $config ) && is_array( $config['services'] ?? null ) ? $config['services'] : [];
 		$registered = [];
@@ -187,9 +193,13 @@ final class RuleRegistry {
 	 */
 	private static function check_checker( string $identifier, string $checker, array $registered ): ?string {
 		if ( strpos( $checker, '::' ) !== false ) {
-			[ $class_name, $method ] = explode( '::', $checker, 2 );
+			$parts      = explode( '::', $checker, 2 );
+			$class_name = $parts[0];
+			$method     = $parts[1] ?? '';
 
-			return method_exists( $class_name, $method ) && strpos( $method, 'test' ) === 0
+			return class_exists( $class_name )
+				&& method_exists( $class_name, $method )
+				&& strpos( $method, 'test' ) === 0
 				? null
 				: sprintf(
 					'%1$s is checked by %2$s, which is not a test method. Point checked_by at the test that runs'
