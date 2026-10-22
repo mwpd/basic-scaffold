@@ -116,6 +116,7 @@ is not a passing check.
 ## In plugins generated from this scaffold
 
 A repository generated from this template inherits `.github/`, `AGENTS.md` and
-the skills. The process carries over unchanged, but `.github/labels.json`
+the skills. The process carries over unchanged, and the skills target whichever
+repository they run in. But `.github/labels.json`
 describes *this* scaffold's areas. Rename the `area:` labels to fit the new
 plugin, then run `php scripts/sync-labels.php --apply` in the new repository.

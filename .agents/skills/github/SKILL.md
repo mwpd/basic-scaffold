@@ -1,18 +1,22 @@
 ---
 name: github
-description: Use when filing, triaging, picking up, updating or closing work in the mwpd/basic-scaffold issue tracker, including creating epics and sub-issues, choosing labels, opening a PR against an issue, and recording found work mid-session.
+description: Use when filing, triaging, picking up, updating or closing work in this repository's issue tracker, including creating epics and sub-issues, choosing labels, opening a PR against an issue, and recording found work mid-session.
 compatibility: Requires the `gh` CLI, authenticated with repository access, and `jq`.
 ---
 
-# Working the basic-scaffold tracker
+# Working the issue tracker
 
 **This skill is the procedure. [`docs/process/github.md`](../../../docs/process/github.md)
 is the agreement it implements.** Read that first if you are deciding
 *whether* something should be an issue. Read this when you are about to run a
 command.
 
-`REPO=mwpd/basic-scaffold` below. In a plugin generated from this template,
-use that plugin's own repository.
+Commands below use `$REPO`, the repository of the current checkout, so they
+also work unchanged in a plugin generated from this template:
+
+```sh
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+```
 
 ## Filing an issue
 

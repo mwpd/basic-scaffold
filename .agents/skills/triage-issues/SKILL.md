@@ -1,9 +1,9 @@
 ---
 name: triage-issues
-description: Triage open mwpd/basic-scaffold issues that lack agent-ready, repairing factual gaps, reconciling dependencies and epic membership, and setting type, area, priority, needs and readiness labels. Use for backlog preparation or issue triage, not implementation.
+description: Triage open issues in this repository that lack agent-ready, repairing factual gaps, reconciling dependencies and epic membership, and setting type, area, priority, needs and readiness labels. Use for backlog preparation or issue triage, not implementation.
 ---
 
-# Triage basic-scaffold issues
+# Triage issues
 
 Prepare issues for unattended work. A triage request authorizes scoped edits
 to issue bodies, comments, labels and sub-issue links. It does not authorize
@@ -12,7 +12,8 @@ Reproductions and factual clarification are triage work. Product, design and
 API rulings are not.
 
 Read [the GitHub skill](../github/SKILL.md), `AGENTS.md`,
-`docs/process/github.md` and `.github/labels.json` first.
+`docs/process/github.md` and `.github/labels.json` first. Set `$REPO` as the
+GitHub skill shows.
 
 ## Establish the pass
 
@@ -21,7 +22,7 @@ issues without `agent-ready`**, paginated, excluding PRs:
 
 ```sh
 set -o pipefail  # a failed gh call must not read as "no issues"
-gh api --paginate --slurp "repos/mwpd/basic-scaffold/issues?state=open&per_page=100" \
+gh api --paginate --slurp "repos/$REPO/issues?state=open&per_page=100" \
   | jq '[.[][] | select(.pull_request == null)
     | [.labels[].name] as $l | select(($l | index("agent-ready")) == null)
     | {number, title, labels: $l}] | sort_by(.number)'
