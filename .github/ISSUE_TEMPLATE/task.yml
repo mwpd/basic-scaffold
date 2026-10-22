@@ -1,0 +1,78 @@
+name: Task
+description: One unit of work, the size a single agent session or sitting can finish.
+title: "<area>: <what changes, in the imperative>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill every section. The body is the brief a coding agent works from:
+        an agent cannot ask you what you meant, and a task without acceptance
+        criteria gets an implementation nobody can check.
+
+        If it needs more than one sitting, file an Epic with sub-issues instead.
+        Readiness (`agent-ready`) is added during triage, not here.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: >-
+        What exists today and why it needs to change. Name files and symbols
+        with repo-relative paths (`src/Infrastructure/ServiceBasedPlugin.php:120`)
+        so the reader does not start by searching.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this change does. One bullet per behaviour that moves.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: >-
+        What a reasonable reader might assume is included and is not. This is
+        the section that stops an agent from widening the diff.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: >-
+        A checklist, each item verifiable by someone who did not write the
+        code. "Works correctly" is not a criterion.
+      value: |
+        - [ ]
+        - [ ] A test covering this fails before the change and passes after.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: The exact commands that prove it, plus any step only a human can perform.
+      value: |
+        ```sh
+        composer test
+        composer lint
+        ```
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact on generated plugins
+      description: >-
+        Plugins generated from this scaffold build on `src/Infrastructure`.
+        Changing an interface or convention they rely on is a breaking change.
+      options:
+        - label: This changes an interface or convention generated plugins rely on, so it needs the `breaking` label and a maintainer ruling before code.
