@@ -55,19 +55,25 @@ final class CompositionRootContractTest extends TestCase {
 
 	public function test_it_reports_the_promises_a_composition_root_breaks(): void {
 		$problems = ( new CompositionRootContract( BrokenPlugin::class ) )->check();
-		$prefix   = '[architecture.compositionRootContracts] The service "%s" of ' . BrokenPlugin::class . ' ';
+		$prefix   = '[architecture.compositionRootContracts] The service "%s" (%s) of ' . BrokenPlugin::class . ' ';
+		$fixtures = 'MWPD\\BasicScaffold\\Tests\\Fixture\\CompositionRoot\\';
 		$expected = [
-			[ 'hooking', 'changes hooks while it is being built, directly or through a collaborator' ],
-			[ 'unbound', 'cannot be built from the composition root: ' ],
-			[ 'dependent', 'depends on "missing", which the composition root does not declare.' ],
-			[ 'delayed', 'is Delayed, but get_registration_action() returns no action.' ],
-			[ 'not-a-service', 'is declared as ' . NotAService::class . ', which is not a class implementing' ],
+			[ 'hooking', 'HookingService', 'changes hooks while it is being built, directly or through' ],
+			[ 'unbound', 'NeedsContract', 'cannot be built from the composition root: ' ],
+			[ 'dependent', 'DependentService', 'depends on "missing", which the composition root does not declare.' ],
+			[ 'delayed', 'EmptyDelayedService', 'is Delayed, but get_registration_action() returns no action.' ],
+			[ 'not-a-service', 'NotAService', 'is not a class implementing Service.' ],
+			[ 'removing', 'RemovingService', 'changes hooks while it is being built, directly or through' ],
+			[ 'rebound', 'BoundToSomethingElse', 'is built as ' . NotAService::class . ', which is not a Service.' ],
 		];
 
 		$this->assertCount( count( $expected ), $problems, implode( "\n\n", $problems ) );
 
-		foreach ( $expected as $index => [ $id, $problem ] ) {
-			$this->assertStringStartsWith( sprintf( $prefix, $id ) . $problem, $problems[ $index ] );
+		foreach ( $expected as $index => [ $id, $class_name, $problem ] ) {
+			$this->assertStringStartsWith(
+				sprintf( $prefix, $id, $fixtures . $class_name ) . $problem,
+				$problems[ $index ]
+			);
 			$this->assertStringContainsString(
 				'Rule: docs/architecture-rules.md#architecturecompositionrootcontracts',
 				$problems[ $index ]

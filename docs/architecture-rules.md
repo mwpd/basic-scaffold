@@ -519,9 +519,10 @@ through the plugin's own injector configuration:
 - a `Delayed` service names an action to wait for, and a `HasDependencies`
   service only depends on services the root declares;
 - the plugin can build every service from its own bindings, arguments and
-  delegations;
-- building a service adds, removes or fires no hook, not even through a
-  collaborator its constructor creates.
+  delegations, and what it builds is a `Service`;
+- building a service adds, removes or fires no hook, and registers no
+  activation or deactivation hook, not even through a collaborator its
+  constructor creates.
 
 **Allows:** the tests stub the WordPress functions the wiring calls, such as
 `get_post()`, and use stand-ins for WordPress classes such as `WP_Post`. They

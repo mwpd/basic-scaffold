@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
 use Brain\Monkey\Container;
+use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\HasDependencies;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
@@ -42,6 +43,16 @@ use Throwable;
  * wiring calls to be stubbed, but no binding the composition root lacks.
  */
 final class CompositionRootContract {
+
+	/**
+	 * Functions that change hooks but leave no trace in Brain Monkey's storage.
+	 */
+	private const WATCHED_FUNCTIONS = [
+		'remove_action',
+		'remove_filter',
+		'register_activation_hook',
+		'register_deactivation_hook',
+	];
 
 	/**
 	 * Composition root to check.
@@ -74,21 +85,20 @@ final class CompositionRootContract {
 		$problems = [];
 
 		foreach ( $services as $id => $declaration ) {
-			$id         = (string) $id;
-			$class_name = is_string( $declaration )
-				? $declaration
-				: self::call( $plugin, 'maybe_resolve', $declaration );
+			$id = (string) $id;
+
+			// The plugin resolves every declaration, so a callable given as a
+			// string, such as 'Factory::service_class', resolves too.
+			$class_name = self::call( $plugin, 'maybe_resolve', $declaration );
 
 			if ( ! is_string( $class_name )
 				|| ! class_exists( $class_name )
 				|| ! is_a( $class_name, Service::class, true ) ) {
 				$problems[] = $this->problem(
 					$id,
-					sprintf(
-						'is declared as %s, which is not a class implementing Service. Declare a class name, or a'
-						. ' callable that returns one, of a class that implements Service.',
-						is_string( $class_name ) ? $class_name : gettype( $class_name )
-					)
+					is_string( $class_name ) ? $class_name : gettype( $class_name ),
+					'is not a class implementing Service. Declare a class name, or a callable that returns one,'
+					. ' of a class that implements Service.'
 				);
 				continue;
 			}
@@ -117,6 +127,7 @@ final class CompositionRootContract {
 		if ( is_a( $class_name, Delayed::class, true ) && trim( $class_name::get_registration_action() ) === '' ) {
 			$problems[] = $this->problem(
 				$id,
+				$class_name,
 				'is Delayed, but get_registration_action() returns no action. Return the action whose firing the'
 				. ' service has to wait for, such as "init" or "wp".'
 			);
@@ -127,6 +138,7 @@ final class CompositionRootContract {
 				if ( ! in_array( $dependency, $declared, true ) ) {
 					$problems[] = $this->problem(
 						$id,
+						$class_name,
 						sprintf(
 							'depends on "%s", which the composition root does not declare. Name the identifier of a'
 							. ' service in get_service_classes(), or declare the missing service.',
@@ -143,20 +155,36 @@ final class CompositionRootContract {
 	/**
 	 * Build a service and check that building it changes no hooks.
 	 *
+	 * Adding and firing hooks shows in Brain Monkey's hook storage. Removing a
+	 * hook that was never added leaves no trace there, so those calls, and the
+	 * activation hooks Brain Monkey does not know, are watched directly.
+	 *
 	 * @param string                $id         Identifier of the service.
 	 * @param class-string<Service> $class_name Class of the service.
 	 * @param SimpleInjector        $injector   Injector the plugin configured.
 	 * @return array<string> Problems found.
 	 */
 	private function check_construction( string $id, string $class_name, SimpleInjector $injector ): array {
+		$calls = [];
+		foreach ( self::WATCHED_FUNCTIONS as $function ) {
+			Functions\when( $function )->alias(
+				static function () use ( &$calls, $function ): bool {
+					$calls[] = $function;
+
+					return true;
+				}
+			);
+		}
+
 		$before = self::get_hooks();
 
 		try {
-			$injector->make( $class_name );
+			$service = $injector->make( $class_name );
 		} catch ( Throwable $throwable ) {
 			return [
 				$this->problem(
 					$id,
+					$class_name,
 					sprintf(
 						'cannot be built from the composition root: %s Bind what it needs in get_bindings(),'
 						. ' get_arguments() or get_delegations().',
@@ -166,10 +194,25 @@ final class CompositionRootContract {
 			];
 		}
 
-		if ( self::get_hooks() !== $before ) {
+		if ( ! $service instanceof Service ) {
 			return [
 				$this->problem(
 					$id,
+					$class_name,
+					sprintf(
+						'is built as %s, which is not a Service. Correct the binding or delegation for it in the'
+						. ' composition root.',
+						get_class( $service )
+					)
+				),
+			];
+		}
+
+		if ( $calls !== [] || self::get_hooks() !== $before ) {
+			return [
+				$this->problem(
+					$id,
+					$class_name,
 					'changes hooks while it is being built, directly or through a collaborator its constructor'
 					. ' creates. Constructors only store dependencies; add hooks in register().'
 				),
@@ -210,15 +253,17 @@ final class CompositionRootContract {
 	/**
 	 * Complete a problem with the service and the rule's explanation.
 	 *
-	 * @param string $id      Identifier of the service.
-	 * @param string $problem What is wrong, and what to do instead.
+	 * @param string $id         Identifier of the service.
+	 * @param string $class_name Class the service is declared as.
+	 * @param string $problem    What is wrong, and what to do instead.
 	 * @return string Complete message.
 	 */
-	private function problem( string $id, string $problem ): string {
+	private function problem( string $id, string $class_name, string $problem ): string {
 		return sprintf(
-			'[%1$s] The service "%2$s" of %3$s %4$s %5$s.',
+			'[%1$s] The service "%2$s" (%3$s) of %4$s %5$s %6$s.',
 			RuleManifest::COMPOSITION_ROOT_CONTRACTS,
 			$id,
+			$class_name,
 			$this->plugin_class,
 			$problem,
 			RuleManifest::get_explanation( RuleManifest::COMPOSITION_ROOT_CONTRACTS )
