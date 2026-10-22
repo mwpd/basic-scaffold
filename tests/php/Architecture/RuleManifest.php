@@ -66,6 +66,12 @@ final class RuleManifest {
 
 	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
 
+	public const NO_HOOKS_IN_CONSTRUCTOR = 'architecture.noHooksInConstructor';
+
+	public const HOOKS_IN_LIFECYCLE_METHODS = 'architecture.hooksInLifecycleMethods';
+
+	public const NO_CONTEXT_CHECKS_IN_REGISTER = 'architecture.noContextChecksInRegister';
+
 	public const STRICT_TYPES = 'architecture.strictTypes';
 
 	public const DECLARATIONS_FOLLOW_PSR4 = 'architecture.declarationsFollowPsr4';
@@ -121,6 +127,21 @@ final class RuleManifest {
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'configuration'    => 'parameters.architecture.newOnlyWhereAllowed',
+		],
+		self::NO_HOOKS_IN_CONSTRUCTOR               => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'configuration'    => 'parameters.architecture.namespace',
+		],
+		self::HOOKS_IN_LIFECYCLE_METHODS            => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'configuration'    => 'parameters.architecture.hooks.lifecycleMethods',
+		],
+		self::NO_CONTEXT_CHECKS_IN_REGISTER         => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'configuration'    => 'parameters.architecture.hooks.contextFunctions',
 		],
 		self::STRICT_TYPES                          => [
 			'principle'        => 'Hard rule: every PHP class file declares strict_types=1',

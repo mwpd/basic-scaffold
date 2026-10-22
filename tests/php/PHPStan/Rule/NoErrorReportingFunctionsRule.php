@@ -16,7 +16,6 @@ namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PhpParser\Node;
 use PhpParser\Node\Expr\FuncCall;
-use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
@@ -87,21 +86,13 @@ final class NoErrorReportingFunctionsRule implements Rule {
 	 * @return list<IdentifierRuleError> Errors found.
 	 */
 	public function processNode( Node $node, Scope $scope ): array {
-		if ( ! $node->name instanceof Name
-			|| ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
+		if ( ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
 			return [];
 		}
 
-		// A function PHPStan does not know, like _doing_it_wrong() without the
-		// WordPress stubs, keeps the name it is called by. An unqualified
-		// name then falls back to the global function, as in PHP.
-		$function = strtolower(
-			$this->reflection->hasFunction( $node->name, $scope )
-				? $this->reflection->getFunction( $node->name, $scope )->getName()
-				: ltrim( $node->name->toString(), '\\' )
-		);
+		$function = CalledFunction::name_of( $node, $scope, $this->reflection );
 
-		if ( ! in_array( $function, self::FUNCTIONS, true ) ) {
+		if ( $function === null || ! in_array( $function, self::FUNCTIONS, true ) ) {
 			return [];
 		}
 
