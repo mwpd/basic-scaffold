@@ -15,6 +15,7 @@ namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ParametersAcceptor;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
@@ -107,14 +108,25 @@ final class WordPressErrorTransport {
 				return true;
 			}
 
-			if ( ! $this->reflection->hasClass( $class_name ) ) {
-				continue;
+			if ( $this->reflection->hasClass( $class_name )
+				&& $this->is_wp_error( $this->reflection->getClass( $class_name ) ) ) {
+				return true;
 			}
+		}
 
-			foreach ( $this->reflection->getClass( $class_name )->getParentClassesNames() as $parent ) {
-				if ( PluginNamespace::normalize( $parent ) === self::WP_ERROR ) {
-					return true;
-				}
+		return false;
+	}
+
+	/**
+	 * Check whether a class is WP_Error or a subclass of it.
+	 *
+	 * @param ClassReflection $reflection Class to check.
+	 * @return bool Whether the class is a WP_Error.
+	 */
+	public function is_wp_error( ClassReflection $reflection ): bool {
+		foreach ( array_merge( [ $reflection->getName() ], $reflection->getParentClassesNames() ) as $name ) {
+			if ( PluginNamespace::normalize( $name ) === self::WP_ERROR ) {
+				return true;
 			}
 		}
 

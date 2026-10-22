@@ -78,6 +78,7 @@ final class ThrowOnlyPluginExceptionsRuleTest extends RuleTestCase {
 				[ $this->creation_message( 'RuntimeException' ), 41, self::TIP ],
 				[ $this->creation_message( 'LogicException' ), 53, self::TIP ],
 				[ $this->creation_message( 'LogicException' ), 94, self::TIP ],
+				[ $this->creation_message( 'Throwable' ), 107, self::TIP ],
 			]
 		);
 	}

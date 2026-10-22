@@ -15,4 +15,8 @@ final class GoodException extends InvalidArgumentException implements PluginExce
 	public static function from_other( string $value ): self {
 		return new self( "Other value {$value}." );
 	}
+
+	public static function code(): int {
+		return 42;
+	}
 }

@@ -21,7 +21,6 @@ use PHPStan\Reflection\ClassReflection;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
-use ReflectionMethod;
 
 /**
  * The plugin's exceptions are created through their named constructors.
@@ -125,12 +124,10 @@ final class ExceptionsThroughNamedConstructorsRule implements Rule {
 	 * @return string Named constructors, such as `Foo::from_bar()`.
 	 */
 	private function describe_named_constructors( ClassReflection $created ): string {
-		$names = [];
-		foreach ( $created->getNativeReflection()->getMethods( ReflectionMethod::IS_STATIC ) as $method ) {
-			if ( $method->isPublic() && $method->getDeclaringClass()->getName() === $created->getName() ) {
-				$names[] = sprintf( '%s::%s()', $created->getName(), $method->getName() );
-			}
-		}
+		$names = array_map(
+			static fn( string $method ): string => sprintf( '%s::%s()', $created->getName(), $method ),
+			NamedConstructors::of( $created )
+		);
 
 		return $names === [] ? 'a named constructor' : implode( ' or ', $names );
 	}

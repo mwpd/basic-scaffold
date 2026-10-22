@@ -99,4 +99,12 @@ final class Service {
 	public function custom(): CustomError {
 		return new CustomError();
 	}
+
+	/**
+	 * @param class-string<Throwable> $class_name Exception to create.
+	 */
+	public function create_dynamically( string $class_name ): void {
+		$exception = new $class_name( 'Dynamic.' );
+		$reflection = new \ReflectionClass( WP_Error::class );
+	}
 }

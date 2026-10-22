@@ -21,8 +21,6 @@ use PHPStan\Reflection\ClassReflection;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
-use ReflectionMethod;
-use ReflectionNamedType;
 
 /**
  * Every exception of the plugin has the same shape.
@@ -183,7 +181,7 @@ final class ExceptionShapeRule implements Rule {
 			);
 		}
 
-		if ( ! $class->isAbstract() && ! $this->has_named_constructor( $class ) ) {
+		if ( ! $class->isAbstract() && NamedConstructors::of( $class ) === [] ) {
 			$errors[] = $this->build_error(
 				sprintf(
 					'Exception %s has no named constructor. Add a public static method that states the cause and'
@@ -205,33 +203,6 @@ final class ExceptionShapeRule implements Rule {
 	private function extends_spl_exception( ClassReflection $reflection ): bool {
 		foreach ( $reflection->getParentClassesNames() as $parent ) {
 			if ( in_array( strtolower( $parent ), self::SPL_EXCEPTIONS, true ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Check whether a class has a named constructor.
-	 *
-	 * A named constructor is a public static method that returns `self`, or
-	 * the class itself. It may come from a parent class or a trait.
-	 *
-	 * @param ClassReflection $reflection Class to check.
-	 * @return bool Whether the class has a named constructor.
-	 */
-	private function has_named_constructor( ClassReflection $reflection ): bool {
-		foreach ( $reflection->getNativeReflection()->getMethods( ReflectionMethod::IS_STATIC ) as $method ) {
-			$return_type = $method->getReturnType();
-
-			if ( $method->isPublic()
-				&& $return_type instanceof ReflectionNamedType
-				&& in_array(
-					strtolower( $return_type->getName() ),
-					[ 'self', 'static', strtolower( $reflection->getName() ) ],
-					true
-				) ) {
 				return true;
 			}
 		}

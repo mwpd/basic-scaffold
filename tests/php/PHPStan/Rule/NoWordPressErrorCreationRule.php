@@ -63,8 +63,14 @@ final class NoWordPressErrorCreationRule implements Rule {
 			return [];
 		}
 
-		return $this->transport->mentions_wp_error( $scope->getType( $node ) )
-			? [ $this->transport->build_error( 'new WP_Error() carries an error through the plugin.' ) ]
-			: [];
+		// Only the class being created counts, not the classes a generic type
+		// mentions, as in `new ReflectionClass( WP_Error::class )`.
+		foreach ( $scope->getType( $node )->getObjectClassReflections() as $created ) {
+			if ( $this->transport->is_wp_error( $created ) ) {
+				return [ $this->transport->build_error( 'new WP_Error() carries an error through the plugin.' ) ];
+			}
+		}
+
+		return [];
 	}
 }

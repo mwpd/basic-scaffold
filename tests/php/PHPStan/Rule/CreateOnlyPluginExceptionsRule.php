@@ -87,8 +87,12 @@ final class CreateOnlyPluginExceptionsRule implements Rule {
 
 		$errors = [];
 		foreach ( $scope->getType( $node )->getObjectClassReflections() as $created ) {
-			if ( ! $created->implementsInterface( Throwable::class )
-				|| $created->implementsInterface( $this->marker ) ) {
+			// Throwable itself does not implement Throwable, but a class-string
+			// typed as Throwable creates one all the same.
+			$is_throwable = strtolower( $created->getName() ) === 'throwable'
+				|| $created->implementsInterface( Throwable::class );
+
+			if ( ! $is_throwable || $created->implementsInterface( $this->marker ) ) {
 				continue;
 			}
 
