@@ -366,3 +366,62 @@ interfaces: the scaffold lists `Injector` and `Instantiator`.
 and bind the implementation in the composition root. Ask a factory for objects
 that can only be created later or are needed once per use. Add a class to
 `valueObjects` only if it represents a value rather than a collaborator.
+
+### `architecture.noHooksInConstructor`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
+creating an object never changes global state.
+
+**Checks:** no constructor in the plugin's namespace calls `add_action()`,
+`add_filter()`, `remove_action()`, `remove_filter()`, `do_action()`,
+`apply_filters()`, `register_activation_hook()` or
+`register_deactivation_hook()`.
+
+**Allows:** a closure the constructor creates, which runs later.
+
+**Configuration:** none beyond the plugin's namespace.
+
+**Fix:** keep the constructor to storing dependencies, and add the hooks in
+`register()`, which the plugin calls at the right time.
+
+### `architecture.hooksInLifecycleMethods`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns),
+and [the core idea](design-principles.md#the-core-idea-complexity-that-grows-linearly)
+of a service that decides once where it acts.
+
+**Checks:** in a feature subsystem, `add_action()`, `add_filter()`,
+`remove_action()` and `remove_filter()` are only called directly in
+`register()`, `activate()` or `deactivate()` of a class implementing
+`Registerable`, `Activateable` or `Deactivateable`.
+
+**Allows:** the infrastructure, which orchestrates the lifecycle, and the
+composition root. A closure, even one created in `register()`, is a callback
+and does not count as the lifecycle method. Calls made directly in a
+constructor are reported by `architecture.noHooksInConstructor` instead.
+
+**Configuration:** `hooks.lifecycleMethods` maps each lifecycle method to its
+interface. The infrastructure's namespace and the composition root come from
+`dependencyDirection`.
+
+**Fix:** add the hook in `register()`. A hook that has to wait for a later
+action belongs to a service that implements `Delayed`.
+
+### `architecture.noContextChecksInRegister`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
+no `is_admin()` checks wrapped around hook calls.
+
+**Checks:** `register()` does not call a request-context function directly.
+
+**Allows:** request-context functions everywhere else, including in the
+callbacks `register()` adds, which run later; principle 4 lets implementation
+details read WordPress state.
+
+**Configuration:** `hooks.contextFunctions` lists the request-context
+functions: `is_admin`, `is_network_admin`, `is_user_admin`, `wp_doing_ajax`,
+`wp_doing_cron`, `wp_is_json_request`, `is_customize_preview`, `is_singular`,
+`is_front_page`, `is_home` and `is_archive`.
+
+**Fix:** implement `Conditional` and return the answer from `is_needed()`. The
+plugin then never builds the service in a request that does not need it.

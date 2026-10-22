@@ -32,6 +32,10 @@ parametersSchema:
             factories: listOf(string())
             valueObjects: listOf(string())
         ])
+        hooks: structure([
+            lifecycleMethods: arrayOf(string(), string())
+            contextFunctions: listOf(string())
+        ])
     ])
 
 services:
@@ -188,5 +192,34 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             allowances: @architectureCreationAllowances
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoHooksInConstructorRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\HooksInLifecycleMethodsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            infrastructure: %architecture.dependencyDirection.infrastructure%
+            exceptions: %architecture.exceptions.namespace%
+            composition_root: %architecture.dependencyDirection.compositionRoot%
+            lifecycle_methods: %architecture.hooks.lifecycleMethods%
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoContextChecksInRegisterRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            context_functions: %architecture.hooks.contextFunctions%
+            reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule

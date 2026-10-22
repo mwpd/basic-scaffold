@@ -76,3 +76,24 @@ parameters:
                 - DateInterval
                 - ArrayIterator
                 - SplObjectStorage
+        hooks:
+            # The methods a feature service adds and removes hooks in, with
+            # the interface each belongs to (design principle 7).
+            lifecycleMethods:
+                register: MWPD\BasicScaffold\Infrastructure\Registerable
+                activate: MWPD\BasicScaffold\Infrastructure\Activateable
+                deactivate: MWPD\BasicScaffold\Infrastructure\Deactivateable
+            # Functions that tell what kind of request this is. register()
+            # leaves them to Conditional::is_needed().
+            contextFunctions:
+                - is_admin
+                - is_network_admin
+                - is_user_admin
+                - wp_doing_ajax
+                - wp_doing_cron
+                - wp_is_json_request
+                - is_customize_preview
+                - is_singular
+                - is_front_page
+                - is_home
+                - is_archive
