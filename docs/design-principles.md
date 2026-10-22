@@ -2,11 +2,85 @@
 
 These are the goals every technical decision in this scaffold is measured
 against. When a change has more than one reasonable shape, pick the one that
-fits these principles. When a change would contradict one, it needs a maintainer
-ruling on its issue (`needs: decision`) before any code is written.
+fits them. When a change would contradict one, it needs a maintainer ruling on
+its issue (`needs: decision`) before any code is written.
 
 Plugins generated from this scaffold inherit the same principles. They are the
 reason the infrastructure looks the way it does.
+
+## The core idea: complexity that grows linearly
+
+Code that hooks into WordPress has to act at different points in time, under
+different conditions, across several subsystems. Written the usual way, every
+new piece of logic has to account for every existing one: nested conditionals
+spread through the codebase, and each addition multiplies the combinations that
+can go wrong. Complexity grows exponentially.
+
+This scaffold exists to linearize that complexity. Every concern is split off
+into its own **service** (or a subsystem of services). Each service decides,
+in isolation, where and when it acts within the WordPress lifecycle. The
+plugin's infrastructure then works out when to trigger what across all of
+them. Adding logic means adding one more service that manages its own
+lifecycle, not threading one more condition through all the others.
+
+### What "the WordPress lifecycle" means here
+
+The lifecycle is everything WordPress does between receiving a request and
+shutting down, and every point where the plugin API lets code run along the
+way:
+
+- **Boot**: WordPress loads its configuration, must-use plugins, then
+  network-activated and site-activated plugins (`plugins_loaded`), then the
+  theme (`after_setup_theme`), and finishes setting up (`init`, `wp_loaded`).
+- **Routing and output**: depending on the request type (front end, admin,
+  AJAX, REST, cron or WP-CLI), WordPress parses the request and runs the query
+  (`wp`), then renders the response through its template and output hooks
+  (`template_redirect`, `wp_head`, `the_content`, `admin_notices`, …).
+- **Shutdown**: the `shutdown` action, then PHP ends the request.
+- **Plugin lifecycle events**, which happen outside the normal request flow:
+  activation and deactivation (including network activation on multisite),
+  uninstall, and upgrades.
+
+The same plugin code runs in all of these contexts. Many WordPress conditions
+are only meaningful after a certain point: `is_singular()`, for example, only
+answers once the query has run. A hook that has already fired does not fire
+again. These two facts are what make lifecycle logic hard to get right.
+
+For the full picture, see the Plugin Handbook on
+[hooks](https://developer.wordpress.org/plugins/hooks/),
+[activation and deactivation](https://developer.wordpress.org/plugins/plugin-basics/activation-deactivation-hooks/)
+and [uninstall](https://developer.wordpress.org/plugins/plugin-basics/uninstall-methods/),
+and the [action reference](https://developer.wordpress.org/apis/hooks/action-reference/)
+for the order of actions in a typical request.
+
+### How services map to it
+
+Each lifecycle question a service has to answer is a small interface in
+`src/Infrastructure/`. A service implements only the ones it needs:
+
+| Lifecycle question | Interface | How the plugin uses it |
+| --- | --- | --- |
+| Is it needed in this request at all? | `Conditional::is_needed()` | Checked before the service is built; if `false`, it never exists. |
+| When does it hook in? | `Delayed::get_registration_action()` | Registration waits for that action, or runs at once if it has already fired. |
+| Which services must exist first? | `HasDependencies::get_dependencies()` | Registration waits until those services are registered. |
+| What does it hook into? | `Registerable::register()` | Called once the service is built, to add its actions and filters. |
+| What happens on activation or deactivation? | `Activateable`, `Deactivateable` | Called from the plugin's activation and deactivation hooks. |
+
+The plugin itself only hooks into `plugins_loaded`
+(`src/Infrastructure/ServiceBasedPlugin.php:78`) and the activation and
+deactivation hooks (`basic-scaffold.php:112-118`). Everything else is decided
+per service. `SampleLoopService` shows the result: it declares that it runs at
+`wp` and only on singular views
+(`src/SampleSubsystem/SampleLoopService.php:55-72`), and no other code has to
+know.
+
+The questions are static methods on purpose: the plugin can **decide before it
+builds**. A service that is not needed in a request is never instantiated, so
+each request only pays for the services it actually uses.
+
+When a service needs a lifecycle point that no interface covers yet, such as
+uninstall or a new site on a multisite network, the answer is a new capability
+interface in the infrastructure. It is never a conditional inside the service.
 
 ## 1. Runs on PHP and WordPress alone
 
@@ -54,7 +128,34 @@ When improving infrastructure, keep the simple implementation simple. Add
 capability only when the scaffold's own use needs it, and keep the interface
 the stable part.
 
-## 3. SOLID at the top, WordPress at the edges
+## 3. Defaults out of the box (poka-yoke)
+
+The scaffold lets you write the cleanest possible code, but does not force you
+to wire everything up before anything works. Where a collaborator has an
+obvious default, the default ships built in. Choosing the default needs no
+configuration at all, and replacing it is just a matter of passing your own.
+
+The pattern is an optional constructor parameter typed to the interface, with
+the built-in implementation as the fallback:
+
+- `ServiceBasedPlugin` accepts any `Injector` and `ServiceContainer`, and falls
+  back to `SimpleInjector` and `SimpleServiceContainer`
+  (`src/Infrastructure/ServiceBasedPlugin.php:125-143`). The code calls this a
+  poka-yoke: a design that makes the easy path also the correct one.
+- `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
+  (`src/Infrastructure/View/SimpleView.php:76`).
+
+The fallback is the only place the default is named. Callers never have to
+repeat it, and swapping it never requires touching the class.
+
+Not every implementation is a replacement point. `TemplatedView` layers
+WordPress core's theme-override behaviour (child theme, then parent theme,
+then plugin) on top of `SimpleView`. That behaviour is fixed on the WordPress
+side, so `TemplatedView` is meant to be used or not used, not replaced or
+reconfigured. Changes to rendering itself belong in `SimpleView`, and
+`TemplatedView` picks them up.
+
+## 4. SOLID at the top, WordPress at the edges
 
 The scaffold aims for the best compromise between well-structured
 object-oriented code and code that works without friction in WordPress. It is a
@@ -92,12 +193,68 @@ Rule of thumb: introduce an abstraction where something higher up needs to be
 decoupled from WordPress, for testability or because a second implementation
 is plausible. Otherwise, call WordPress.
 
-## 4. Show the alternative to WordPress anti-patterns
+## 5. One composition root builds the object graph
+
+The plugin's objects are assembled as one tree from a single composition
+root. `BasicScaffoldPlugin` (`src/BasicScaffoldPlugin.php`) declares the
+services, bindings, arguments, shared instances and delegations, and
+`ServiceBasedPlugin` turns that configuration into running services through
+the injector. Every object that takes part in the application flow is obtained
+from there, directly or indirectly, through constructor injection.
+
+There are exactly two ways to defer part of that tree:
+
+- **Lazy instantiation**, for performance or to break a circular dependency.
+  A service that does not need to hook into WordPress is stored as a
+  `LazilyInstantiatedService` and only built when first retrieved
+  (`src/Infrastructure/ServiceBasedPlugin.php:375-379`). `Conditional` and
+  `Delayed` services are not built at all until they are needed.
+- **On-demand instantiation through the injector**, when an object can only be
+  created later or is needed once per use. Such objects are still produced by
+  the injector, or by a factory the injector provides, never by the class that
+  needs them. `ViewFactory` is the example: services receive the factory and
+  ask it for a view each time they render.
+
+**`new` is reserved for three cases:**
+
+- **Value objects**: small, immutable objects that represent a value rather
+  than a collaborator, such as an identifier, a validated path or a date
+  range. Exceptions, created through their named constructors, fall in the
+  same category.
+- **Factories**: a factory's whole job is instantiation, and its internals are
+  encapsulated, so it may create what it produces with `new`
+  (`src/Infrastructure/View/TemplatedViewFactory.php:59`). Going through the
+  injector instead is allowed but not required: the factory is assumed to
+  know best how to build its product. The same goes for managing instances:
+  `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
+  variable (`src/BasicScaffoldPluginFactory.php:38-52`). That works around a
+  limitation of WordPress core, which needs static access to the plugin from
+  outside the object graph, for example for the activation hooks. Because the
+  state is encapsulated in the factory, it does not leak into the rest of the
+  code. Static state anywhere else is not acceptable.
+- **Poka-yoke defaults**: an optional constructor dependency that falls back to
+  the built-in implementation when none is passed (principle 3).
+
+Anything else with behaviour that is part of the application flow (a service,
+a repository, a view, an adapter around a WordPress API) is never created with
+`new` in the class that uses it.
+
+## 6. Final by default
+
+Concrete classes are `final`. Variation happens through interfaces and
+injected collaborators, not through inheritance. Only classes deliberately
+designed as a base are open: `ServiceBasedPlugin` is abstract so the
+composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:27`),
+and `SimpleView` is the base that `TemplatedView` builds on
+(`src/Infrastructure/View/SimpleView.php:34`). Every other class in `src/` is
+`final`, and new classes follow suit unless they are designed for extension
+from the start.
+
+## 7. Show the alternative to WordPress anti-patterns
 
 Many patterns that are common throughout the WordPress ecosystem work against
 object-oriented design. The scaffold avoids them and, as companion code to a
 book, shows the better alternative so that plugins built on it learn it too.
-Code and comments here should demonstrate the right way, never the shortcut.
 
 | Common anti-pattern | What the scaffold does instead |
 | --- | --- |
@@ -113,21 +270,7 @@ Code and comments here should demonstrate the right way, never the shortcut.
 When reviewing a change, an anti-pattern from this list is a defect even if
 the code works.
 
-## 5. One plugin, to arbitrary complexity
-
-The scaffold solves everything a single plugin needs, however large that
-plugin grows. It deliberately contains no mechanisms for interoperability,
-collaboration or synchronization between plugins.
-
-- Hook and service prefixes (`src/BasicScaffoldPlugin.php:182-184`) exist so
-  that several plugins built from this scaffold can coexist without clashing.
-  They are not a coordination protocol.
-- A plugin's filters and service identifiers are its public extension surface
-  for other code. That is the extent of cross-plugin support.
-- When plugins genuinely need to share infrastructure or coordinate, that
-  belongs in a separate, dedicated mechanism or boilerplate, not here.
-
-## 6. Types name concepts, not just data
+## 8. Types name concepts, not just data
 
 Types are used for concepts as well as for data structures. When two things
 mean different things, they get different types, even if they share the same
@@ -150,7 +293,7 @@ are both integers, but mixing them up should be a type error, not a runtime
 surprise. The strict static analysis (PHPStan at `max`, Psalm at level 2) is
 there to enforce exactly this.
 
-## 7. Never trust what WordPress hands over
+## 9. Never trust what WordPress hands over
 
 WordPress data is loosely typed: options, post meta, filter return values,
 request parameters, globals and query results may hold anything, whatever their
@@ -171,10 +314,14 @@ using it and throws `InvalidService` on anything unexpected
 shared instances and delegations receive the same treatment after their
 filters, raising `InvalidConfiguration`, `InvalidService` or `InvalidArgument`.
 
-The reverse direction gets the same care: values leaving for HTML output go
-through `SimpleView`'s escaping unless explicitly requested raw.
+**Output is escaped for the context it lands in.** The reverse direction gets
+the same care. Values a view reads as properties are escaped by default
+(`src/Infrastructure/View/SimpleView.php:230-250`). A value fetched with
+`raw()` is the explicit exception, and the template must then escape it for
+where it is printed: HTML text, an attribute, a URL or JavaScript each need
+their own escaping, using WordPress's matching `esc_*` function.
 
-## 8. Errors are exceptions
+## 10. Errors are exceptions
 
 Inside the plugin, every error condition is an exception. The scaffold does not
 use WordPress's usual error mechanisms internally: it does not return
@@ -183,7 +330,7 @@ server log with `error_log()`, or raise notices with `trigger_error()` or
 `_doing_it_wrong()`. None of these appear anywhere in `src/`.
 
 WordPress itself still speaks in those terms, so the translation happens at
-the boundary, in the same place as principle 7:
+the boundary, in the same place as principle 9:
 
 - **Coming in:** a `WP_Error` or a falsy failure value returned by a WordPress
   function is turned into an exception right where the call is made.
@@ -228,79 +375,59 @@ the code falls back to how WordPress works:
   the site keeps working. A view that fails renders nothing. That field or
   notice is still broken, but the page around it is not taken down with it.
 
-This is the same compromise as principle 3: clean, strict code inside, and the
+This is the same compromise as principle 4: clean, strict code inside, and the
 WordPress way at the edges, where forcing the clean approach would create more
 problems than it solves.
 
-## 9. One composition root builds the object graph
+## 11. Lifecycle steps are idempotent
 
-The plugin's objects are assembled as one tree from a single composition
-root. `BasicScaffoldPlugin` (`src/BasicScaffoldPlugin.php`) declares the
-services, bindings, arguments, shared instances and delegations, and
-`ServiceBasedPlugin` turns that configuration into running services through
-the injector. Every object that takes part in the application flow is obtained
-from there, directly or indirectly, through constructor injection.
+Registering, activating and deactivating are safe to run more than once.
+WordPress can reach the same step through more than one path: activation, for
+example, registers the services itself because `plugins_loaded` has already
+fired in that request. So the plugin skips registration when it has already
+happened (`src/Infrastructure/ServiceBasedPlugin.php:195-198`), and never
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:330-333`).
+A step that runs a second time must leave the plugin exactly as the first run
+did.
 
-There are exactly two ways to defer part of that tree:
+## 12. Extension points run at a hook, never at include time
 
-- **Lazy instantiation**, for performance or to break a circular dependency.
-  A service that does not need to hook into WordPress is stored as a
-  `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:375-379`). `Conditional` and
-  `Delayed` services are not built at all until they are needed.
-- **On-demand instantiation through the injector**, when an object can only be
-  created later or is needed once per use. Such objects are still produced by
-  the injector, or by a factory the injector provides, never by the class that
-  needs them. `ViewFactory` is the example: services receive the factory and
-  ask it for a view each time they render.
+Filters that let other code change the plugin, such as its services or its
+injector configuration, are applied on a WordPress action, never while the
+plugin file is being included. At include time, plugins loaded after this one
+have had no chance to add their callbacks, so an extension point that runs
+then only works for code that happens to load earlier. The `services` filter
+shows the right timing: it runs during registration at `plugins_loaded`
+(`src/Infrastructure/ServiceBasedPlugin.php:221-224`).
 
-**`new` is reserved for three cases:**
+## 13. One plugin, to arbitrary complexity
 
-- **Value objects**: small, immutable objects that represent a value rather
-  than a collaborator, such as an identifier, a validated path or a date
-  range. Exceptions, created through their named constructors, fall in the
-  same category.
-- **Factories**: a factory's whole job is instantiation, and its internals are
-  encapsulated, so it may create what it produces with `new`
-  (`src/Infrastructure/View/TemplatedViewFactory.php:59`). Going through the
-  injector instead is allowed but not required: the factory is assumed to
-  know best how to build its product. The same goes for managing instances:
-  `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
-  variable (`src/BasicScaffoldPluginFactory.php:38-52`). That works around a
-  limitation of WordPress core, which needs static access to the plugin from
-  outside the object graph, for example for the activation hooks. Because the
-  state is encapsulated in the factory, it does not leak into the rest of the
-  code. Static state anywhere else is not acceptable.
-- **Poka-yoke defaults**: an optional constructor dependency that falls back to
-  the built-in implementation when none is passed (principle 10).
+The scaffold solves everything a single plugin needs, however large that
+plugin grows. It deliberately contains no mechanisms for interoperability,
+collaboration or synchronization between plugins.
 
-Anything else with behaviour that is part of the application flow (a service,
-a repository, a view, an adapter around a WordPress API) is never created with
-`new` in the class that uses it.
+- A plugin's filters and service identifiers are its public extension surface
+  for other code. That is the extent of cross-plugin support.
+- When plugins genuinely need to share infrastructure or coordinate, that
+  belongs in a separate, dedicated mechanism or boilerplate, not here.
 
-## 10. Defaults out of the box (poka-yoke)
+**Everything public carries the plugin's prefix**, so that several plugins
+built from this scaffold can run side by side without clashing. That covers
+hook names and service identifiers (`src/BasicScaffoldPlugin.php:182-184`), as
+well as option, meta and transient names, script and style handles, and the
+paths a theme uses to override the plugin's views. The prefixes prevent
+collisions; they are not a coordination protocol.
 
-The scaffold lets you write the cleanest possible code, but does not force you
-to wire everything up before anything works. Where a collaborator has an
-obvious default, the default ships built in. Choosing the default needs no
-configuration at all, and replacing it is just a matter of passing your own.
+## 14. The code teaches
 
-The pattern is an optional constructor parameter typed to the interface, with
-the built-in implementation as the fallback:
+This scaffold is companion code to a book, and the plugins generated from it
+copy what it does. Its code and comments are teaching material:
 
-- `ServiceBasedPlugin` accepts any `Injector` and `ServiceContainer`, and falls
-  back to `SimpleInjector` and `SimpleServiceContainer`
-  (`src/Infrastructure/ServiceBasedPlugin.php:125-143`). The code calls this a
-  poka-yoke: a design that makes the easy path also the correct one.
-- `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
-  (`src/Infrastructure/View/SimpleView.php:76`).
-
-The fallback is the only place the default is named. Callers never have to
-repeat it, and swapping it never requires touching the class.
-
-Not every implementation is a replacement point. `TemplatedView` layers
-WordPress core's theme-override behaviour (child theme, then parent theme,
-then plugin) on top of `SimpleView`. That behaviour is fixed on the WordPress
-side, so `TemplatedView` is meant to be used or not used, not replaced or
-reconfigured. Changes to rendering itself belong in `SimpleView`, and
-`TemplatedView` picks them up.
+- **Comments explain why**, not just what. The bootstrap is split into three
+  numbered steps that say what each one is for (`basic-scaffold.php:33-46`),
+  and the composition root is laid out the same way
+  (`src/BasicScaffoldPlugin.php`, sections 1 to 3).
+- **The samples must be correct.** Sample services and views are copied more
+  than anything else, so they demonstrate the full pattern, including escaping
+  and error handling, and they are covered by tests. A shortcut in a sample is
+  a defect, even when it is "only an example".

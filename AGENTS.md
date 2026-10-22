@@ -38,39 +38,47 @@ tests on 7.4 and 8.3.
 
 Every technical decision is measured against
 [docs/design-principles.md](docs/design-principles.md). Read it before
-choosing between approaches. In short:
+choosing between approaches.
+
+**The core idea: complexity grows linearly.** Every concern is its own
+service, and each service decides in isolation where and when it acts in the
+WordPress lifecycle, by implementing small capability interfaces
+(`Conditional`, `Delayed`, `HasDependencies`, `Registerable`, `Activateable`,
+`Deactivateable`). The infrastructure works out when to trigger what. New
+logic is one more service, never one more condition threaded through the
+others. A lifecycle point no interface covers gets a new interface, not a
+conditional inside a service.
+
+The principles, in short:
 
 1. **Runs on PHP and WordPress alone.** Composer is a development tool, never
    a runtime requirement; the fallback autoloader keeps the plugin working
-   without `vendor/`, and nothing needs building before it runs.
+   without `vendor/`.
 2. **Self-contained infrastructure, replaceable by design.** Simple in-house
-   implementations (injector, container, views) behind interfaces, rather than
-   third-party packages, so a stronger implementation can be swapped in later.
-3. **SOLID at the top, WordPress at the edges.** The high-level design
-   (infrastructure, composition root, service boundaries, interfaces) strictly
-   follows SOLID; implementation details may use WordPress and its plugin API
-   directly.
-4. **Show the alternative to WordPress anti-patterns.** No hooks in
+   implementations behind interfaces, not third-party packages.
+3. **Defaults out of the box (poka-yoke).** Optional collaborators fall back
+   to a built-in implementation; a custom one is simply passed in.
+4. **SOLID at the top, WordPress at the edges.** Strict SOLID for the
+   high-level design; implementation details may use WordPress directly.
+5. **One composition root builds the object graph.** Deferred only by lazy or
+   on-demand instantiation through the injector. `new` is only for value
+   objects and exceptions, inside factories, and for poka-yoke defaults.
+6. **Final by default.** Only classes designed as a base are open.
+7. **Show the alternative to WordPress anti-patterns.** No hooks in
    constructors, no singletons, no `new` or globals for collaborators, no side
-   effects on include. The doc lists each with the scaffold's alternative.
-5. **One plugin, to arbitrary complexity.** No cross-plugin interoperability
-   or synchronization mechanisms; those belong in a separate mechanism.
-6. **Types name concepts, not just data.** Distinct concepts get distinct
-   types, even when they share a data structure.
-7. **Never trust what WordPress hands over.** Sanitize, validate and normalize
-   at the boundary into internal types; internal code then relies on those.
-8. **Errors are exceptions.** No `WP_Error`, falsy returns or log writes for
-   internal errors; convert at the WordPress boundary. Custom exceptions extend
-   the matching SPL exception, implement `BasicScaffoldException`, and are
-   built through named constructors.
-9. **One composition root builds the object graph.** Everything in the
-   application flow comes from it via constructor injection, deferred only by
-   lazy instantiation or on-demand creation through the injector. `new` is
-   only for value objects (and exceptions), inside factories, and for
-   poka-yoke defaults.
-10. **Defaults out of the box (poka-yoke).** Optional collaborators fall back
-    to a built-in implementation, so the default needs no wiring and a custom
-    one is just passed in.
+   effects on include.
+8. **Types name concepts, not just data.**
+9. **Never trust what WordPress hands over.** Normalize at the boundary into
+   internal types; escape output for the context it lands in.
+10. **Errors are exceptions.** SPL-based, one marker interface, named
+    constructors. They never reach the end user: loud with debug mode on,
+    graceful degradation with it off.
+11. **Lifecycle steps are idempotent.**
+12. **Extension points run at a hook, never at include time.**
+13. **One plugin, to arbitrary complexity.** No cross-plugin coordination;
+    everything public carries the plugin's prefix.
+14. **The code teaches.** Comments explain why; samples must be correct and
+    tested.
 
 A change that contradicts a principle needs `needs: decision` and a maintainer
 ruling on its issue before code.
