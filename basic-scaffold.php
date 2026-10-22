@@ -69,10 +69,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * dependencies needed in production, the 'composer install' becomes mandatory
  * and the fallback autoloader should probably be removed.
  */
-$composer_autoloader = __DIR__ . '/vendor/autoload.php';
-
-if ( is_readable ( $composer_autoloader ) ) {
-	require $composer_autoloader;
+if ( is_readable( __DIR__ . '/vendor/autoload.php' ) ) {
+	require __DIR__ . '/vendor/autoload.php';
 }
 
 if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
@@ -102,23 +100,28 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
  *
  * For more information on why to avoid a Singleton,
  * @see https://www.alainschlesser.com/singletons-shared-instances/
+ *
+ * Because the factory always returns that same shared instance, we ask it for
+ * the plugin wherever we need it, instead of storing it in a variable.
+ * WordPress includes this file in the global scope, so any variable defined
+ * here would become a global and could clash with WordPress core or with other
+ * plugins. This file therefore defines no variables at all.
  */
-$plugin = BasicScaffoldPluginFactory::create();
 
 /*
  * We register activation and deactivation hooks by using closures, as these
  * need static access to work correctly.
  */
-\register_activation_hook( __FILE__, function () use ( $plugin ) {
-	$plugin->activate();
+\register_activation_hook( __FILE__, static function () {
+	BasicScaffoldPluginFactory::create()->activate();
 } );
 
-\register_deactivation_hook( __FILE__, function () use ( $plugin ) {
-	$plugin->deactivate();
+\register_deactivation_hook( __FILE__, static function () {
+	BasicScaffoldPluginFactory::create()->deactivate();
 } );
 
 /*
  * Finally, we run the plugin's register method to Hook the plugin into the
  * WordPress request lifecycle.
  */
-$plugin->register();
+BasicScaffoldPluginFactory::create()->register();
