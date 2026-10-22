@@ -3,6 +3,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Unit;
 
+use LogicException;
+use MWPD\BasicScaffold\Exception\BasicScaffoldException;
 use MWPD\BasicScaffold\Infrastructure\Injector\InjectionChain;
 
 final class InjectionChainTest extends TestCase {
@@ -44,5 +46,18 @@ final class InjectionChainTest extends TestCase {
 			->add_to_chain( 'third' );
 
 		$this->assertEquals( [ 'third', 'second', 'first' ], $chain->get_chain() );
+	}
+
+	public function test_reading_an_empty_chain_throws_a_scaffold_logic_exception(): void {
+		try {
+			( new InjectionChain() )->get_class();
+			$this->fail( 'Reading the class of an empty injection chain did not throw.' );
+		} catch ( LogicException $exception ) {
+			$this->assertInstanceOf( BasicScaffoldException::class, $exception );
+			$this->assertSame(
+				'Access to injection chain before any resolution was made.',
+				$exception->getMessage()
+			);
+		}
 	}
 }
