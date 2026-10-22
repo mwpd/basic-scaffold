@@ -127,6 +127,15 @@ final class TemporaryRepository {
 	}
 
 	/**
+	 * Get the suppression checks for the repository.
+	 *
+	 * @return SuppressionChecks Checks of the repository.
+	 */
+	public function checks_for_suppression(): SuppressionChecks {
+		return new SuppressionChecks( $this->get_layout() );
+	}
+
+	/**
 	 * Delete the repository.
 	 */
 	public function delete(): void {

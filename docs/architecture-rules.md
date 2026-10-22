@@ -464,3 +464,29 @@ composition root.
 
 **Fix:** start the name with the prefix, or build it from the prefix
 constant.
+
+### `architecture.noSuppression`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the
+gates.
+
+**Checks:** no inline `@phpstan-ignore`, `@phpstan-ignore-line` or
+`@phpstan-ignore-next-line` in the main plugin file, `src/`, `views/` or
+`tests/php/` names an architecture rule. `phpstan.neon.dist`, and any
+baseline it includes, has no `ignoreErrors` entry for one, and keeps
+`reportUnmatchedIgnoredErrors` on, so an ignore cannot outlive what it hid.
+
+**Allows:** the fixtures of the architecture rules, which break them on
+purpose. Ignores of other PHPStan, Psalm or PHPCS errors are not checked.
+
+**Configuration:** none.
+
+**Fix:** fix the code. If the rule is wrong for a real case, open an issue
+with `needs: decision`; an exception the maintainer accepts becomes an
+allowance in the rule's configuration.
+
+`RuleRegistrationTest` also keeps the rules, `RuleManifest` and this page in
+step: every PHPStan rule is registered in `tests/php/PHPStan/rules.neon`,
+every identifier a rule reports comes from `RuleManifest`, every manifest
+entry is reported by some rule, and every section on this page belongs to a
+rule in the manifest.

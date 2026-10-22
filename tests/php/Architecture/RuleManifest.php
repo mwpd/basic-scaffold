@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
+use ReflectionClass;
+
 /**
  * The list of architecture rules.
  *
@@ -83,6 +85,8 @@ final class RuleManifest {
 	public const NO_RUNTIME_DEPENDENCIES = 'architecture.noRuntimeDependencies';
 
 	public const TESTS_ARE_DISCOVERED = 'architecture.testsAreDiscovered';
+
+	public const NO_SUPPRESSION = 'architecture.noSuppression';
 
 	/**
 	 * All rules, keyed by their identifier.
@@ -177,7 +181,30 @@ final class RuleManifest {
 			'configuration'    => 'RepositoryLayout',
 			'document'         => self::HARD_RULES,
 		],
+		self::NO_SUPPRESSION                        => [
+			'principle'        => 'Hard rule: do not weaken the gates',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'phpstan.neon.dist',
+			'document'         => self::HARD_RULES,
+		],
 	];
+
+	/**
+	 * Get the identifier of every rule, keyed by the name of its constant.
+	 *
+	 * @return array<string, string> Identifiers keyed by constant name.
+	 */
+	public static function get_constants(): array {
+		$constants = [];
+
+		foreach ( ( new ReflectionClass( self::class ) )->getConstants() as $name => $value ) {
+			if ( is_string( $value ) && isset( self::RULES[ $value ] ) ) {
+				$constants[ $name ] = $value;
+			}
+		}
+
+		return $constants;
+	}
 
 	/**
 	 * Get all rules, keyed by their identifier.
