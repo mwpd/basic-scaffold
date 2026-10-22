@@ -61,6 +61,15 @@ final class TemporaryRepository {
 	}
 
 	/**
+	 * Get the root of the repository.
+	 *
+	 * @return string Absolute path, without a trailing slash.
+	 */
+	public function get_root(): string {
+		return $this->root;
+	}
+
+	/**
 	 * Get the namespace unique to this repository.
 	 *
 	 * @return string Namespace, without a trailing separator.
@@ -94,15 +103,16 @@ final class TemporaryRepository {
 	 * Get the layout of the repository.
 	 *
 	 * @return RepositoryLayout Layout with the main file `plugin.php`, `src/`
-	 *                          for production code and `views/` for templates.
+	 *                          for classes and `views/` for templates.
 	 */
 	public function get_layout(): RepositoryLayout {
 		return new RepositoryLayout(
 			$this->root,
 			'plugin.php',
 			[ 'src' ],
-			'tests',
 			[ 'views' ],
+			'tests',
+			[],
 			[ 'tests/php/Fixture' ]
 		);
 	}

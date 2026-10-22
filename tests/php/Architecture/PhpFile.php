@@ -135,10 +135,14 @@ final class PhpFile {
 	 *                                                    and lines.
 	 */
 	public function get_declarations(): array {
-		$namespace    = $this->get_namespace();
+		$namespace    = '';
 		$declarations = [];
 
 		foreach ( $this->statements as $statement ) {
+			if ( $statement['kind'] === 'T_NAMESPACE' ) {
+				$namespace = self::read_name( $statement['tokens'], 1 );
+			}
+
 			if ( ! in_array( $statement['kind'], self::DECLARATIONS, true ) ) {
 				continue;
 			}
@@ -159,8 +163,10 @@ final class PhpFile {
 	/**
 	 * Get the top-level statements that do something when the file is included.
 	 *
-	 * Everything but `declare`, `namespace`, `use` and class, interface and
-	 * trait declarations counts, including function declarations.
+	 * Everything but `declare` directives, `namespace`, `use` and class,
+	 * interface and trait declarations counts, including function
+	 * declarations, the body of a `declare` block, and any output outside the
+	 * PHP tags, even whitespace.
 	 *
 	 * @return array<int, array{line: int, code: string}> Lines and code.
 	 */
@@ -168,14 +174,21 @@ final class PhpFile {
 		$side_effects = [];
 
 		foreach ( $this->statements as $statement ) {
-			if ( in_array( $statement['kind'], [ 'T_DECLARE', 'T_NAMESPACE', 'T_USE' ], true )
+			$is_directive = $statement['kind'] === 'T_DECLARE'
+				&& ! in_array( '{', array_column( $statement['tokens'], 0 ), true )
+				&& ! in_array( ':', array_column( $statement['tokens'], 0 ), true );
+
+			if ( $is_directive
+				|| in_array( $statement['kind'], [ 'T_NAMESPACE', 'T_USE' ], true )
 				|| in_array( $statement['kind'], self::DECLARATIONS, true ) ) {
 				continue;
 			}
 
 			$side_effects[] = [
 				'line' => $statement['line'],
-				'code' => self::summarize( $statement['tokens'] ),
+				'code' => $statement['kind'] === 'T_INLINE_HTML'
+					? 'output outside the PHP tags'
+					: self::summarize( $statement['tokens'] ),
 			];
 		}
 
@@ -185,12 +198,26 @@ final class PhpFile {
 	/**
 	 * Check whether the file declares a class, interface, trait or function.
 	 *
+	 * Declarations nested in other statements, such as a function declared
+	 * only if it does not exist yet, count too.
+	 *
 	 * @return bool Whether the file declares any of them.
 	 */
 	public function declares_anything(): bool {
 		foreach ( $this->statements as $statement ) {
-			if ( in_array( $statement['kind'], self::DECLARATIONS, true ) || $statement['kind'] === 'T_FUNCTION' ) {
-				return true;
+			$tokens = $statement['tokens'];
+
+			foreach ( $tokens as $index => $token ) {
+				$previous = $tokens[ $index - 1 ][0] ?? '';
+				$next     = $tokens[ $index + 1 ][0] ?? '';
+
+				// An anonymous class, a class name constant and a closure do not
+				// declare anything.
+				if ( in_array( $token[0], [ 'T_INTERFACE', 'T_TRAIT' ], true )
+					|| ( $token[0] === 'T_CLASS' && ! in_array( $previous, [ 'T_NEW', 'T_DOUBLE_COLON' ], true ) )
+					|| ( $token[0] === 'T_FUNCTION' && ( $next === 'T_STRING' || $next === '&' ) ) ) {
+					return true;
+				}
 			}
 		}
 
@@ -223,8 +250,8 @@ final class PhpFile {
 				$text = $token;
 			}
 
+			// Output outside the PHP tags is kept, even whitespace: PHP sends it.
 			if ( in_array( $kind, self::IGNORABLE, true )
-				|| ( $kind === 'T_INLINE_HTML' && trim( $text ) === '' )
 				|| ( $kind === 'T_CLOSE_TAG' && $current === null ) ) {
 				continue;
 			}
@@ -245,6 +272,12 @@ final class PhpFile {
 			}
 
 			$current['tokens'][] = [ $kind, $text ];
+
+			if ( $kind === 'T_INLINE_HTML' && $current['kind'] === 'T_INLINE_HTML' ) {
+				$statements[] = $current;
+				$current      = null;
+				continue;
+			}
 
 			if ( in_array( $kind, [ '{', 'T_CURLY_OPEN', 'T_DOLLAR_OPEN_CURLY_BRACES' ], true ) ) {
 				++$depth;

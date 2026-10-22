@@ -45,6 +45,11 @@ final class RepositoryStructureTest extends TestCase {
 		$problems = $this->repository()
 			->write( 'src/Service.php', $this->php( 'namespace NAMESPACE;', '', 'final class Service {', '}' ) )
 			->write( 'views/notice.php', $this->php( 'function helper() {', '}' ) )
+			->write(
+				'views/conditional.php',
+				$this->php( "if ( ! function_exists( 'helper' ) ) {", '	function helper() {', '	}', '}' )
+			)
+			->write( 'views/closure.php', $this->php( '$format = static function ( $value ) {', '};' ) )
 			->write( 'views/fine.php', "<p><?= 'Fine.' ?></p>\n" )
 			->checks()
 			->check_strict_types();
@@ -52,6 +57,8 @@ final class RepositoryStructureTest extends TestCase {
 		$this->assertProblems(
 			[
 				'[architecture.strictTypes] src/Service.php does not declare strict types.',
+				'[architecture.strictTypes] views/conditional.php is a view template but declares a class,'
+					. ' interface, trait or function.',
 				'[architecture.strictTypes] views/notice.php is a view template but declares a class, interface,'
 					. ' trait or function.',
 			],
@@ -87,6 +94,11 @@ final class RepositoryStructureTest extends TestCase {
 					'}'
 				)
 			)
+			->write( 'src/lowercase.php', $this->php( 'namespace NAMESPACE;', 'final class Lowercase {', '}' ) )
+			->write(
+				'src/Switched.php',
+				$this->php( 'namespace NAMESPACE {', '}', 'namespace Other {', 'final class Switched {', '}', '}' )
+			)
 			->write(
 				'tests/php/Fixture/Anything.php',
 				$this->php( 'final class One {', '}', 'final class Two {', '}' )
@@ -100,7 +112,28 @@ final class RepositoryStructureTest extends TestCase {
 					. ' instead of one.',
 				"[architecture.declarationsFollowPsr4] src/Service.php declares {$namespace}\\Servise, but its"
 					. " path makes the autoloaders look for {$namespace}\\Service.",
+				'[architecture.declarationsFollowPsr4] src/Switched.php declares Other\\Switched, but its path'
+					. " makes the autoloaders look for {$namespace}\\Switched.",
+				"[architecture.declarationsFollowPsr4] src/lowercase.php declares {$namespace}\\Lowercase, but"
+					. " its path makes the autoloaders look for {$namespace}\\lowercase.",
 			],
+			$problems
+		);
+	}
+
+	public function test_it_follows_psr4_roots_that_map_to_several_directories(): void {
+		$namespace = $this->repository()->get_namespace();
+		$problems  = $this->repository()
+			->write(
+				'composer.json',
+				(string) json_encode( [ 'autoload' => [ 'psr-4' => [ $namespace . '\\' => [ 'src/', 'lib/' ] ] ] ] )
+			)
+			->write( 'lib/Helper.php', $this->php( 'namespace NAMESPACE;', 'final class Helpers {', '}' ) )
+			->checks()
+			->check_declarations_follow_psr4();
+
+		$this->assertProblems(
+			[ '[architecture.declarationsFollowPsr4] lib/Helper.php declares ' ],
 			$problems
 		);
 	}
@@ -132,6 +165,8 @@ final class RepositoryStructureTest extends TestCase {
 					'}'
 				)
 			)
+			->write( 'src/Ticks.php', $this->php( 'declare( ticks=1 ) {', "	echo 'Tick.';", '}' ) )
+			->write( 'src/Trailing.php', $this->php( 'final class Trailing {', '}', '?>', '', ' ' ) )
 			->checks()
 			->check_no_side_effects_on_include();
 
@@ -141,6 +176,10 @@ final class RepositoryStructureTest extends TestCase {
 					. ' (add_action',
 				'[architecture.noSideEffectsOnInclude] src/Service.php:17 runs code when the file is included'
 					. ' (function helper',
+				'[architecture.noSideEffectsOnInclude] src/Ticks.php:3 runs code when the file is included'
+					. ' (declare ( ticks = 1 )',
+				'[architecture.noSideEffectsOnInclude] src/Trailing.php:6 runs code when the file is included'
+					. ' (output outside the PHP tags)',
 			],
 			$problems
 		);

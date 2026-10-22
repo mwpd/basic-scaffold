@@ -93,7 +93,7 @@ final class RepositoryChecks {
 	public function check_declarations_follow_psr4(): array {
 		$problems = [];
 
-		foreach ( $this->layout->get_psr4_roots() as $prefix => $directory ) {
+		foreach ( $this->layout->get_psr4_roots() as [ $prefix, $directory ] ) {
 			foreach ( $this->layout->get_class_root_files() as $path ) {
 				if ( strpos( $path, $directory . '/' ) !== 0
 					|| $this->layout->is_view_template( $path )
@@ -120,7 +120,9 @@ final class RepositoryChecks {
 					continue;
 				}
 
-				if ( strtolower( $declarations[0]['name'] ) !== strtolower( $expected ) ) {
+				// Autoloaders map names to paths, and paths are case-sensitive on
+				// most servers, so the names have to match exactly.
+				if ( $declarations[0]['name'] !== $expected ) {
 					$problems[] = $this->problem(
 						RuleManifest::DECLARATIONS_FOLLOW_PSR4,
 						sprintf(
@@ -254,7 +256,7 @@ final class RepositoryChecks {
 	 * @return bool Whether a more specific root owns the file.
 	 */
 	private function is_in_nested_root( string $path, string $directory ): bool {
-		foreach ( $this->layout->get_psr4_roots() as $other ) {
+		foreach ( $this->layout->get_psr4_roots() as [ , $other ] ) {
 			if ( $other !== $directory
 				&& strpos( $other, $directory . '/' ) === 0
 				&& strpos( $path, $other . '/' ) === 0 ) {

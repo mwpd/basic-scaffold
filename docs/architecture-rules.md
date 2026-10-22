@@ -214,7 +214,7 @@ file declares `strict_types=1`.
 **Checks:** the main plugin file and every file below the PSR-4 roots of
 `composer.json` that declares a class, interface or trait declare
 `strict_types=1`. View templates declare no class, interface, trait or
-function.
+function, not even conditionally.
 
 **Allows:** view templates without `strict_types`, since they are templates
 and not class files.
@@ -231,7 +231,8 @@ declaration out of a template into its own class file.
 whose bundled autoloader finds classes the same way Composer does.
 
 **Checks:** every PHP file below a PSR-4 root of `composer.json` declares
-exactly one class, interface or trait, and its name matches the file's path.
+exactly one class, interface or trait, and its name matches the file's path
+exactly, including case.
 
 **Allows:** anonymous classes, view templates, and the fixtures of the
 architecture rules, which break rules on purpose.
@@ -248,9 +249,10 @@ the directory its namespace points to.
 only the main plugin file has side effects.
 
 **Checks:** files in the production directories contain nothing at their top
-level but `declare`, `namespace`, `use` and class, interface or trait
-declarations. Function declarations, function calls, `define()`, includes and
-output all count as side effects.
+level but `declare` directives, `namespace`, `use` and class, interface or
+trait declarations. Function declarations, function calls, `define()`,
+includes, the body of a `declare` block and output outside the PHP tags, even
+whitespace after a closing `?>`, all count as side effects.
 
 **Allows:** anything inside a class.
 
@@ -264,13 +266,15 @@ the right time, or into the main plugin file.
 **Principle:** [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone).
 
 **Checks:** `composer.json` requires nothing but PHP, and
-`composer-dependency-analyser` finds no development package used by the main
-plugin file, `src/` or `views/`.
+`composer-dependency-analyser` finds no package used by the code that runs in
+production: the main plugin file, `src/` and `views/`. That covers packages in
+`require-dev` and packages only installed because another package needs them.
 
-**Allows:** the tests use any development package.
+**Allows:** the tests use any package.
 
-**Configuration:** `composer-dependency-analyser.php` in the plugin root lists
-the paths that run in production.
+**Configuration:** the production paths in `RepositoryLayout`, which
+`composer-dependency-analyser.php` in the plugin root hands to the analyser
+through `RuntimeDependencyConfiguration`.
 
 **Fix:** move the package to `require-dev` and the code that needs it into the
 tests, or bundle what the plugin needs into `src/`.

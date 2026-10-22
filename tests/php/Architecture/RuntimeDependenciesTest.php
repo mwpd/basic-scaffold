@@ -25,15 +25,15 @@ use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 final class RuntimeDependenciesTest extends TestCase {
 
 	/**
-	 * Temporary files of the current test.
-	 *
-	 * @var array<string>
+	 * Temporary repository of the current test, if any.
 	 */
-	private array $temporary_files = [];
+	private ?TemporaryRepository $repository = null;
 
 	protected function tear_down() {
-		array_map( 'unlink', $this->temporary_files );
-		$this->temporary_files = [];
+		if ( $this->repository !== null ) {
+			$this->repository->delete();
+			$this->repository = null;
+		}
 
 		parent::tear_down();
 	}
@@ -45,20 +45,49 @@ final class RuntimeDependenciesTest extends TestCase {
 	}
 
 	public function test_it_reports_production_code_that_uses_a_development_package(): void {
-		$source = $this->temporary_file(
-			"<?php\n\ndeclare( strict_types=1 );\n\n\\Brain\\Monkey\\Functions\\when( 'is_admin' );\n"
-		);
-		$config = $this->temporary_file(
-			"<?php\n\nreturn ( new \\ShipMonk\\ComposerDependencyAnalyser\\Config\\Configuration() )\n"
-			. "\t->disableComposerAutoloadPathScan()\n"
-			. "\t->addPathToScan( '" . addslashes( $source ) . "', false );\n"
+		$this->repository = ( new TemporaryRepository() )
+			->write(
+				'src/Service.php',
+				"<?php\n\ndeclare( strict_types=1 );\n\nnamespace NAMESPACE;\n\n"
+				. "final class Service {\n\n\tpublic function make(): object {\n"
+				. "\t\treturn new \\Brain\\Monkey\\Container();\n\t}\n}\n"
+			)
+			->write(
+				'views/notice.php',
+				"<?php \\Mockery::mock( 'Notice' ); ?>\n"
+			);
+
+		// The plugin's configuration, applied to the temporary repository.
+		$config = $this->repository->get_root() . '/composer-dependency-analyser.php';
+		file_put_contents(
+			$config,
+			sprintf(
+				implode(
+					"\n",
+					[
+						'<?php',
+						"require_once '%1\$s';",
+						'return \\%2$s::for_layout(',
+						"	new \\%3\$s( '%4\$s', 'plugin.php', [ 'src' ], [ 'views' ], 'tests', [], [] )",
+						');',
+					]
+				),
+				addslashes( dirname( __DIR__, 3 ) . '/vendor/autoload.php' ),
+				RuntimeDependencyConfiguration::class,
+				RepositoryLayout::class,
+				addslashes( $this->repository->get_root() )
+			)
 		);
 
 		[ $exit_code, $output ] = $this->analyse( $config );
+		$message                = $this->explain( $output );
 
 		$this->assertNotSame( 0, $exit_code, $output );
-		$this->assertStringContainsString( 'brain/monkey', $output );
-		$this->assertStringContainsString( basename( $source ), $output );
+		$this->assertStringContainsString( 'brain/monkey', $message );
+		$this->assertStringContainsString( 'src/Service.php', $message );
+		$this->assertStringContainsString( 'mockery/mockery', $message );
+		$this->assertStringContainsString( 'views/notice.php', $message );
+		$this->assertStringContainsString( 'move the code into the tests, or bundle', $message );
 	}
 
 	/**
@@ -97,20 +126,5 @@ final class RuntimeDependenciesTest extends TestCase {
 			$output,
 			RuleManifest::get_explanation( RuleManifest::NO_RUNTIME_DEPENDENCIES )
 		);
-	}
-
-	/**
-	 * Write a temporary PHP file.
-	 *
-	 * @param string $contents Contents of the file.
-	 * @return string Path of the file.
-	 */
-	private function temporary_file( string $contents ): string {
-		$path = sys_get_temp_dir() . '/' . uniqid( 'mwpd-architecture-', false ) . '.php';
-
-		file_put_contents( $path, $contents );
-		$this->temporary_files[] = $path;
-
-		return $path;
 	}
 }

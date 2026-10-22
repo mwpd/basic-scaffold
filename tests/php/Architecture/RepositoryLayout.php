@@ -34,9 +34,14 @@ final class RepositoryLayout {
 	public const BOOTSTRAP = 'basic-scaffold.php';
 
 	/**
-	 * Directories with the code that runs in production.
+	 * Directories with the classes that run in production.
 	 */
 	public const PRODUCTION = [ 'src' ];
+
+	/**
+	 * Directories with the view templates that run in production.
+	 */
+	public const PRODUCTION_VIEWS = [ 'views' ];
 
 	/**
 	 * Directory that holds all tests and their support code.
@@ -44,10 +49,9 @@ final class RepositoryLayout {
 	public const TESTS = 'tests';
 
 	/**
-	 * Directories with view templates, which are plain PHP templates and not
-	 * class files.
+	 * Directories with view templates for the tests.
 	 */
-	public const VIEW_TEMPLATES = [ 'views', 'tests/php/Fixture/views' ];
+	public const TEST_VIEWS = [ 'tests/php/Fixture/views' ];
 
 	/**
 	 * Directories with fixtures for the architecture rules, which break the
@@ -73,6 +77,13 @@ final class RepositoryLayout {
 	private array $production;
 
 	/**
+	 * Production view template directories, relative to the root.
+	 *
+	 * @var array<string>
+	 */
+	private array $production_views;
+
+	/**
 	 * Tests directory, relative to the root.
 	 */
 	private string $tests;
@@ -94,27 +105,30 @@ final class RepositoryLayout {
 	/**
 	 * Instantiate a RepositoryLayout object.
 	 *
-	 * @param string        $root           Root of the repository.
-	 * @param string        $bootstrap      Main file, relative to the root.
-	 * @param array<string> $production     Production directories.
-	 * @param string        $tests          Tests directory.
-	 * @param array<string> $view_templates View template directories.
-	 * @param array<string> $rule_fixtures  Rule fixture directories.
+	 * @param string        $root             Root of the repository.
+	 * @param string        $bootstrap        Main file, relative to the root.
+	 * @param array<string> $production       Production class directories.
+	 * @param array<string> $production_views Production view directories.
+	 * @param string        $tests            Tests directory.
+	 * @param array<string> $test_views       View directories of the tests.
+	 * @param array<string> $rule_fixtures    Rule fixture directories.
 	 */
 	public function __construct(
 		string $root,
 		string $bootstrap,
 		array $production,
+		array $production_views,
 		string $tests,
-		array $view_templates,
+		array $test_views,
 		array $rule_fixtures
 	) {
-		$this->root           = rtrim( $root, '/' );
-		$this->bootstrap      = $bootstrap;
-		$this->production     = $production;
-		$this->tests          = $tests;
-		$this->view_templates = $view_templates;
-		$this->rule_fixtures  = $rule_fixtures;
+		$this->root             = rtrim( $root, '/' );
+		$this->bootstrap        = $bootstrap;
+		$this->production       = $production;
+		$this->production_views = $production_views;
+		$this->tests            = $tests;
+		$this->view_templates   = array_merge( $production_views, $test_views );
+		$this->rule_fixtures    = $rule_fixtures;
 	}
 
 	/**
@@ -127,8 +141,9 @@ final class RepositoryLayout {
 			dirname( __DIR__, 3 ),
 			self::BOOTSTRAP,
 			self::PRODUCTION,
+			self::PRODUCTION_VIEWS,
 			self::TESTS,
-			self::VIEW_TEMPLATES,
+			self::TEST_VIEWS,
 			self::RULE_FIXTURES
 		);
 	}
@@ -143,6 +158,20 @@ final class RepositoryLayout {
 	}
 
 	/**
+	 * Get the files and directories whose code runs in production.
+	 *
+	 * @return list<string> Absolute paths that exist.
+	 */
+	public function get_runtime_paths(): array {
+		$paths = array_map(
+			[ $this, 'absolute' ],
+			array_merge( [ $this->bootstrap ], $this->production, $this->production_views )
+		);
+
+		return array_values( array_filter( $paths, 'file_exists' ) );
+	}
+
+	/**
 	 * Get the absolute path of composer.json.
 	 *
 	 * @return string Path of composer.json.
@@ -154,8 +183,9 @@ final class RepositoryLayout {
 	/**
 	 * Get the PSR-4 roots of the production code and the tests.
 	 *
-	 * @return array<string, string> Absolute directories, keyed by namespace
-	 *                               prefix with a trailing separator.
+	 * @return array<int, array{0: string, 1: string}> Namespace prefix, with a
+	 *                                                 trailing separator, and
+	 *                                                 absolute directory.
 	 */
 	public function get_psr4_roots(): array {
 		$composer = $this->read_composer_json();
@@ -164,9 +194,12 @@ final class RepositoryLayout {
 		foreach ( [ 'autoload', 'autoload-dev' ] as $section ) {
 			$autoload = $composer[ $section ] ?? [];
 			$psr4     = is_array( $autoload ) ? ( $autoload['psr-4'] ?? [] ) : [];
-			foreach ( is_array( $psr4 ) ? $psr4 : [] as $prefix => $directory ) {
-				if ( is_string( $directory ) ) {
-					$roots[ (string) $prefix ] = $this->absolute( rtrim( $directory, '/' ) );
+			foreach ( is_array( $psr4 ) ? $psr4 : [] as $prefix => $directories ) {
+				// A prefix maps to one directory or to a list of them.
+				foreach ( (array) $directories as $directory ) {
+					if ( is_string( $directory ) ) {
+						$roots[] = [ (string) $prefix, $this->absolute( rtrim( $directory, '/' ) ) ];
+					}
 				}
 			}
 		}
@@ -230,7 +263,7 @@ final class RepositoryLayout {
 	 */
 	public function get_class_root_files(): array {
 		$files = [];
-		foreach ( $this->get_psr4_roots() as $directory ) {
+		foreach ( $this->get_psr4_roots() as [ , $directory ] ) {
 			$files = array_merge( $files, $this->find_php_files( $directory ) );
 		}
 
