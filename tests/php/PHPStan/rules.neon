@@ -166,12 +166,27 @@ services:
         tags:
             - phpstan.rules.rule
 
+    architectureCreationAllowances:
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\CreationAllowances
+        arguments:
+            factories: %architecture.newOnlyWhereAllowed.factories%
+            value_objects: %architecture.newOnlyWhereAllowed.valueObjects%
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        autowired: false
+
     -
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NewOnlyWhereAllowedRule
         arguments:
             plugin_namespace: @architecturePluginNamespace
-            factories: %architecture.newOnlyWhereAllowed.factories%
-            value_objects: %architecture.newOnlyWhereAllowed.valueObjects%
+            allowances: @architectureCreationAllowances
             reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\DynamicCreationRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            allowances: @architectureCreationAllowances
         tags:
             - phpstan.rules.rule

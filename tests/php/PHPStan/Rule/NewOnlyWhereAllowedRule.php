@@ -34,7 +34,6 @@ use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
-use Throwable;
 
 /**
  * `new` only creates what principle 5 allows it to.
@@ -64,18 +63,9 @@ final class NewOnlyWhereAllowedRule implements Rule {
 	private PluginNamespace $plugin_namespace;
 
 	/**
-	 * Interfaces whose implementations are factories.
-	 *
-	 * @var array<string>
+	 * Where `new` is allowed.
 	 */
-	private array $factories;
-
-	/**
-	 * Value objects, normalized.
-	 *
-	 * @var array<string>
-	 */
-	private array $value_objects;
+	private CreationAllowances $allowances;
 
 	/**
 	 * Reflection, to inspect the classes being created.
@@ -86,22 +76,17 @@ final class NewOnlyWhereAllowedRule implements Rule {
 	 * Instantiate a NewOnlyWhereAllowedRule object.
 	 *
 	 * @param PluginNamespace    $plugin_namespace Code the rule applies to.
-	 * @param array<string>      $factories        Interfaces whose
-	 *                                             implementations are factories.
-	 * @param array<string>      $value_objects    Classes that may be created
-	 *                                             anywhere.
+	 * @param CreationAllowances $allowances       Where `new` is allowed.
 	 * @param ReflectionProvider $reflection       Reflection, to inspect the
 	 *                                             classes being created.
 	 */
 	public function __construct(
 		PluginNamespace $plugin_namespace,
-		array $factories,
-		array $value_objects,
+		CreationAllowances $allowances,
 		ReflectionProvider $reflection
 	) {
 		$this->plugin_namespace = $plugin_namespace;
-		$this->factories        = $factories;
-		$this->value_objects    = array_map( [ PluginNamespace::class, 'normalize' ], $value_objects );
+		$this->allowances       = $allowances;
 		$this->reflection       = $reflection;
 	}
 
@@ -128,7 +113,8 @@ final class NewOnlyWhereAllowedRule implements Rule {
 		$class  = $node->getClassReflection();
 		$method = $node->getOriginalNode();
 
-		if ( ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) || $this->is_factory( $class ) ) {
+		if ( ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() )
+			|| $this->allowances->is_factory( $class ) ) {
 			return [];
 		}
 
@@ -176,18 +162,16 @@ final class NewOnlyWhereAllowedRule implements Rule {
 		array $defaults,
 		string $location
 	): ?string {
+		// A class chosen at runtime needs the types inside the method, see
+		// DynamicCreationRule.
 		if ( ! $creation->class instanceof Name && ! $creation->class instanceof Class_ ) {
-			return sprintf(
-				'new with a class chosen at runtime in %s. Only factories create objects of a class they are given;'
-				. ' ask a factory or the injector for it.',
-				$location
-			);
+			return null;
 		}
 
 		$created   = $this->resolve_created( $creation, $owner, $scope );
 		$parameter = $defaults[ spl_object_id( $creation ) ] ?? null;
 
-		if ( $this->is_value_object( $created ) ) {
+		if ( $this->allowances->is_value_object( $created ) ) {
 			return null;
 		}
 
@@ -277,47 +261,6 @@ final class NewOnlyWhereAllowedRule implements Rule {
 			$location,
 			is_string( $parameter->name ) ? $parameter->name : '…'
 		);
-	}
-
-	/**
-	 * Check whether a class is a factory.
-	 *
-	 * @param ClassReflection $reflection Class to check.
-	 * @return bool Whether it is a factory.
-	 */
-	private function is_factory( ClassReflection $reflection ): bool {
-		if ( ! $reflection->isAnonymous() && substr( $reflection->getName(), -7 ) === 'Factory' ) {
-			return true;
-		}
-
-		foreach ( $reflection->getInterfaces() as $interface ) {
-			if ( substr( $interface->getName(), -7 ) === 'Factory' ) {
-				return true;
-			}
-		}
-
-		foreach ( $this->factories as $factory ) {
-			if ( $reflection->implementsInterface( $factory ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Check whether a class may be created anywhere.
-	 *
-	 * @param string $class_name Class being created.
-	 * @return bool Whether it is a value object or throwable.
-	 */
-	private function is_value_object( string $class_name ): bool {
-		if ( in_array( PluginNamespace::normalize( $class_name ), $this->value_objects, true ) ) {
-			return true;
-		}
-
-		return $this->reflection->hasClass( $class_name )
-			&& $this->reflection->getClass( $class_name )->implementsInterface( Throwable::class );
 	}
 
 	/**

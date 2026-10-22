@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
 
@@ -32,8 +33,7 @@ final class NewOnlyWhereAllowedRuleTest extends RuleTestCase {
 	protected function getRule(): Rule {
 		return new NewOnlyWhereAllowedRule(
 			new PluginNamespace( self::CREATION ),
-			[ self::CREATION . '\Builds' ],
-			[ self::CREATION . '\ValueObject', 'DateTimeImmutable' ],
+			self::allowances( $this->createReflectionProvider() ),
 			$this->createReflectionProvider()
 		);
 	}
@@ -50,12 +50,6 @@ final class NewOnlyWhereAllowedRuleTest extends RuleTestCase {
 					"new class() in {$create} creates a collaborator. Write it as a class of its own, inject it"
 						. ' through the constructor and bind it in the composition root, or create it in a factory.',
 					23,
-					self::TIP,
-				],
-				[
-					"new with a class chosen at runtime in {$create}. Only factories create objects of a class they"
-						. ' are given; ask a factory or the injector for it.',
-					25,
 					self::TIP,
 				],
 				[ $this->collaborator( self::CREATION . '\Service', $create ), 26, self::TIP ],
@@ -96,6 +90,17 @@ final class NewOnlyWhereAllowedRuleTest extends RuleTestCase {
 		$this->analyse(
 			[ self::FIXTURES . 'WidgetFactory.php', self::FIXTURES . 'Producer.php', self::FIXTURES . 'Builder.php' ],
 			[]
+		);
+	}
+
+	/**
+	 * Where `new` is allowed for the fixtures, shared with DynamicCreationRuleTest.
+	 */
+	public static function allowances( ReflectionProvider $reflection ): CreationAllowances {
+		return new CreationAllowances(
+			[ self::CREATION . '\Builds' ],
+			[ self::CREATION . '\ValueObject', 'DateTimeImmutable' ],
+			$reflection
 		);
 	}
 

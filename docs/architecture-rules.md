@@ -353,6 +353,9 @@ anonymous classes and objects of a class chosen at runtime.
   are created is up to `architecture.throwOnlyPluginExceptions` and
   `architecture.exceptionsThroughNamedConstructors`.
 
+A class chosen at runtime, `new $class()`, is allowed when PHPStan can prove it
+is a value object or throwable.
+
 **Configuration:** `newOnlyWhereAllowed.factories` lists the factory
 interfaces: the scaffold lists `Injector` and `Instantiator`.
 `newOnlyWhereAllowed.valueObjects` lists the value objects: the scaffold lists
