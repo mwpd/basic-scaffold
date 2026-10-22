@@ -255,7 +255,7 @@ class SimpleView extends stdClass implements View {
 	 * @param string $property Property to check.
 	 * @return bool
 	 */
-	public function __isset( $property ): bool {
+	public function __isset( string $property ): bool {
 		return isset( $this->_context_[ $property ] );
 	}
 
