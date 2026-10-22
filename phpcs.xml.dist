@@ -10,6 +10,8 @@
     <!-- Exclude patterns -->
     <exclude-pattern>/vendor/*</exclude-pattern>
     <exclude-pattern>/node_modules/*</exclude-pattern>
+    <!-- Fixtures for the architecture rules break those rules on purpose. -->
+    <exclude-pattern>/tests/php/PHPStan/Fixture/*</exclude-pattern>
 
     <!-- How to scan -->
     <arg value="sp"/> <!-- Show sniff and progress -->
@@ -113,7 +115,11 @@
         <exclude-pattern>/tests/*</exclude-pattern>
         <exclude-pattern>/views/*</exclude-pattern>
     </rule>
-    <rule ref="Squiz.Commenting.FileComment">
+    <!-- PHPStan's interfaces and test case name their methods in camelCase -->
+    <rule ref="WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid">
+        <exclude-pattern>/tests/php/PHPStan/*</exclude-pattern>
+    </rule>
+        <rule ref="Squiz.Commenting.FileComment">
         <exclude-pattern>/tests/*</exclude-pattern>
         <exclude-pattern>/views/*</exclude-pattern>
     </rule>

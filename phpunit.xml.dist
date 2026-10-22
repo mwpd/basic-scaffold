@@ -3,6 +3,7 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
 	bootstrap="vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php"
+	defaultTestSuite="unit,integration,architecture"
 	verbose="true"
     colors="true">
 	<testsuites>
@@ -11,6 +12,15 @@
 		</testsuite>
 		<testsuite name="integration">
 			<directory suffix="Test.php">tests/php/Integration</directory>
+		</testsuite>
+		<testsuite name="architecture">
+			<directory suffix="Test.php">tests/php/Architecture</directory>
+		</testsuite>
+		<!-- Tests of the PHPStan architecture rules. They need the locked
+		     PHPStan version, so they run with the lint step instead of
+		     composer test: composer test:phpstan-rules. -->
+		<testsuite name="phpstan-rules">
+			<directory suffix="Test.php">tests/php/PHPStan</directory>
 		</testsuite>
 	</testsuites>
 	<coverage processUncoveredFiles="true">

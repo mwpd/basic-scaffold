@@ -1,0 +1,25 @@
+# Registers the scaffold's architecture rules with PHPStan.
+#
+# The values the rules work with live in phpstan.neon.dist, under
+# parameters.architecture, so that a plugin generated from the scaffold only
+# edits them in one place. This file declares their shape and wires the rules.
+# docs/architecture-rules.md describes every rule.
+
+parametersSchema:
+    architecture: structure([
+        namespace: string()
+        excludedNamespaces: listOf(string())
+        finalByDefault: structure([
+            baseClasses: listOf(string())
+        ])
+    ])
+
+services:
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\FinalByDefaultRule
+        arguments:
+            root_namespace: %architecture.namespace%
+            excluded_namespaces: %architecture.excludedNamespaces%
+            base_classes: %architecture.finalByDefault.baseClasses%
+        tags:
+            - phpstan.rules.rule
