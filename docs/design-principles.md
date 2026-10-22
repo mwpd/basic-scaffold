@@ -122,7 +122,7 @@ In the code:
   (`src/Infrastructure/ServiceBasedPlugin.php:125-143`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
-  (`src/BasicScaffoldPlugin.php:93`) and can be rebound the same way.
+  (`src/BasicScaffoldPlugin.php:95`) and can be rebound the same way.
 
 When improving infrastructure, keep the simple implementation simple. Add
 capability only when the scaffold's own use needs it, and keep the interface
@@ -413,7 +413,7 @@ collaboration or synchronization between plugins.
 
 **Everything public carries the plugin's prefix**, so that several plugins
 built from this scaffold can run side by side without clashing. That covers
-hook names and service identifiers (`src/BasicScaffoldPlugin.php:182-184`), as
+hook names and service identifiers (`src/BasicScaffoldPlugin.php:196-198`), as
 well as option, meta and transient names, script and style handles, and the
 paths a theme uses to override the plugin's views. The prefixes prevent
 collisions; they are not a coordination protocol.

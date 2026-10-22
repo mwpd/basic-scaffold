@@ -41,7 +41,7 @@
             "MWPD\\BasicScaffold\\Tests\\": "tests/php/"
         },
         "classmap": [
-            "tests/php/PHPStan/Fixture/WordPress/"
+            "tests/php/Fixture/WordPress/"
         ]
     },
     "scripts": {

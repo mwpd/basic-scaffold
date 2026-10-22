@@ -15,6 +15,8 @@ parameters:
         - tests/php/Fixture/views/broken-view.php
         # Fixtures for the architecture rules break those rules on purpose.
         - tests/php/PHPStan/Fixture
+        # Stand-ins for WordPress classes, which the WordPress stubs declare.
+        - tests/php/Fixture/WordPress
     ignoreErrors:
         # Ignore errors related to ReflectionClass subtype, see https://github.com/phpstan/phpstan/issues/4078
         - '#SimpleInjector::get_dependencies_for\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
