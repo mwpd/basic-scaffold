@@ -1,15 +1,19 @@
 <?php
 
 use MWPD\BasicScaffold\Infrastructure\View;
-use WP_Post;
 
 /** @var View $this */
 /** @var WP_Post $current_post */
 $current_post = $this->raw( 'post' );
+
+/*
+ * A raw value is printed as it is, so the template escapes every field it
+ * prints for the context it lands in.
+ */
 ?>
 <pre>
-	Post title: <?= $current_post->post_title ?>
+	Post title: <?= esc_html( $current_post->post_title ) ?>
 	<br>
-	Post date:  <?= $current_post->post_date ?>
+	Post date:  <?= esc_html( $current_post->post_date ) ?>
 </pre>
 <hr>

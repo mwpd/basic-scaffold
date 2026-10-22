@@ -111,6 +111,11 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	/**
 	 * Prepend a post header to the content.
 	 *
+	 * The header shows the post of the main query, the one the service was
+	 * built with. Inside a secondary loop, the_content runs for other posts,
+	 * which still get this header; a real service would compare the post it
+	 * filters with its own.
+	 *
 	 * @param string $content The content to be filtered.
 	 * @return string Filtered content prepended with a post header.
 	 */

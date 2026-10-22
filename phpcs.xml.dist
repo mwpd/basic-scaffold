@@ -12,6 +12,8 @@
     <exclude-pattern>/node_modules/*</exclude-pattern>
     <!-- Fixtures for the architecture rules break those rules on purpose. -->
     <exclude-pattern>/tests/php/PHPStan/Fixture/*</exclude-pattern>
+    <!-- Stand-ins for WordPress classes follow WordPress's naming, not ours. -->
+    <exclude-pattern>/tests/php/Fixture/WordPress/*</exclude-pattern>
 
     <!-- How to scan -->
     <arg value="sp"/> <!-- Show sniff and progress -->

@@ -55,9 +55,10 @@ final class RepositoryLayout {
 
 	/**
 	 * Directories with fixtures for the architecture rules, which break the
-	 * rules on purpose.
+	 * rules on purpose, and with stand-ins for WordPress classes, which live in
+	 * the global namespace like the classes they stand in for.
 	 */
-	public const RULE_FIXTURES = [ 'tests/php/PHPStan/Fixture' ];
+	public const RULE_FIXTURES = [ 'tests/php/PHPStan/Fixture', 'tests/php/Fixture/WordPress' ];
 
 	/**
 	 * Root of the repository, without a trailing slash.

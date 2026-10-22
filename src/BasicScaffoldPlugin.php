@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 
+use MWPD\BasicScaffold\Exception\FailedToFindPost;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\Infrastructure\{
@@ -20,6 +21,7 @@ use MWPD\BasicScaffold\Infrastructure\{
 	View\TemplatedViewFactory,
 	ViewFactory
 };
+use WP_Post;
 
 /**
  * The BasicScaffoldPlugin class is the composition root of the plugin.
@@ -158,10 +160,22 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 		return [
 
 			/*
-			 * Add a factory for instantiating WP_Post objects:
-			 * \WP_Post::class => function () {
-			 *     return \get_post( \get_the_ID() ); },
+			 * WordPress hands out the current post through get_post(). The
+			 * delegation turns that into an object the injector can provide,
+			 * so SampleLoopService only declares that it needs a WP_Post.
+			 *
+			 * get_post() returns null when there is no current post. Rather than
+			 * passing that on, the delegation fails with a dedicated exception.
 			 */
+			WP_Post::class => static function (): WP_Post {
+				$post = \get_post();
+
+				if ( ! $post instanceof WP_Post ) {
+					throw FailedToFindPost::for_current_request();
+				}
+
+				return $post;
+			},
 
 			// Add your delegations here.
 		];
@@ -189,8 +203,6 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * These can be used from outside code as well to directly refer to a
 	 * service when talking to the service container.
 	 */
-	public const VIEW_FACTORY_ID = self::SERVICE_PREFIX . 'view-factory';
-
 	public const SAMPLE_BACKEND_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-backend-service';
 
 	public const SAMPLE_LOOP_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
