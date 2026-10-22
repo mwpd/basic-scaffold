@@ -425,3 +425,41 @@ functions: `is_admin`, `is_network_admin`, `is_user_admin`, `wp_doing_ajax`,
 
 **Fix:** implement `Conditional` and return the answer from `is_needed()`. The
 plugin then never builds the service in a request that does not need it.
+
+### `architecture.prefixedNames`
+
+**Principle:** [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity):
+everything public carries the plugin's prefix, so several plugins built from
+this scaffold run side by side.
+
+**Checks:** the names the plugin creates in WordPress's shared spaces start
+with the prefix for their kind:
+
+| Kind | Functions | Name |
+| --- | --- | --- |
+| `hooks` | `do_action`, `do_action_ref_array`, `apply_filters`, `apply_filters_ref_array` | 1st argument |
+| `options` | `add_option`, `update_option`, `delete_option`, `get_option` and their `_site_option` variants | 1st argument |
+| `transients` | `set_transient`, `get_transient`, `delete_transient` and their `_site_transient` variants | 1st argument |
+| `meta` | `register_meta`, `register_post_meta`, `register_term_meta` | meta key, the 2nd argument |
+| `assets` | `wp_register_script`, `wp_register_style`, `wp_enqueue_script`, `wp_enqueue_style` | handle, the 1st argument |
+
+A name passes when PHPStan knows it starts with the prefix, or when it is built
+from one of the kind's prefix constants, as in
+`static::HOOK_PREFIX . static::SERVICES_FILTER`. A name the rule cannot work
+out fails, so build names from the prefix.
+
+**Allows:** for calls that only read a name, such as `get_option()`,
+`wp_enqueue_script()` or firing a hook, the names WordPress owns that the
+kind lists as allowed. `add_action()` and `add_filter()` are not checked: they
+subscribe to names other code owns.
+
+**Configuration:** `prefixedNames.<kind>` sets the kind's `prefix`, its
+prefix `constants` and the `allowed` names. The scaffold uses
+`mwpd.basic_scaffold.` for hooks, with the `HOOK_PREFIX` constant;
+`mwpd_basic_scaffold_` for options, transients and meta keys; and
+`mwpd-basic-scaffold-` for asset handles. A plugin generated from the scaffold
+renames all of them, and `HOOK_PREFIX` and `SERVICE_PREFIX` in its
+composition root.
+
+**Fix:** start the name with the prefix, or build it from the prefix
+constant.
