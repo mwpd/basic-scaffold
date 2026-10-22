@@ -87,9 +87,27 @@ final class CompositionRootContract {
 		foreach ( $services as $id => $declaration ) {
 			$id = (string) $id;
 
-			// The plugin resolves every declaration, so a callable given as a
-			// string, such as 'Factory::service_class', resolves too.
-			$class_name = self::call( $plugin, 'maybe_resolve', $declaration );
+			// Resolving a callable declaration may build objects too, so the
+			// watch starts before it and lasts through the construction.
+			$calls  = [];
+			$before = $this->start_watching( $calls );
+
+			try {
+				// The plugin resolves every declaration, so a callable given as
+				// a string, such as 'Factory::service_class', resolves too.
+				$class_name = self::call( $plugin, 'maybe_resolve', $declaration );
+			} catch ( Throwable $throwable ) {
+				$problems[] = $this->problem(
+					$id,
+					is_string( $declaration ) ? $declaration : 'callable',
+					sprintf(
+						'cannot be resolved: %s Make the declaration a class name, or a callable that returns one'
+						. ' without needing anything the composition root does not provide.',
+						$throwable->getMessage()
+					)
+				);
+				continue;
+			}
 
 			if ( ! is_string( $class_name )
 				|| ! class_exists( $class_name )
@@ -106,7 +124,7 @@ final class CompositionRootContract {
 			$problems = array_merge(
 				$problems,
 				$this->check_capabilities( $id, $class_name, array_keys( $services ) ),
-				$this->check_construction( $id, $class_name, $injector )
+				$this->check_construction( $id, $class_name, $injector, $calls, $before )
 			);
 		}
 
@@ -153,19 +171,16 @@ final class CompositionRootContract {
 	}
 
 	/**
-	 * Build a service and check that building it changes no hooks.
+	 * Start watching for hook changes.
 	 *
 	 * Adding and firing hooks shows in Brain Monkey's hook storage. Removing a
 	 * hook that was never added leaves no trace there, so those calls, and the
-	 * activation hooks Brain Monkey does not know, are watched directly.
+	 * activation hooks Brain Monkey does not know, are recorded directly.
 	 *
-	 * @param string                $id         Identifier of the service.
-	 * @param class-string<Service> $class_name Class of the service.
-	 * @param SimpleInjector        $injector   Injector the plugin configured.
-	 * @return array<string> Problems found.
+	 * @param array<string> $calls Receives the watched functions called.
+	 * @return mixed Snapshot of Brain Monkey's hook storage.
 	 */
-	private function check_construction( string $id, string $class_name, SimpleInjector $injector ): array {
-		$calls = [];
+	private function start_watching( array &$calls ) {
 		foreach ( self::WATCHED_FUNCTIONS as $function ) {
 			Functions\when( $function )->alias(
 				static function () use ( &$calls, $function ): bool {
@@ -176,8 +191,28 @@ final class CompositionRootContract {
 			);
 		}
 
-		$before = self::get_hooks();
+		return self::get_hooks();
+	}
 
+	/**
+	 * Build a service and check that nothing since the watch started changed
+	 * hooks.
+	 *
+	 * @param string                $id         Identifier of the service.
+	 * @param class-string<Service> $class_name Class of the service.
+	 * @param SimpleInjector        $injector   Injector the plugin configured.
+	 * @param array<string>         $calls      Watched functions called.
+	 * @param mixed                 $before     Hook storage when the watch
+	 *                                          started.
+	 * @return array<string> Problems found.
+	 */
+	private function check_construction(
+		string $id,
+		string $class_name,
+		SimpleInjector $injector,
+		array &$calls,
+		$before
+	): array {
 		try {
 			$service = $injector->make( $class_name );
 		} catch ( Throwable $throwable ) {

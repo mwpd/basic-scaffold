@@ -16,6 +16,8 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BrokenPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\CallbackPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\GoodService;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\NotAService;
 use stdClass;
 use WP_Post;
@@ -81,5 +83,20 @@ final class CompositionRootContractTest extends TestCase {
 		}
 
 		$this->assertStringContainsString( 'UnboundContract', $problems[1] );
+	}
+
+	public function test_it_watches_what_callable_declarations_do(): void {
+		$problems = ( new CompositionRootContract( CallbackPlugin::class ) )->check();
+		$prefix   = '[architecture.compositionRootContracts] The service "%s" (%s) of ' . CallbackPlugin::class . ' ';
+
+		$this->assertCount( 2, $problems, implode( "\n\n", $problems ) );
+		$this->assertStringStartsWith(
+			sprintf( $prefix, 'hooking-callback', GoodService::class ) . 'changes hooks while it is being built',
+			$problems[0]
+		);
+		$this->assertStringStartsWith(
+			sprintf( $prefix, 'failing-callback', 'callable' ) . 'cannot be resolved: ',
+			$problems[1]
+		);
 	}
 }
