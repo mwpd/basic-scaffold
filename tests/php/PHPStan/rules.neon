@@ -15,6 +15,14 @@ parametersSchema:
         noStaticState: structure([
             allowed: listOf(string())
         ])
+        exceptions: structure([
+            namespace: string()
+            marker: string()
+            notExceptions: listOf(string())
+        ])
+        noWordPressErrorMechanisms: structure([
+            boundaryAdapters: listOf(string())
+        ])
     ])
 
 services:
@@ -38,5 +46,99 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             allowed: %architecture.noStaticState.allowed%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoErrorReportingFunctionsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    architectureWordPressErrorTransport:
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\WordPressErrorTransport
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            boundary_adapters: %architecture.noWordPressErrorMechanisms.boundaryAdapters%
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        autowired: false
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorCreationRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInMethodsRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInFunctionsRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInPropertiesRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInClosuresRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInArrowFunctionsRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ThrowOnlyPluginExceptionsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            marker: %architecture.exceptions.marker%
+            exception_namespace: %architecture.exceptions.namespace%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\CreateOnlyPluginExceptionsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            marker: %architecture.exceptions.marker%
+            exception_namespace: %architecture.exceptions.namespace%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ExceptionShapeRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            marker: %architecture.exceptions.marker%
+            exception_namespace: %architecture.exceptions.namespace%
+            exempt: %architecture.exceptions.notExceptions%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ExceptionsThroughNamedConstructorsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            marker: %architecture.exceptions.marker%
         tags:
             - phpstan.rules.rule

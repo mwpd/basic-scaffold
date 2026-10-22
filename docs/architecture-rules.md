@@ -71,7 +71,9 @@ Settings that belong to one rule are listed in its section.
    in `tests/php/Architecture/`.
 3. Test a PHPStan rule with PHPStan's `RuleTestCase` against fixtures in
    `tests/php/PHPStan/Fixture/`: one that breaks the rule, with the full
-   message asserted, and one for each case it allows.
+   message asserted, and one for each case it allows. Fixtures that refer to
+   each other's classes need one class per file, following PSR-4, because
+   PHPStan's test case only finds classes it can autoload.
 4. Register it in `tests/php/PHPStan/rules.neon`, and put its settings under
    `parameters.architecture` in `phpstan.neon.dist`.
 5. Add its section below. `RuleManifestTest` fails until it exists.
@@ -123,3 +125,78 @@ WordPress reaches from outside the object graph.
 **Fix:** keep the value on an instance, and let the injector share that
 instance with `share()` when more than one object needs it. A cache belongs on
 the object that computes it.
+
+### `architecture.noWordPressErrorMechanisms`
+
+**Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
+
+**Checks:** inside the plugin's namespace, no calls to `error_log()`,
+`trigger_error()`, `user_error()` or `_doing_it_wrong()`, no `new WP_Error()`,
+and no `WP_Error` in a parameter, return or property type, native or in a
+docblock, of a method, function, closure or arrow function. A subclass of
+`WP_Error` counts as a `WP_Error`.
+
+**Allows:** inspecting what WordPress returns with `is_wp_error()` or
+`instanceof WP_Error`, which is how a `WP_Error` becomes an exception where the
+call is made. Classes listed as boundary adapters may create and return
+`WP_Error` objects, for WordPress APIs that expect one, such as a REST
+callback.
+
+**Configuration:** `noWordPressErrorMechanisms.boundaryAdapters` lists the
+classes that hand a `WP_Error` to WordPress. The scaffold has none yet.
+
+**Fix:** throw a dedicated exception. The code that hands control back to
+WordPress catches it and decides what the user sees.
+
+### `architecture.throwOnlyPluginExceptions`
+
+**Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
+
+**Checks:** everything the plugin throws implements its marker interface,
+`BasicScaffoldException`. The rule checks two places: every exception the
+plugin creates with `new`, and every `throw` of anything but a variable.
+
+**Allows:** throwing a variable, such as passing on what a `catch` block
+caught. A variable holds either a caught exception or one the plugin created,
+and creating one is checked.
+
+**Configuration:** `exceptions.marker` and `exceptions.namespace` name the
+marker interface and the namespace the exceptions live in.
+
+**Fix:** add an exception for the failure to `src/Exception/`, shaped as
+`architecture.exceptionShape` describes, and throw that.
+
+### `architecture.exceptionShape`
+
+**Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
+
+**Checks:** every class in the plugin's namespace that implements the marker
+interface lives in the exception namespace, extends the SPL exception that
+matches its category, and has a named constructor: a public static method that
+returns `self`, declared in the class, a parent or a trait. Everything in the
+exception namespace implements the marker interface.
+
+**Allows:** interfaces that extend the marker interface, abstract exceptions
+without a named constructor, and code listed as not being an exception.
+
+**Configuration:** `exceptions.notExceptions` lists the code in the exception
+namespace that is not an exception. The scaffold lists the `Stringify` trait.
+Whether exceptions are `final` is checked by `architecture.finalByDefault`.
+
+**Fix:** what the message says: extend `InvalidArgumentException` for invalid
+input or configuration and `RuntimeException` for a failure while running, add
+a named constructor that states the cause, or move the class.
+
+### `architecture.exceptionsThroughNamedConstructors`
+
+**Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
+
+**Checks:** `new` of one of the plugin's exceptions only happens inside that
+exception's own static methods.
+
+**Allows:** `new self( … )` in a named constructor.
+
+**Configuration:** `exceptions.marker`.
+
+**Fix:** call the named constructor the message lists, or add one that states
+the new cause, so the same failure always reads the same.

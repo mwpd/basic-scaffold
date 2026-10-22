@@ -46,21 +46,49 @@ final class RuleManifest {
 
 	public const NO_STATIC_STATE = 'architecture.noStaticState';
 
+	public const NO_WORDPRESS_ERROR_MECHANISMS = 'architecture.noWordPressErrorMechanisms';
+
+	public const THROW_ONLY_PLUGIN_EXCEPTIONS = 'architecture.throwOnlyPluginExceptions';
+
+	public const EXCEPTION_SHAPE = 'architecture.exceptionShape';
+
+	public const EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS = 'architecture.exceptionsThroughNamedConstructors';
+
 	/**
 	 * All rules, keyed by their identifier.
 	 *
 	 * @var array<string, RuleEntry>
 	 */
 	private const RULES = [
-		self::FINAL_BY_DEFAULT => [
+		self::FINAL_BY_DEFAULT                      => [
 			'principle'        => 'Principle 6: Final by default',
 			'principle_anchor' => '6-final-by-default',
 			'configuration'    => 'parameters.architecture.finalByDefault',
 		],
-		self::NO_STATIC_STATE  => [
+		self::NO_STATIC_STATE                       => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'configuration'    => 'parameters.architecture.noStaticState',
+		],
+		self::NO_WORDPRESS_ERROR_MECHANISMS         => [
+			'principle'        => 'Principle 10: Errors are exceptions',
+			'principle_anchor' => '10-errors-are-exceptions',
+			'configuration'    => 'parameters.architecture.noWordPressErrorMechanisms',
+		],
+		self::THROW_ONLY_PLUGIN_EXCEPTIONS          => [
+			'principle'        => 'Principle 10: Errors are exceptions',
+			'principle_anchor' => '10-errors-are-exceptions',
+			'configuration'    => 'parameters.architecture.exceptions',
+		],
+		self::EXCEPTION_SHAPE                       => [
+			'principle'        => 'Principle 10: Errors are exceptions',
+			'principle_anchor' => '10-errors-are-exceptions',
+			'configuration'    => 'parameters.architecture.exceptions',
+		],
+		self::EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS => [
+			'principle'        => 'Principle 10: Errors are exceptions',
+			'principle_anchor' => '10-errors-are-exceptions',
+			'configuration'    => 'parameters.architecture.exceptions',
 		],
 	];
 

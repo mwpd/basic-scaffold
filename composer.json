@@ -37,7 +37,10 @@
     "autoload-dev": {
         "psr-4": {
             "MWPD\\BasicScaffold\\Tests\\": "tests/php/"
-        }
+        },
+        "classmap": [
+            "tests/php/PHPStan/Fixture/WordPress/"
+        ]
     },
     "scripts": {
         "test": "phpunit",

@@ -40,3 +40,14 @@ parameters:
             # Methods allowed to keep static state (design principle 5).
             allowed:
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory::create
+        exceptions:
+            # Where the plugin's exceptions live, and the interface they all
+            # implement (design principle 10).
+            namespace: MWPD\BasicScaffold\Exception
+            marker: MWPD\BasicScaffold\Exception\BasicScaffoldException
+            # Code in that namespace that is not an exception.
+            notExceptions:
+                - MWPD\BasicScaffold\Exception\Stringify
+        noWordPressErrorMechanisms:
+            # Classes that hand a WP_Error to WordPress where it expects one.
+            boundaryAdapters: []

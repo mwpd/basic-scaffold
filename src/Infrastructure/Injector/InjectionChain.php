@@ -13,7 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\Injector;
 
-use LogicException;
+use MWPD\BasicScaffold\Exception\InvalidInjectionChain;
 
 /**
  * The injection chain is similar to a trace, keeping track of what we have done
@@ -66,14 +66,12 @@ final class InjectionChain {
 	 * Get the last class that was pushed to the injection chain.
 	 *
 	 * @return string Last class pushed to the injection chain.
-	 * @throws LogicException If the chain is empty.
+	 * @throws InvalidInjectionChain If the chain is empty.
 	 * @phpstan-return class-string
 	 */
 	public function get_class(): string {
 		if ( $this->chain === [] ) {
-			throw new LogicException(
-				'Access to injection chain before any resolution was made.'
-			);
+			throw InvalidInjectionChain::for_empty_chain();
 		}
 
 		/**
