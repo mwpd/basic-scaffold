@@ -12,4 +12,8 @@ final class Plugin {
 	public function service(): Service {
 		return new Service( new Concrete() );
 	}
+
+	public function fake(): object {
+		return new TestDouble\Fake();
+	}
 }

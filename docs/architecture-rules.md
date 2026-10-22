@@ -301,8 +301,10 @@ class with a `Test.php` suffix, or add a suite for its directory.
 **Principle:** [4. SOLID at the top, WordPress at the edges](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges),
 whose dependency inversion this keeps, and [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph).
 
-**Checks:** which layer of the plugin a class may depend on, counting every
-class it mentions in code, native types and documented types:
+**Checks:** which layer of the plugin a class, interface or trait may depend
+on, counting every class it mentions: in its file's imports, in code, in
+native types and in any documentation tag, such as `@var`, `@throws` or
+`@method`:
 
 | A class in | may depend on |
 | --- | --- |
@@ -311,9 +313,10 @@ class it mentions in code, native types and documented types:
 | a feature subsystem (any other top-level namespace, such as `src/SampleSubsystem/`) | the infrastructure's interfaces, the exceptions and the subsystems |
 | the composition root | everything |
 | any other class directly in the root namespace | the infrastructure's interfaces and the exceptions |
+| a view template (`views/`) | everything but the tests |
 
-No production code depends on the tests. Classes from PHP or WordPress are
-always fine.
+Nothing but the tests depends on the tests, not even the composition root.
+Classes from PHP or WordPress are always fine.
 
 **Allows:** a subsystem depending on another subsystem; there is no case yet to
 decide otherwise.
@@ -321,7 +324,8 @@ decide otherwise.
 **Configuration:** `dependencyDirection.infrastructure` names the
 infrastructure's namespace, and `dependencyDirection.compositionRoot` lists the
 classes of the composition root: `BasicScaffoldPlugin` and
-`BasicScaffoldPluginFactory`. The exceptions' namespace comes from
+`BasicScaffoldPluginFactory`. `dependencyDirection.views` lists the
+directories of the view templates that run in production. The exceptions' namespace comes from
 `exceptions.namespace`, the tests' from `excludedNamespaces`.
 
 **Fix:** depend on the interface the message names and bind the implementation

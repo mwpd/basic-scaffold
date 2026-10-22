@@ -26,6 +26,7 @@ parametersSchema:
         dependencyDirection: structure([
             infrastructure: string()
             compositionRoot: listOf(string())
+            views: listOf(string())
         ])
     ])
 
@@ -155,6 +156,8 @@ services:
             exceptions: %architecture.exceptions.namespace%
             infrastructure: %architecture.dependencyDirection.infrastructure%
             composition_root: %architecture.dependencyDirection.compositionRoot%
+            views: %architecture.dependencyDirection.views%
             reflection: @PHPStan\Reflection\ReflectionProvider
+            file_type_mapper: @PHPStan\Type\FileTypeMapper
         tags:
             - phpstan.rules.rule

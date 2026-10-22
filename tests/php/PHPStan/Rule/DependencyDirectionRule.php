@@ -14,20 +14,26 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
+use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\Node\Stmt\Property;
+use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\GroupUse;
+use PhpParser\Node\Stmt\Namespace_;
+use PhpParser\Node\Stmt\Use_;
 use PHPStan\Analyser\Scope;
-use PHPStan\Node\InClassNode;
-use PHPStan\Reflection\ClassReflection;
+use PHPStan\Node\FileNode;
+use PHPStan\PhpDoc\ResolvedPhpDocBlock;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\FileTypeMapper;
+use PHPStan\Type\Type;
 
 /**
  * Dependencies point from the outside in.
@@ -45,12 +51,17 @@ use PHPStan\Rules\RuleErrorBuilder;
  *   concrete classes and wires everything together.
  * - Nothing depends on the tests.
  *
+ * - A view template may depend on anything but the tests.
+ *
  * Classes outside the plugin, from PHP or WordPress, are always fine.
  *
- * The rule reads every class a class mentions: in its code, in its native
- * types and in its documented types.
+ * The rule reads whole files, so it sees every class a file mentions: in its
+ * imports, its code, its native types and its documentation. Each mention
+ * counts for the class, interface or trait it appears in. Imports and code
+ * outside any class count for the file's class, or, in a file without one,
+ * for the file's namespace or view template directory.
  *
- * @implements Rule<InClassNode>
+ * @implements Rule<FileNode>
  */
 final class DependencyDirectionRule implements Rule {
 
@@ -59,6 +70,7 @@ final class DependencyDirectionRule implements Rule {
 	private const ROOT           = 'the composition root';
 	private const TESTS          = 'the tests';
 	private const TOP_LEVEL      = 'a top-level class';
+	private const VIEW           = 'a view template';
 
 	/**
 	 * Root namespace of the plugin, normalized, with a trailing separator.
@@ -90,9 +102,21 @@ final class DependencyDirectionRule implements Rule {
 	private array $composition_root;
 
 	/**
+	 * Directories of the production view templates, without trailing slashes.
+	 *
+	 * @var array<string>
+	 */
+	private array $views;
+
+	/**
 	 * Reflection, to tell interfaces from classes.
 	 */
 	private ReflectionProvider $reflection;
+
+	/**
+	 * Resolver of the types in documentation.
+	 */
+	private FileTypeMapper $file_type_mapper;
 
 	/**
 	 * Instantiate a DependencyDirectionRule object.
@@ -104,8 +128,12 @@ final class DependencyDirectionRule implements Rule {
 	 *                                             infrastructure.
 	 * @param array<string>      $composition_root Classes of the composition
 	 *                                             root.
+	 * @param array<string>      $views            Directories of the production
+	 *                                             view templates.
 	 * @param ReflectionProvider $reflection       Reflection, to tell
 	 *                                             interfaces from classes.
+	 * @param FileTypeMapper     $file_type_mapper Resolver of the types in
+	 *                                             documentation.
 	 */
 	public function __construct(
 		string $root_namespace,
@@ -113,7 +141,9 @@ final class DependencyDirectionRule implements Rule {
 		string $exceptions,
 		string $infrastructure,
 		array $composition_root,
-		ReflectionProvider $reflection
+		array $views,
+		ReflectionProvider $reflection,
+		FileTypeMapper $file_type_mapper
 	) {
 		$this->root             = PluginNamespace::normalize( $root_namespace ) . '\\';
 		$this->tests            = array_map(
@@ -123,7 +153,9 @@ final class DependencyDirectionRule implements Rule {
 		$this->exceptions       = PluginNamespace::normalize( $exceptions ) . '\\';
 		$this->infrastructure   = PluginNamespace::normalize( $infrastructure ) . '\\';
 		$this->composition_root = array_map( [ PluginNamespace::class, 'normalize' ], $composition_root );
+		$this->views            = array_map( static fn( string $view ): string => rtrim( $view, '/' ), $views );
 		$this->reflection       = $reflection;
+		$this->file_type_mapper = $file_type_mapper;
 	}
 
 	/**
@@ -132,32 +164,31 @@ final class DependencyDirectionRule implements Rule {
 	 * @return string Node class name.
 	 */
 	public function getNodeType(): string {
-		return InClassNode::class;
+		return FileNode::class;
 	}
 
 	/**
-	 * Report every class a class depends on against the direction of the layers.
+	 * Report every class a file mentions against the direction of the layers.
 	 *
-	 * @param InClassNode $node  Class node to inspect.
-	 * @param Scope       $scope Scope of the class.
+	 * @param FileNode $node  File node to inspect.
+	 * @param Scope    $scope Scope of the file.
 	 * @return list<IdentifierRuleError> Errors found.
 	 */
 	public function processNode( Node $node, Scope $scope ): array {
-		$class = $node->getClassReflection();
-		$name  = $class->isAnonymous()
-			? ( (string) $scope->getNamespace() ) . '\\class@anonymous'
-			: $class->getName();
-		$from  = $this->get_layer( $name );
-
-		if ( $from === null || $from === self::ROOT || $from === self::TESTS ) {
-			return [];
-		}
+		$mentions = [];
+		$file     = $scope->getFile();
+		$nodes    = $node->getNodes();
+		$this->collect( $nodes, $file, '', $this->get_file_source( $nodes, '', $file ), $mentions );
 
 		$errors = [];
-		foreach ( $this->get_dependencies( $node, $class ) as $dependency => $line ) {
-			$to = $this->get_layer( $dependency );
+		foreach ( $mentions as [ $name, $dependency, $line ] ) {
+			$from = $this->get_source_layer( $name, $file );
+			$to   = $this->get_layer( $dependency );
 
-			if ( $to === null || $this->is_allowed( $from, $name, $to, $dependency ) ) {
+			if ( $from === null
+				|| $to === null
+				|| PluginNamespace::normalize( $name ) === PluginNamespace::normalize( $dependency )
+				|| $this->is_allowed( $from, $name, $to, $dependency ) ) {
 				continue;
 			}
 
@@ -169,6 +200,238 @@ final class DependencyDirectionRule implements Rule {
 		}
 
 		return $errors;
+	}
+
+	/**
+	 * Collect what the given nodes mention, each with the code it counts for.
+	 *
+	 * @param array<Node>                                        $nodes             Nodes to search.
+	 * @param string                                             $file              Path of the file.
+	 * @param string                                             $current_namespace Current namespace.
+	 * @param string                                             $source            Code the mentions
+	 *                                                                              count for.
+	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions          Mentions found, each
+	 *                                                                              as source, dependency
+	 *                                                                              and line.
+	 */
+	private function collect(
+		array $nodes,
+		string $file,
+		string $current_namespace,
+		string $source,
+		array &$mentions
+	): void {
+		foreach ( $nodes as $node ) {
+			$this->collect_node( $node, $file, $current_namespace, $source, $mentions );
+		}
+	}
+
+	/**
+	 * Collect what a node and its children mention.
+	 *
+	 * @param Node                                               $node              Node to search.
+	 * @param string                                             $file              Path of the file.
+	 * @param string                                             $current_namespace Current namespace.
+	 * @param string                                             $source            Code the mentions
+	 *                                                                              count for.
+	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions          Mentions found.
+	 */
+	private function collect_node(
+		Node $node,
+		string $file,
+		string $current_namespace,
+		string $source,
+		array &$mentions
+	): void {
+		if ( $node instanceof Namespace_ ) {
+			$current_namespace = $node->name === null ? '' : $node->name->toString();
+			$file_source       = $this->get_file_source( $node->stmts, $current_namespace, $file );
+			$this->collect( $node->stmts, $file, $current_namespace, $file_source, $mentions );
+			return;
+		}
+
+		if ( $node instanceof ClassLike ) {
+			$source = $node->name === null
+				? ltrim( $current_namespace . '\\class@anonymous', '\\' )
+				: ltrim( $current_namespace . '\\' . $node->name->toString(), '\\' );
+		}
+
+		if ( $node instanceof Use_ || $node instanceof GroupUse ) {
+			$this->collect_imports( $node, $source, $mentions );
+			return;
+		}
+
+		$doc = $node->getDocComment();
+		if ( $doc !== null ) {
+			$this->collect_documented( $doc, $node, $file, $source, $mentions );
+		}
+
+		if ( $node instanceof Name ) {
+			if ( ! $node->isSpecialClassName() ) {
+				$this->add( $mentions, $source, $node->toString(), $node->getStartLine() );
+			}
+			return;
+		}
+
+		foreach ( $node->getSubNodeNames() as $sub_node_name ) {
+			// Names of functions and constants are not classes.
+			if ( ( $node instanceof FuncCall || $node instanceof ConstFetch ) && $sub_node_name === 'name' ) {
+				continue;
+			}
+
+			$children = $node->$sub_node_name;
+			foreach ( is_array( $children ) ? $children : [ $children ] as $child ) {
+				if ( $child instanceof Node ) {
+					$this->collect_node( $child, $file, $current_namespace, $source, $mentions );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Collect the classes a `use` statement imports.
+	 *
+	 * @param Use_|GroupUse                                      $node     Import statement.
+	 * @param string                                             $source   Code the imports count for.
+	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions Mentions found.
+	 */
+	private function collect_imports( Node $node, string $source, array &$mentions ): void {
+		$prefix = $node instanceof GroupUse ? $node->prefix->toString() . '\\' : '';
+
+		foreach ( $node->uses as $use ) {
+			$type = $use->type !== Use_::TYPE_UNKNOWN ? $use->type : $node->type;
+
+			// Imported functions and constants are not classes.
+			if ( $type === Use_::TYPE_NORMAL ) {
+				$this->add( $mentions, $source, $prefix . $use->name->toString(), $use->getStartLine() );
+			}
+		}
+	}
+
+	/**
+	 * Collect the classes a doc comment mentions, in any of its tags.
+	 *
+	 * @param Doc                                                $doc      Doc comment.
+	 * @param Node                                               $node     Node it documents.
+	 * @param string                                             $file     Path of the file.
+	 * @param string                                             $source   Code it counts for.
+	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions Mentions found.
+	 */
+	private function collect_documented( Doc $doc, Node $node, string $file, string $source, array &$mentions ): void {
+		// A trait's own code resolves its names like a class does.
+		$class    = $source !== '' && $this->reflection->hasClass( $source ) ? $source : null;
+		$function = $node instanceof ClassMethod || $node instanceof Function_ ? $node->name->toString() : null;
+		$phpdoc   = $this->file_type_mapper->getResolvedPhpDoc( $file, $class, null, $function, $doc->getText() );
+
+		foreach ( self::get_documented_types( $phpdoc ) as $type ) {
+			foreach ( $type->getReferencedClasses() as $referenced ) {
+				$this->add( $mentions, $source, $referenced, $doc->getStartLine() );
+			}
+		}
+	}
+
+	/**
+	 * Get every type a resolved doc comment mentions.
+	 *
+	 * @param ResolvedPhpDocBlock $phpdoc Resolved doc comment.
+	 * @return array<Type> Types.
+	 */
+	private static function get_documented_types( ResolvedPhpDocBlock $phpdoc ): array {
+		$types = [];
+
+		foreach ( [ $phpdoc->getVarTags(), $phpdoc->getParamTags(), $phpdoc->getMixinTags() ] as $tags ) {
+			foreach ( $tags as $tag ) {
+				$types[] = $tag->getType();
+			}
+		}
+
+		foreach ( [ $phpdoc->getExtendsTags(), $phpdoc->getImplementsTags(), $phpdoc->getUsesTags() ] as $tags ) {
+			foreach ( $tags as $tag ) {
+				$types[] = $tag->getType();
+			}
+		}
+
+		foreach ( [ $phpdoc->getReturnTag(), $phpdoc->getThrowsTag() ] as $tag ) {
+			if ( $tag !== null ) {
+				$types[] = $tag->getType();
+			}
+		}
+
+		foreach ( $phpdoc->getPropertyTags() as $tag ) {
+			$types[] = $tag->getReadableType();
+			$types[] = $tag->getWritableType();
+		}
+
+		foreach ( $phpdoc->getMethodTags() as $tag ) {
+			$types[] = $tag->getReturnType();
+			foreach ( $tag->getParameters() as $parameter ) {
+				$types[] = $parameter->getType();
+			}
+		}
+
+		foreach ( $phpdoc->getTemplateTags() as $tag ) {
+			$types[] = $tag->getBound();
+		}
+
+		return array_values( array_filter( $types ) );
+	}
+
+	/**
+	 * Record a mention, keeping only the first of each.
+	 *
+	 * @param array<string, array{0: string, 1: string, 2: int}> $mentions   Mentions found.
+	 * @param string                                             $source     Code it counts for.
+	 * @param string                                             $dependency Class mentioned.
+	 * @param int                                                $line       Line of the mention.
+	 */
+	private function add( array &$mentions, string $source, string $dependency, int $line ): void {
+		$key = PluginNamespace::normalize( $source ) . '|' . PluginNamespace::normalize( $dependency );
+
+		if ( ! isset( $mentions[ $key ] ) || $mentions[ $key ][2] > $line ) {
+			$mentions[ $key ] = [ $source, ltrim( $dependency, '\\' ), $line ];
+		}
+	}
+
+	/**
+	 * Get the code that a file's imports and loose code count for.
+	 *
+	 * That is the class, interface or trait the file declares. A file without
+	 * one, such as a view template, counts for its namespace.
+	 *
+	 * @param array<Node> $nodes             Top-level nodes of the file or
+	 *                                       namespace.
+	 * @param string      $current_namespace Namespace of the nodes.
+	 * @param string      $file              Path of the file.
+	 * @return string Name of the code.
+	 */
+	private function get_file_source( array $nodes, string $current_namespace, string $file ): string {
+		foreach ( $nodes as $node ) {
+			if ( $node instanceof ClassLike && $node->name !== null ) {
+				return ltrim( $current_namespace . '\\' . $node->name->toString(), '\\' );
+			}
+		}
+
+		return $current_namespace === '' ? $file : $current_namespace . '\\' . basename( $file, '.php' );
+	}
+
+	/**
+	 * Get the layer of the code a mention counts for.
+	 *
+	 * @param string $name Name of the code, or the path of a file without one.
+	 * @param string $file Path of the file.
+	 * @return string|null Layer, or null for code the rule does not check.
+	 */
+	private function get_source_layer( string $name, string $file ): ?string {
+		foreach ( $this->views as $views ) {
+			if ( strpos( $file, $views . '/' ) === 0 ) {
+				return self::VIEW;
+			}
+		}
+
+		$layer = $this->get_layer( $name );
+
+		// The tests may depend on anything.
+		return $layer === self::TESTS ? null : $layer;
 	}
 
 	/**
@@ -225,6 +488,10 @@ final class DependencyDirectionRule implements Rule {
 			return false;
 		}
 
+		if ( $from === self::ROOT || $from === self::VIEW ) {
+			return true;
+		}
+
 		if ( $from === self::EXCEPTIONS ) {
 			return $to === self::EXCEPTIONS;
 		}
@@ -259,6 +526,10 @@ final class DependencyDirectionRule implements Rule {
 	 * @return string What is wrong, and what to do instead.
 	 */
 	private function describe( string $from, string $name, string $to, string $dependency ): string {
+		if ( $from === self::VIEW ) {
+			$name = basename( dirname( $name ) ) . '/' . basename( $name );
+		}
+
 		$problem = sprintf( '%1$s, in %2$s, depends on %3$s, in %4$s.', $name, $from, $dependency, $to );
 
 		if ( $to === self::TESTS ) {
@@ -310,91 +581,5 @@ final class DependencyDirectionRule implements Rule {
 		return $interfaces === []
 			? 'an interface of the infrastructure'
 			: 'the interface it implements (' . implode( ' or ', $interfaces ) . ')';
-	}
-
-	/**
-	 * Get every class a class mentions.
-	 *
-	 * @param InClassNode     $node       Class node.
-	 * @param ClassReflection $reflection Reflection of the class.
-	 * @return array<string, int> Line of the first mention, keyed by name.
-	 */
-	private function get_dependencies( InClassNode $node, ClassReflection $reflection ): array {
-		$dependencies = [];
-		$original     = $node->getOriginalNode();
-
-		foreach ( self::find_class_names( $original, true ) as $mention ) {
-			$dependencies[ $mention->toString() ] = $dependencies[ $mention->toString() ] ?? $mention->getStartLine();
-		}
-
-		// Documented types only show up in reflection.
-		foreach ( $original->stmts as $statement ) {
-			$types = [];
-
-			if ( $statement instanceof ClassMethod && $reflection->hasNativeMethod( $statement->name->toString() ) ) {
-				foreach ( $reflection->getNativeMethod( $statement->name->toString() )->getVariants() as $variant ) {
-					$types[] = $variant->getReturnType();
-					foreach ( $variant->getParameters() as $parameter ) {
-						$types[] = $parameter->getType();
-					}
-				}
-			}
-
-			if ( $statement instanceof Property ) {
-				foreach ( $statement->props as $property ) {
-					if ( $reflection->hasNativeProperty( $property->name->toString() ) ) {
-						$types[] = $reflection->getNativeProperty( $property->name->toString() )->getReadableType();
-					}
-				}
-			}
-
-			foreach ( $types as $type ) {
-				foreach ( $type->getReferencedClasses() as $referenced ) {
-					$dependencies[ $referenced ] = $dependencies[ $referenced ] ?? $statement->getStartLine();
-				}
-			}
-		}
-
-		unset( $dependencies[ $reflection->getName() ] );
-		asort( $dependencies );
-
-		return $dependencies;
-	}
-
-	/**
-	 * Find the names of classes a node mentions.
-	 *
-	 * A nested class, such as an anonymous one, is a class of its own that the
-	 * rule inspects separately, so its names are left out. Names of functions
-	 * and constants are not classes.
-	 *
-	 * @param Node $node     Node to search.
-	 * @param bool $is_start Whether the node is the class being inspected.
-	 * @return array<Name> Names of classes.
-	 */
-	private static function find_class_names( Node $node, bool $is_start ): array {
-		if ( ! $is_start && $node instanceof ClassLike ) {
-			return [];
-		}
-
-		if ( $node instanceof Name ) {
-			return $node->isSpecialClassName() ? [] : [ $node ];
-		}
-
-		$names = [];
-		foreach ( $node->getSubNodeNames() as $sub_node_name ) {
-			if ( ( $node instanceof FuncCall || $node instanceof ConstFetch ) && $sub_node_name === 'name' ) {
-				continue;
-			}
-
-			$children = $node->$sub_node_name;
-			foreach ( is_array( $children ) ? $children : [ $children ] as $child ) {
-				if ( $child instanceof Node ) {
-					$names = array_merge( $names, self::find_class_names( $child, false ) );
-				}
-			}
-		}
-
-		return $names;
 	}
 }

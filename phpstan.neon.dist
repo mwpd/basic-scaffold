@@ -59,3 +59,6 @@ parameters:
             compositionRoot:
                 - MWPD\BasicScaffold\BasicScaffoldPlugin
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory
+            # Directories of the view templates that run in production.
+            views:
+                - %currentWorkingDirectory%/views
