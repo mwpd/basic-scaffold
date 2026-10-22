@@ -136,6 +136,7 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 				'Feature/Asserted',
 				'Feature/Documented',
 				'Feature/Service',
+				'Feature/Templated',
 				'Other/Helper'
 			),
 			[
@@ -203,6 +204,22 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 					'the infrastructure',
 					self::CONTRACT_FIX
 				),
+				$this->error(
+					7,
+					'Feature\Templated',
+					'the Feature subsystem',
+					'Infrastructure\Concrete',
+					'the infrastructure',
+					self::CONTRACT_FIX
+				),
+				$this->error(
+					12,
+					'Feature\Templated',
+					'the Feature subsystem',
+					'Plugin',
+					'the composition root',
+					self::ROOT_FIX
+				),
 			]
 		);
 	}
@@ -211,7 +228,7 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 		$this->analyse(
 			$this->fixtures( 'Plugin', 'Stray' ),
 			[
-				$this->error( 17, 'Plugin', 'the composition root', 'TestDouble\Fake', 'the tests', self::TESTS_FIX ),
+				$this->error( 19, 'Plugin', 'the composition root', 'TestDouble\Fake', 'the tests', self::TESTS_FIX ),
 				$this->error(
 					7,
 					'Stray',

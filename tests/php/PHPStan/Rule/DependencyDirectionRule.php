@@ -358,6 +358,13 @@ final class DependencyDirectionRule implements Rule {
 		foreach ( $phpdoc->getTypeAliasImportTags() as $tag ) {
 			$this->add( $mentions, $source, $tag->getImportedFrom(), $doc->getStartLine() );
 		}
+
+		// Resolving a type can erase the class it came from, as for a class
+		// constant, so fully qualified names in the text count as well.
+		preg_match_all( '/\\\\[A-Za-z_][A-Za-z0-9_]*(?:\\\\[A-Za-z_][A-Za-z0-9_]*)+/', $doc->getText(), $matches );
+		foreach ( $matches[0] as $qualified ) {
+			$this->add( $mentions, $source, $qualified, $doc->getStartLine() );
+		}
 	}
 
 	/**
@@ -413,6 +420,11 @@ final class DependencyDirectionRule implements Rule {
 
 		foreach ( $phpdoc->getTemplateTags() as $tag ) {
 			$types[] = $tag->getBound();
+			$types[] = $tag->getDefault();
+		}
+
+		foreach ( $phpdoc->getParamClosureThisTags() as $tag ) {
+			$types[] = $tag->getType();
 		}
 
 		return array_values( array_filter( $types ) );

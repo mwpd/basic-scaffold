@@ -9,6 +9,8 @@ use MWPD\BasicScaffold\Tests\PHPStan\Fixture\Layers\Infrastructure\Concrete;
 
 final class Plugin {
 
+	public const NAME = 'plugin';
+
 	public function service(): Service {
 		return new Service( new Concrete() );
 	}
