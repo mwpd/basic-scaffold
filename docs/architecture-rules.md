@@ -70,7 +70,10 @@ cannot tell, such as the main plugin file and the view template directories,
 ## Adding a rule
 
 1. Add an entry to `RuleManifest`: identifier, principle and its anchor in
-   `docs/design-principles.md`, and the configuration key.
+   `docs/design-principles.md`, the configuration key, what checks it
+   (`checked_by`: the PHPStan rule classes, or the test methods of the
+   architecture suite), and fixed phrases of its messages (`signatures`),
+   which let the suppression check recognize ignores aimed at it.
 2. Write the rule in `tests/php/PHPStan/Rule/`, using the identifier and
    `RuleManifest::get_explanation()` as the tip, or write the check as a test
    in `tests/php/Architecture/`.
@@ -464,3 +467,41 @@ composition root.
 
 **Fix:** start the name with the prefix, or build it from the prefix
 constant.
+
+### `architecture.noSuppression`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the
+gates.
+
+**Checks:** no inline `@phpstan-ignore`, `@phpstan-ignore-line` or
+`@phpstan-ignore-next-line` in the main plugin file, `src/`, `views/` or
+`tests/php/` names an architecture rule. `phpstan.neon.dist`, and any
+baseline it includes, has no `ignoreErrors` entry for one, and keeps
+`reportUnmatchedIgnoredErrors` on, so an ignore cannot outlive what it hid.
+
+**Allows:** the fixtures of the architecture rules, which break them on
+purpose. Ignores of other PHPStan, Psalm or PHPCS errors are not checked.
+
+**Configuration:** none.
+
+**Fix:** fix the code. If the rule is wrong for a real case, open an issue
+with `needs: decision`; an exception the maintainer accepts becomes an
+allowance in the rule's configuration.
+
+An ignore counts as aimed at a rule when it names its identifier, or when its
+message pattern matches, or spells out, one of the phrases the rule's manifest
+entry lists as `signatures`. An ignore limited to other identifiers does not
+count. The check reads the configuration the way PHPStan does: replacing keys
+such as `ignoreErrors!`, and includes given relative, absolute or with
+`%currentWorkingDirectory%`.
+
+`RuleRegistrationTest` also keeps the rules, `RuleManifest` and this page in
+step:
+
+- every identifier constant has a manifest entry;
+- every entry names what checks it, and that is a PHPStan rule registered in
+  `tests/php/PHPStan/rules.neon` or a test method that exists;
+- every PHPStan rule is registered, and named by an entry;
+- every signature still appears in a rule's messages;
+- no rule spells an identifier out instead of using its constant;
+- every section on this page belongs to a rule in the manifest.

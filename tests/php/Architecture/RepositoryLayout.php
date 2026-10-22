@@ -172,6 +172,15 @@ final class RepositoryLayout {
 	}
 
 	/**
+	 * Get the absolute path of the PHPStan configuration.
+	 *
+	 * @return string Path of phpstan.neon.dist.
+	 */
+	public function get_phpstan_config(): string {
+		return $this->absolute( 'phpstan.neon.dist' );
+	}
+
+	/**
 	 * Get the absolute path of composer.json.
 	 *
 	 * @return string Path of composer.json.

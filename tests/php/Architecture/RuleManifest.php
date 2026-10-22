@@ -13,6 +13,9 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
+use MWPD\BasicScaffold\Tests\PHPStan\Rule;
+use ReflectionClass;
+
 /**
  * The list of architecture rules.
  *
@@ -26,11 +29,18 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
  * Failure messages take their "why" from this list, so a rule never has to
  * repeat where its principle is documented.
  *
+ * Each entry also names what checks the rule, so a test can prove that it
+ * runs: PHPStan rule classes, or the test methods of the architecture suite.
+ * A PHPStan rule's entry lists fixed phrases of its messages, so an ignore
+ * that matches them can be recognized.
+ *
  * @phpstan-type RuleEntry array{
  *     principle: string,
  *     principle_anchor: string,
  *     configuration: string,
  *     document?: string,
+ *     checked_by: array<string>,
+ *     signatures: array<string>,
  * }
  */
 final class RuleManifest {
@@ -84,6 +94,8 @@ final class RuleManifest {
 
 	public const TESTS_ARE_DISCOVERED = 'architecture.testsAreDiscovered';
 
+	public const NO_SUPPRESSION = 'architecture.noSuppression';
+
 	/**
 	 * All rules, keyed by their identifier.
 	 *
@@ -94,90 +106,236 @@ final class RuleManifest {
 			'principle'        => 'Principle 6: Final by default',
 			'principle_anchor' => '6-final-by-default',
 			'configuration'    => 'parameters.architecture.finalByDefault',
+			'checked_by'       => [
+				Rule\FinalByDefaultRule::class,
+			],
+			'signatures'       => [
+				'is not final. Declare it final',
+			],
 		],
 		self::NO_STATIC_STATE                       => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'configuration'    => 'parameters.architecture.noStaticState',
+			'checked_by'       => [
+				Rule\NoStaticStateRule::class,
+			],
+			'signatures'       => [
+				'keeps state outside any object',
+			],
 		],
 		self::NO_WORDPRESS_ERROR_MECHANISMS         => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
 			'configuration'    => 'parameters.architecture.noWordPressErrorMechanisms',
+			'checked_by'       => [
+				Rule\NoErrorReportingFunctionsRule::class,
+				Rule\NoWordPressErrorCreationRule::class,
+				Rule\NoWordPressErrorInMethodsRule::class,
+				Rule\NoWordPressErrorInFunctionsRule::class,
+				Rule\NoWordPressErrorInClosuresRule::class,
+				Rule\NoWordPressErrorInArrowFunctionsRule::class,
+				Rule\NoWordPressErrorInPropertiesRule::class,
+			],
+			'signatures'       => [
+				'reports an error where it happens',
+				'carries an error through the plugin',
+				'takes or returns a WP_Error',
+				'holds a WP_Error',
+			],
 		],
 		self::THROW_ONLY_PLUGIN_EXCEPTIONS          => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
 			'configuration'    => 'parameters.architecture.exceptions',
+			'checked_by'       => [
+				Rule\ThrowOnlyPluginExceptionsRule::class,
+				Rule\CreateOnlyPluginExceptionsRule::class,
+			],
+			'signatures'       => [
+				'which does not implement',
+				'creates an exception that does not implement',
+			],
 		],
 		self::EXCEPTION_SHAPE                       => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
 			'configuration'    => 'parameters.architecture.exceptions',
+			'checked_by'       => [
+				Rule\ExceptionShapeRule::class,
+			],
+			'signatures'       => [
+				'has no named constructor',
+				'does not extend an SPL exception',
+				'Only the plugin\'s exceptions live there',
+				'where every exception of the plugin lives',
+			],
 		],
 		self::EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
 			'configuration'    => 'parameters.architecture.exceptions',
+			'checked_by'       => [
+				Rule\ExceptionsThroughNamedConstructorsRule::class,
+			],
+			'signatures'       => [
+				'creates an exception outside its named constructors',
+			],
 		],
 		self::DEPENDENCY_DIRECTION                  => [
 			'principle'        => 'Principle 4: SOLID at the top, WordPress at the edges',
 			'principle_anchor' => '4-solid-at-the-top-wordpress-at-the-edges',
 			'configuration'    => 'parameters.architecture.dependencyDirection',
+			'checked_by'       => [
+				Rule\DependencyDirectionRule::class,
+			],
+			'signatures'       => [
+				'Production code never depends on the tests',
+				'Generated plugins build on the infrastructure',
+				'Exceptions only depend on each other',
+				'and bind the implementation in the composition root',
+				'knows how the plugin is put together',
+			],
 		],
 		self::NEW_ONLY_WHERE_ALLOWED                => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'configuration'    => 'parameters.architecture.newOnlyWhereAllowed',
+			'checked_by'       => [
+				Rule\NewOnlyWhereAllowedRule::class,
+				Rule\DynamicCreationRule::class,
+			],
+			'signatures'       => [
+				'creates a collaborator',
+				'new with a class chosen at runtime',
+				'is not a nullable parameter typed to an interface',
+			],
 		],
 		self::NO_HOOKS_IN_CONSTRUCTOR               => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'configuration'    => 'parameters.architecture.namespace',
+			'checked_by'       => [
+				Rule\NoHooksInConstructorRule::class,
+			],
+			'signatures'       => [
+				'hooks into WordPress while the object is being built',
+			],
 		],
 		self::HOOKS_IN_LIFECYCLE_METHODS            => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'configuration'    => 'parameters.architecture.hooks.lifecycleMethods',
+			'checked_by'       => [
+				Rule\HooksInLifecycleMethodsRule::class,
+			],
+			'signatures'       => [
+				'changes a hook outside a lifecycle method',
+			],
 		],
 		self::NO_CONTEXT_CHECKS_IN_REGISTER         => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'configuration'    => 'parameters.architecture.hooks.contextFunctions',
+			'checked_by'       => [
+				Rule\NoContextChecksInRegisterRule::class,
+			],
+			'signatures'       => [
+				'decides at registration whether the service applies',
+			],
 		],
 		self::PREFIXED_NAMES                        => [
 			'principle'        => 'Principle 13: One plugin, to arbitrary complexity',
 			'principle_anchor' => '13-one-plugin-to-arbitrary-complexity',
 			'configuration'    => 'parameters.architecture.prefixedNames',
+			'checked_by'       => [
+				Rule\PrefixedNamesRule::class,
+			],
+			'signatures'       => [
+				'without the plugin\'s prefix',
+				'name the rule cannot check',
+			],
 		],
 		self::STRICT_TYPES                          => [
 			'principle'        => 'Hard rule: every PHP class file declares strict_types=1',
 			'principle_anchor' => 'hard-rules',
 			'configuration'    => 'RepositoryLayout',
 			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				RepositoryStructureTest::class . '::test_the_plugin_declares_strict_types',
+			],
+			'signatures'       => [],
 		],
 		self::DECLARATIONS_FOLLOW_PSR4              => [
 			'principle'        => 'Principle 1: Runs on PHP and WordPress alone',
 			'principle_anchor' => '1-runs-on-php-and-wordpress-alone',
 			'configuration'    => 'RepositoryLayout',
+			'checked_by'       => [
+				RepositoryStructureTest::class . '::test_the_plugin_declares_one_class_per_file_named_after_its_path',
+			],
+			'signatures'       => [],
 		],
 		self::NO_SIDE_EFFECTS_ON_INCLUDE            => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'configuration'    => 'RepositoryLayout',
+			'checked_by'       => [
+				RepositoryStructureTest::class . '::test_the_plugin_has_no_side_effects_on_include',
+			],
+			'signatures'       => [],
 		],
 		self::NO_RUNTIME_DEPENDENCIES               => [
 			'principle'        => 'Principle 1: Runs on PHP and WordPress alone',
 			'principle_anchor' => '1-runs-on-php-and-wordpress-alone',
 			'configuration'    => 'composer-dependency-analyser.php',
+			'checked_by'       => [
+				RepositoryStructureTest::class . '::test_the_plugin_requires_nothing_but_php_at_runtime',
+				RuntimeDependenciesTest::class . '::test_the_plugin_uses_no_development_package_at_runtime',
+			],
+			'signatures'       => [],
 		],
 		self::TESTS_ARE_DISCOVERED                  => [
 			'principle'        => 'Hard rule: do not weaken the gates',
 			'principle_anchor' => 'hard-rules',
 			'configuration'    => 'RepositoryLayout',
 			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				RepositoryStructureTest::class . '::test_the_plugin_puts_every_test_where_phpunit_finds_it',
+			],
+			'signatures'       => [],
+		],
+		self::NO_SUPPRESSION                        => [
+			'principle'        => 'Hard rule: do not weaken the gates',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'phpstan.neon.dist',
+			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				SuppressionTest::class . '::test_the_plugin_does_not_silence_architecture_rules',
+				RuleRegistrationTest::class . '::test_every_rule_is_registered_listed_and_documented',
+			],
+			'signatures'       => [],
 		],
 	];
+
+	/**
+	 * Get every constant that holds a rule identifier, keyed by its name.
+	 *
+	 * That includes a constant whose rule has no entry yet, so a test can
+	 * report it.
+	 *
+	 * @return array<string, string> Identifiers keyed by constant name.
+	 */
+	public static function get_constants(): array {
+		$constants = [];
+
+		foreach ( ( new ReflectionClass( self::class ) )->getConstants() as $name => $value ) {
+			if ( is_string( $value ) && strpos( $value, 'architecture.' ) === 0 ) {
+				$constants[ $name ] = $value;
+			}
+		}
+
+		return $constants;
+	}
 
 	/**
 	 * Get all rules, keyed by their identifier.

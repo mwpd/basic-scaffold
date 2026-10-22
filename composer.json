@@ -28,7 +28,8 @@
         "humanmade/psalm-plugin-wordpress": "^3",
         "rector/rector": "^1.2",
         "brain/monkey": "^2",
-        "shipmonk/composer-dependency-analyser": "^1.8"
+        "shipmonk/composer-dependency-analyser": "^1.8",
+        "nette/neon": "^3.3"
     },
     "autoload": {
         "psr-4": {
