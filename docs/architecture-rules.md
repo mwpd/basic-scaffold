@@ -505,3 +505,31 @@ step:
 - every signature still appears in a rule's messages;
 - no rule spells an identifier out instead of using its constant;
 - every section on this page belongs to a rule in the manifest.
+
+### `architecture.compositionRootContracts`
+
+**Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph),
+and the capability interfaces of [the core idea](design-principles.md#how-services-map-to-it).
+
+**Checks:** the real composition root, and every service it declares, built
+through the plugin's own injector configuration:
+
+- every declaration, a class name or a callable that returns one, is a class
+  implementing `Service`;
+- a `Delayed` service names an action to wait for, and a `HasDependencies`
+  service only depends on services the root declares;
+- the plugin can build every service from its own bindings, arguments and
+  delegations, and what it builds is a `Service`;
+- building a service adds, removes or fires no hook, and registers no
+  activation or deactivation hook, not even through a collaborator its
+  constructor creates.
+
+**Allows:** the tests stub the WordPress functions the wiring calls, such as
+`get_post()`, and use stand-ins for WordPress classes such as `WP_Post`. They
+never add a binding the composition root does not have.
+
+**Configuration:** `RepositoryLayout::COMPOSITION_ROOT` names the composition
+root. A service added to it is checked without changing the test.
+
+**Fix:** bind what a service needs in the composition root, declare the
+services it depends on, and keep constructors to storing dependencies.
