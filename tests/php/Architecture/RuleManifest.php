@@ -96,6 +96,8 @@ final class RuleManifest {
 
 	public const NO_SUPPRESSION = 'architecture.noSuppression';
 
+	public const COMPOSITION_ROOT_CONTRACTS = 'architecture.compositionRootContracts';
+
 	/**
 	 * All rules, keyed by their identifier.
 	 *
@@ -312,6 +314,15 @@ final class RuleManifest {
 			'checked_by'       => [
 				SuppressionTest::class . '::test_the_plugin_does_not_silence_architecture_rules',
 				RuleRegistrationTest::class . '::test_every_rule_is_registered_listed_and_documented',
+			],
+			'signatures'       => [],
+		],
+		self::COMPOSITION_ROOT_CONTRACTS            => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT',
+			'checked_by'       => [
+				CompositionRootContractTest::class . '::test_the_plugin_keeps_the_promises_of_its_composition_root',
 			],
 			'signatures'       => [],
 		],

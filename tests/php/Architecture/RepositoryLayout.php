@@ -29,6 +29,11 @@ use SplFileInfo;
 final class RepositoryLayout {
 
 	/**
+	 * The composition root, the class that wires the plugin together.
+	 */
+	public const COMPOSITION_ROOT = 'MWPD\\BasicScaffold\\BasicScaffoldPlugin';
+
+	/**
 	 * The plugin's main file, the only one with side effects.
 	 */
 	public const BOOTSTRAP = 'basic-scaffold.php';
