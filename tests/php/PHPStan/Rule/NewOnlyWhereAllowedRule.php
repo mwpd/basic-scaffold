@@ -21,6 +21,7 @@ use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Param;
@@ -140,7 +141,7 @@ final class NewOnlyWhereAllowedRule implements Rule {
 		$errors   = [];
 
 		foreach ( self::find_creations( $method->stmts ?? [] ) as $creation ) {
-			$problem = $this->check( $creation, $class, $method->params, $defaults, $location );
+			$problem = $this->check( $creation, $class, $scope, $method->params, $defaults, $location );
 
 			if ( $problem !== null ) {
 				$errors[] = RuleErrorBuilder::message( $problem )
@@ -159,6 +160,7 @@ final class NewOnlyWhereAllowedRule implements Rule {
 	 *
 	 * @param New_                 $creation Object creation.
 	 * @param ClassReflection      $owner    Class the method belongs to.
+	 * @param Scope                $scope    Scope of the method.
 	 * @param array<Param>         $params   Parameters of the method.
 	 * @param array<int, Variable> $defaults Poka-yoke defaults: the parameter
 	 *                                       each `new` is the default for,
@@ -169,19 +171,12 @@ final class NewOnlyWhereAllowedRule implements Rule {
 	private function check(
 		New_ $creation,
 		ClassReflection $owner,
+		Scope $scope,
 		array $params,
 		array $defaults,
 		string $location
 	): ?string {
-		if ( $creation->class instanceof Class_ ) {
-			return sprintf(
-				'new class() in %s creates a collaborator. Write it as a class of its own, inject it through the'
-				. ' constructor and bind it in the composition root, or create it in a factory.',
-				$location
-			);
-		}
-
-		if ( ! $creation->class instanceof Name ) {
+		if ( ! $creation->class instanceof Name && ! $creation->class instanceof Class_ ) {
 			return sprintf(
 				'new with a class chosen at runtime in %s. Only factories create objects of a class they are given;'
 				. ' ask a factory or the injector for it.',
@@ -189,15 +184,23 @@ final class NewOnlyWhereAllowedRule implements Rule {
 			);
 		}
 
-		$created = $creation->class->isSpecialClassName() ? $owner->getName() : $creation->class->toString();
+		$created   = $this->resolve_created( $creation, $owner, $scope );
+		$parameter = $defaults[ spl_object_id( $creation ) ] ?? null;
 
 		if ( $this->is_value_object( $created ) ) {
 			return null;
 		}
 
-		$parameter = $defaults[ spl_object_id( $creation ) ] ?? null;
 		if ( $parameter !== null ) {
 			return $this->check_default( $created, $parameter, $params, $location );
+		}
+
+		if ( $creation->class instanceof Class_ ) {
+			return sprintf(
+				'new class() in %s creates a collaborator. Write it as a class of its own, inject it through the'
+				. ' constructor and bind it in the composition root, or create it in a factory.',
+				$location
+			);
 		}
 
 		return sprintf(
@@ -207,6 +210,34 @@ final class NewOnlyWhereAllowedRule implements Rule {
 			$created,
 			$location
 		);
+	}
+
+	/**
+	 * Get the name of the class a `new` expression creates.
+	 *
+	 * @param New_            $creation Object creation with a class name or an
+	 *                                  anonymous class.
+	 * @param ClassReflection $owner    Class the method belongs to.
+	 * @param Scope           $scope    Scope of the method.
+	 * @return string Name of the class, as PHPStan knows it.
+	 */
+	private function resolve_created( New_ $creation, ClassReflection $owner, Scope $scope ): string {
+		if ( $creation->class instanceof Class_ ) {
+			return $this->reflection->getAnonymousClassReflection( $creation->class, $scope )->getName();
+		}
+
+		$name = $creation->class;
+		if ( ! $name instanceof Name ) {
+			return 'class()';
+		}
+
+		if ( $name->toLowerString() === 'parent' ) {
+			$parent = $owner->getParentClass();
+
+			return $parent === null ? 'parent' : $parent->getName();
+		}
+
+		return $name->isSpecialClassName() ? $owner->getName() : $name->toString();
 	}
 
 	/**
@@ -242,7 +273,7 @@ final class NewOnlyWhereAllowedRule implements Rule {
 			'new %1$s in %2$s is a default for $%3$s, but $%3$s is not a nullable parameter typed to an interface'
 			. ' %1$s implements. Type it as ?SomeInterface with a default of null, so callers can pass their own'
 			. ' implementation.',
-			$created,
+			strpos( $created, 'AnonymousClass' ) === 0 ? 'class()' : $created,
 			$location,
 			is_string( $parameter->name ) ? $parameter->name : '…'
 		);
@@ -344,7 +375,8 @@ final class NewOnlyWhereAllowedRule implements Rule {
 			foreach ( $node->getSubNodeNames() as $sub_node_name ) {
 				$children = $node->$sub_node_name;
 				foreach ( is_array( $children ) ? $children : [ $children ] as $child ) {
-					if ( $child instanceof Node && ! $child instanceof ClassLike ) {
+					// A closure's variables are not the constructor's parameters.
+					if ( $child instanceof Node && ! $child instanceof ClassLike && ! $child instanceof FunctionLike ) {
 						$defaults += self::find_defaults( [ $child ] );
 					}
 				}

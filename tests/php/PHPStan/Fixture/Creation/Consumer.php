@@ -24,5 +24,6 @@ final class Consumer {
 		};
 		$dynamic   = new $class_name();
 		$closure   = static fn(): Service => new Service();
+		$query     = new \WP_Query();
 	}
 }

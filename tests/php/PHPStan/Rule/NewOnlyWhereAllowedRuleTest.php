@@ -33,7 +33,7 @@ final class NewOnlyWhereAllowedRuleTest extends RuleTestCase {
 		return new NewOnlyWhereAllowedRule(
 			new PluginNamespace( self::CREATION ),
 			[ self::CREATION . '\Builds' ],
-			[ self::CREATION . '\ValueObject' ],
+			[ self::CREATION . '\ValueObject', 'DateTimeImmutable' ],
 			$this->createReflectionProvider()
 		);
 	}
@@ -59,6 +59,7 @@ final class NewOnlyWhereAllowedRuleTest extends RuleTestCase {
 					self::TIP,
 				],
 				[ $this->collaborator( self::CREATION . '\Service', $create ), 26, self::TIP ],
+				[ $this->collaborator( 'WP_Query', $create ), 27, self::TIP ],
 			]
 		);
 	}
@@ -71,6 +72,22 @@ final class NewOnlyWhereAllowedRuleTest extends RuleTestCase {
 			[
 				[ $this->bad_default( self::CREATION . '\DefaultContract', $constructor, 'contract' ), 14, self::TIP ],
 				[ $this->bad_default( self::CREATION . '\Service', $constructor, 'service' ), 15, self::TIP ],
+			]
+		);
+	}
+
+	public function test_it_resolves_anonymous_classes_parent_and_closures(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'AnonymousDefaults.php', self::FIXTURES . 'Moment.php' ],
+			[
+				[
+					$this->collaborator(
+						self::CREATION . '\DefaultContract',
+						self::CREATION . '\AnonymousDefaults::__construct()'
+					),
+					25,
+					self::TIP,
+				],
 			]
 		);
 	}

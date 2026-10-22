@@ -348,7 +348,7 @@ anonymous classes and objects of a class chosen at runtime.
   factory interfaces;
 - a poka-yoke default, `$this->property = $parameter ?? new Default()` in a
   constructor, when the parameter is nullable and typed to an interface the
-  default implements;
+  default implements; the default may be an anonymous class;
 - value objects in the configured list, and anything throwable; how exceptions
   are created is up to `architecture.throwOnlyPluginExceptions` and
   `architecture.exceptionsThroughNamedConstructors`.
