@@ -80,14 +80,30 @@ Use `needs:` labels for blockers that are not another issue:
 
 - `needs: decision`: post the exact question, the options, their
   consequences, and a recommendation kept separate from the approval.
-- `needs: design`: the remaining work is an API or structure judgment the code
-  cannot settle. Post what is decided, what is left, and the specific questions
-  to answer. Do not label it `agent-ready`: an agent handed a design question
-  invents an answer, and nobody can tell it apart from a decided one.
+- `needs: design`: the issue waits on **visual** design (a user interface,
+  the project website, graphics). Post what is decided, what is left, and the
+  specific visual questions to answer. Never use it for software design.
 - `needs: repro`: record what was tried and what evidence is still missing.
 - `needs: human`: put the exact human action and its completion evidence in
   the body, and remove `agent-ready` in the same edit.
 - `needs: use-case`: name the scenario that would justify the work.
+
+### Unsettled software design
+
+When the remaining question is how an API, an interface or the
+orchestration should look, the next step is a **design proposal**, not a
+`needs:` label. Keep the issue `agent-ready` and say in the body that the next
+deliverable is a proposal. The proposal is a comment on the issue with:
+
+- what is already decided, with links to the rulings and the design
+  principles that bind it;
+- the options, each with its trade-offs and how it fits the design principles;
+- a recommendation, kept separate from approval.
+
+After posting it, add `needs: decision`, remove `agent-ready`, and stop: an
+agent that implements its own proposal before the ruling has invented a
+decision. When the maintainer rules, record the decision (see "Keeping an
+issue true"), fold it into the body, and restore `agent-ready`.
 
 ## Picking up work
 

@@ -97,7 +97,7 @@
   {
     "name": "needs: design",
     "color": "e99695",
-    "description": "Blocked on an API or structural design answer the code cannot settle."
+    "description": "Blocked on visual design (UI, website, graphics). Software design is proposal work, not this label."
   },
   {
     "name": "needs: repro",
