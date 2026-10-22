@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
+use Nette\Neon\Neon;
+
 /**
  * Checks that the architecture rules are not silenced.
  *
@@ -92,25 +94,33 @@ final class SuppressionChecks {
 		}
 
 		$problems = [];
-		$contents = (string) file_get_contents( $config );
+		$files    = self::collect_configuration( $config, [] );
 
-		if ( preg_match( '/^\s*reportUnmatchedIgnoredErrors:\s*false\b/m', $contents ) ) {
-			$problems[] = $this->problem(
-				sprintf(
-					'%s turns off reportUnmatchedIgnoredErrors, so an ignore can outlive the error it hid.',
-					$this->layout->relative( $config )
-				)
-			);
-		}
+		foreach ( $files as $file => $decoded ) {
+			$parameters = is_array( $decoded['parameters'] ?? null ) ? $decoded['parameters'] : [];
 
-		foreach ( array_merge( [ $config ], self::get_included_files( $config, $contents ) ) as $file ) {
-			$text = (string) file_get_contents( $file );
-
-			if ( preg_match( '/^(\s*)ignoreErrors:\s*\n((?:\1\s+.*\n?|\s*\n)*)/m', $text, $matches )
-				&& strpos( $matches[2], 'architecture' ) !== false ) {
+			if ( ( $parameters['reportUnmatchedIgnoredErrors'] ?? true ) === false ) {
 				$problems[] = $this->problem(
-					sprintf( '%s ignores errors of an architecture rule.', $this->layout->relative( $file ) )
+					sprintf(
+						'%s turns off reportUnmatchedIgnoredErrors, so an ignore can outlive the error it hid.',
+						$this->layout->relative( $file )
+					)
 				);
+			}
+
+			$ignores = is_array( $parameters['ignoreErrors'] ?? null ) ? $parameters['ignoreErrors'] : [];
+			foreach ( $ignores as $ignore ) {
+				$identifier = self::find_ignored_rule( $ignore );
+
+				if ( $identifier !== null ) {
+					$problems[] = $this->problem(
+						sprintf(
+							'%1$s ignores errors of %2$s.',
+							$this->layout->relative( $file ),
+							$identifier
+						)
+					);
+				}
 			}
 		}
 
@@ -118,29 +128,86 @@ final class SuppressionChecks {
 	}
 
 	/**
-	 * Get the configuration files a PHPStan configuration includes, such as a
-	 * baseline, apart from those of installed packages.
+	 * Decode a configuration and the configuration files it includes, such
+	 * as a baseline, apart from those of installed packages.
 	 *
-	 * @param string $config   Path of the configuration.
-	 * @param string $contents Contents of the configuration.
-	 * @return array<string> Paths of the included files that exist.
+	 * @param string               $file  Path of the configuration.
+	 * @param array<string, mixed> $found Configurations decoded so far.
+	 * @return array<string, array<mixed>> Decoded configurations, keyed by path.
 	 */
-	private static function get_included_files( string $config, string $contents ): array {
-		$files = [];
+	private static function collect_configuration( string $file, array $found ): array {
+		$decoded        = Neon::decodeFile( $file );
+		$found[ $file ] = is_array( $decoded ) ? $decoded : [];
+		$includes       = is_array( $decoded ) && is_array( $decoded['includes'] ?? null ) ? $decoded['includes'] : [];
 
-		if ( preg_match( '/^includes:\s*\n((?:\s+-\s*.*\n?)*)/m', $contents, $matches ) ) {
-			preg_match_all( '/-\s*(\S+)/', $matches[1], $includes );
+		foreach ( $includes as $include ) {
+			$path = is_string( $include ) ? dirname( $file ) . '/' . $include : '';
 
-			foreach ( $includes[1] as $include ) {
-				$path = dirname( $config ) . '/' . $include;
+			if ( $path !== ''
+				&& strpos( $include, 'vendor/' ) !== 0
+				&& is_readable( $path )
+				&& ! isset( $found[ $path ] ) ) {
+				$found = self::collect_configuration( $path, $found );
+			}
+		}
 
-				if ( strpos( $include, 'vendor/' ) !== 0 && is_readable( $path ) ) {
-					$files[] = $path;
+		/**
+		 * Every value is a decoded configuration.
+		 *
+		 * @var array<string, array<mixed>> $found
+		 */
+		return $found;
+	}
+
+	/**
+	 * Find the architecture rule an ignoreErrors entry ignores.
+	 *
+	 * An entry ignores a rule by naming its identifier, or with a message
+	 * pattern that matches a fixed phrase of the rule's messages.
+	 *
+	 * @param mixed $ignore Entry of ignoreErrors.
+	 * @return string|null Identifier of the rule, or null.
+	 */
+	private static function find_ignored_rule( $ignore ): ?string {
+		$entry       = is_array( $ignore ) ? $ignore : [ 'message' => $ignore ];
+		$identifiers = array_merge( (array) ( $entry['identifier'] ?? [] ), (array) ( $entry['identifiers'] ?? [] ) );
+		$patterns    = array_merge( (array) ( $entry['message'] ?? [] ), (array) ( $entry['messages'] ?? [] ) );
+		$raw         = (array) ( $entry['rawMessage'] ?? [] );
+
+		foreach ( $identifiers as $identifier ) {
+			if ( is_string( $identifier ) && strpos( $identifier, 'architecture.' ) === 0 ) {
+				return $identifier;
+			}
+		}
+
+		// A pattern either is a fragment of the message, or spells the whole
+		// message out, so it either matches the phrase or contains it.
+		$texts = $raw;
+		foreach ( $patterns as $pattern ) {
+			if ( is_string( $pattern ) ) {
+				$texts[] = stripslashes( substr( $pattern, 1, -1 ) );
+			}
+		}
+
+		foreach ( RuleManifest::get_rules() as $identifier => $rule ) {
+			foreach ( $rule['signatures'] as $signature ) {
+				foreach ( $patterns as $pattern ) {
+					// An invalid pattern ignores nothing; PHPStan reports it.
+					// phpcs:ignore WordPress.PHP.NoSilencedErrors
+					if ( is_string( $pattern ) && @preg_match( $pattern, $signature ) === 1 ) {
+						return $identifier;
+					}
+				}
+
+				foreach ( $texts as $text ) {
+					if ( is_string( $text ) && strpos( $text, $signature ) !== false ) {
+						return $identifier;
+					}
 				}
 			}
 		}
 
-		return $files;
+		return null;
 	}
 
 	/**

@@ -70,7 +70,10 @@ cannot tell, such as the main plugin file and the view template directories,
 ## Adding a rule
 
 1. Add an entry to `RuleManifest`: identifier, principle and its anchor in
-   `docs/design-principles.md`, and the configuration key.
+   `docs/design-principles.md`, the configuration key, what checks it
+   (`checked_by`: the PHPStan rule classes, or the test methods of the
+   architecture suite), and fixed phrases of its messages (`signatures`),
+   which let the suppression check recognize ignores aimed at it.
 2. Write the rule in `tests/php/PHPStan/Rule/`, using the identifier and
    `RuleManifest::get_explanation()` as the tip, or write the check as a test
    in `tests/php/Architecture/`.
@@ -485,8 +488,17 @@ purpose. Ignores of other PHPStan, Psalm or PHPCS errors are not checked.
 with `needs: decision`; an exception the maintainer accepts becomes an
 allowance in the rule's configuration.
 
+An ignore counts as aimed at a rule when it names its identifier, or when its
+message pattern matches, or spells out, one of the phrases the rule's manifest
+entry lists as `signatures`.
+
 `RuleRegistrationTest` also keeps the rules, `RuleManifest` and this page in
-step: every PHPStan rule is registered in `tests/php/PHPStan/rules.neon`,
-every identifier a rule reports comes from `RuleManifest`, every manifest
-entry is reported by some rule, and every section on this page belongs to a
-rule in the manifest.
+step:
+
+- every identifier constant has a manifest entry;
+- every entry names what checks it, and that is a PHPStan rule registered in
+  `tests/php/PHPStan/rules.neon` or a test method that exists;
+- every PHPStan rule is registered, and named by an entry;
+- every signature still appears in a rule's messages;
+- no rule spells an identifier out instead of using its constant;
+- every section on this page belongs to a rule in the manifest.

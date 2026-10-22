@@ -72,15 +72,20 @@ final class SuppressionTest extends TestCase {
 					[
 						'includes:',
 						'    - vendor/package/extension.neon',
-						'    - phpstan-baseline.neon',
+						'    # The baseline holds the errors left to fix.',
+						"    - 'phpstan-baseline.neon'",
 						'',
 						'parameters:',
 						'    level: max',
 						'    reportUnmatchedIgnoredErrors: false',
-						'    ignoreErrors:',
+						'    ignoreErrors: # Temporary ignores.',
+						'        # Not an architecture error.',
 						"        - '#Some other error#'",
+						"        - '#is not final#'",
+						'        - {identifier: architecture.noStaticState}',
 						'        -',
-						'            identifier: architecture.finalByDefault',
+						"            message: '#^Class Acme\\\\Service is not final\\. Declare it final#'",
+						'            path: src/Service.php',
 						'    architecture:',
 						'        namespace: Acme',
 						'',
@@ -89,8 +94,8 @@ final class SuppressionTest extends TestCase {
 			)
 			->write(
 				'phpstan-baseline.neon',
-				"parameters:\n    ignoreErrors:\n        -\n            message: '#is not final#'\n"
-				. "            identifier: architecture.finalByDefault\n            count: 1\n"
+				"parameters:\n    ignoreErrors:\n        -\n            message: '#other#'\n"
+				. "            identifiers: [architecture.finalByDefault]\n            count: 1\n"
 			)
 			->checks_for_suppression()
 			->check_phpstan_configuration();
@@ -98,8 +103,10 @@ final class SuppressionTest extends TestCase {
 		$this->assertProblems(
 			[
 				'phpstan.neon.dist turns off reportUnmatchedIgnoredErrors, so an ignore can outlive the error it hid.',
-				'phpstan.neon.dist ignores errors of an architecture rule.',
-				'phpstan-baseline.neon ignores errors of an architecture rule.',
+				'phpstan.neon.dist ignores errors of architecture.finalByDefault.',
+				'phpstan.neon.dist ignores errors of architecture.noStaticState.',
+				'phpstan.neon.dist ignores errors of architecture.finalByDefault.',
+				'phpstan-baseline.neon ignores errors of architecture.finalByDefault.',
 			],
 			$problems
 		);
