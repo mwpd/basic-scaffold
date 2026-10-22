@@ -23,6 +23,10 @@ parametersSchema:
         noWordPressErrorMechanisms: structure([
             boundaryAdapters: listOf(string())
         ])
+        dependencyDirection: structure([
+            infrastructure: string()
+            compositionRoot: listOf(string())
+        ])
     ])
 
 services:
@@ -140,5 +144,17 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             marker: %architecture.exceptions.marker%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\DependencyDirectionRule
+        arguments:
+            root_namespace: %architecture.namespace%
+            test_namespaces: %architecture.excludedNamespaces%
+            exceptions: %architecture.exceptions.namespace%
+            infrastructure: %architecture.dependencyDirection.infrastructure%
+            composition_root: %architecture.dependencyDirection.compositionRoot%
+            reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule

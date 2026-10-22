@@ -62,6 +62,8 @@ final class RuleManifest {
 
 	public const EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS = 'architecture.exceptionsThroughNamedConstructors';
 
+	public const DEPENDENCY_DIRECTION = 'architecture.dependencyDirection';
+
 	public const STRICT_TYPES = 'architecture.strictTypes';
 
 	public const DECLARATIONS_FOLLOW_PSR4 = 'architecture.declarationsFollowPsr4';
@@ -107,6 +109,11 @@ final class RuleManifest {
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
 			'configuration'    => 'parameters.architecture.exceptions',
+		],
+		self::DEPENDENCY_DIRECTION                  => [
+			'principle'        => 'Principle 4: SOLID at the top, WordPress at the edges',
+			'principle_anchor' => '4-solid-at-the-top-wordpress-at-the-edges',
+			'configuration'    => 'parameters.architecture.dependencyDirection',
 		],
 		self::STRICT_TYPES                          => [
 			'principle'        => 'Hard rule: every PHP class file declares strict_types=1',
