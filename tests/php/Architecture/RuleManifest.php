@@ -64,6 +64,8 @@ final class RuleManifest {
 
 	public const DEPENDENCY_DIRECTION = 'architecture.dependencyDirection';
 
+	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
+
 	public const STRICT_TYPES = 'architecture.strictTypes';
 
 	public const DECLARATIONS_FOLLOW_PSR4 = 'architecture.declarationsFollowPsr4';
@@ -114,6 +116,11 @@ final class RuleManifest {
 			'principle'        => 'Principle 4: SOLID at the top, WordPress at the edges',
 			'principle_anchor' => '4-solid-at-the-top-wordpress-at-the-edges',
 			'configuration'    => 'parameters.architecture.dependencyDirection',
+		],
+		self::NEW_ONLY_WHERE_ALLOWED                => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'configuration'    => 'parameters.architecture.newOnlyWhereAllowed',
 		],
 		self::STRICT_TYPES                          => [
 			'principle'        => 'Hard rule: every PHP class file declares strict_types=1',

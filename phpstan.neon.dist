@@ -62,3 +62,17 @@ parameters:
             # Directories of the view templates that run in production.
             views:
                 - %currentWorkingDirectory%/views
+        newOnlyWhereAllowed:
+            # Interfaces whose implementations create objects for a living, on
+            # top of classes named ...Factory (design principle 5).
+            factories:
+                - MWPD\BasicScaffold\Infrastructure\Injector
+                - MWPD\BasicScaffold\Infrastructure\Instantiator
+            # Classes that represent a value rather than a collaborator, and
+            # may be created anywhere.
+            valueObjects:
+                - MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
+                - DateTimeImmutable
+                - DateInterval
+                - ArrayIterator
+                - SplObjectStorage

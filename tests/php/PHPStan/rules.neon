@@ -28,6 +28,10 @@ parametersSchema:
             compositionRoot: listOf(string())
             views: listOf(string())
         ])
+        newOnlyWhereAllowed: structure([
+            factories: listOf(string())
+            valueObjects: listOf(string())
+        ])
     ])
 
 services:
@@ -159,5 +163,30 @@ services:
             views: %architecture.dependencyDirection.views%
             reflection: @PHPStan\Reflection\ReflectionProvider
             file_type_mapper: @PHPStan\Type\FileTypeMapper
+        tags:
+            - phpstan.rules.rule
+
+    architectureCreationAllowances:
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\CreationAllowances
+        arguments:
+            factories: %architecture.newOnlyWhereAllowed.factories%
+            value_objects: %architecture.newOnlyWhereAllowed.valueObjects%
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        autowired: false
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NewOnlyWhereAllowedRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            allowances: @architectureCreationAllowances
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\DynamicCreationRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            allowances: @architectureCreationAllowances
         tags:
             - phpstan.rules.rule
