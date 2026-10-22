@@ -36,6 +36,14 @@ parametersSchema:
             lifecycleMethods: arrayOf(string(), string())
             contextFunctions: listOf(string())
         ])
+        prefixedNames: arrayOf(
+            structure([
+                prefix: string()
+                constants: listOf(string())
+                allowed: listOf(string())
+            ]),
+            string()
+        )
     ])
 
 services:
@@ -220,6 +228,15 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             context_functions: %architecture.hooks.contextFunctions%
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\PrefixedNamesRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            kinds: %architecture.prefixedNames%
             reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule

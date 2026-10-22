@@ -1,0 +1,341 @@
+<?php
+/**
+ * MWPD Basic Plugin Scaffold.
+ *
+ * @package   MWPD\BasicScaffold
+ * @author    Alain Schlesser <alain.schlesser@gmail.com>
+ * @license   MIT
+ * @link      https://www.mwpd.io/
+ * @copyright 2019 Alain Schlesser
+ */
+
+declare( strict_types=1 );
+
+namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
+
+use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
+use PhpParser\Node;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\BinaryOp\Concat;
+use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Expr\FuncCall;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
+use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ReflectionProvider;
+use PHPStan\Rules\IdentifierRuleError;
+use PHPStan\Rules\Rule;
+use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\Type;
+
+/**
+ * The names the plugin creates carry its prefix.
+ *
+ * Several plugins built from this scaffold run side by side, so every name
+ * they put into WordPress's shared spaces has to be their own: the hooks they
+ * fire, their options, transients and meta keys, and their script and style
+ * handles. Each kind of name has its own prefix, so each can follow the
+ * convention WordPress uses for it.
+ *
+ * A name passes when PHPStan knows it starts with the prefix, or when it is
+ * built from one of the class's own prefix constants, such as
+ * `static::HOOK_PREFIX . 'services'`. Names that only read what WordPress
+ * itself owns, such as `get_option( 'date_format' )`, can be allowed per kind.
+ *
+ * @phpstan-type Kind array{prefix: string, constants: array<string>, allowed: array<string>}
+ * @implements Rule<FuncCall>
+ */
+final class PrefixedNamesRule implements Rule {
+
+	/**
+	 * The functions checked: kind of name, position of the name, and whether
+	 * the call only reads a name, so that names WordPress owns may be allowed.
+	 */
+	private const FUNCTIONS = [
+		'do_action'               => [ 'hooks', 0, true ],
+		'do_action_ref_array'     => [ 'hooks', 0, true ],
+		'apply_filters'           => [ 'hooks', 0, true ],
+		'apply_filters_ref_array' => [ 'hooks', 0, true ],
+		'add_option'              => [ 'options', 0, false ],
+		'update_option'           => [ 'options', 0, false ],
+		'delete_option'           => [ 'options', 0, false ],
+		'get_option'              => [ 'options', 0, true ],
+		'add_site_option'         => [ 'options', 0, false ],
+		'update_site_option'      => [ 'options', 0, false ],
+		'delete_site_option'      => [ 'options', 0, false ],
+		'get_site_option'         => [ 'options', 0, true ],
+		'set_transient'           => [ 'transients', 0, false ],
+		'get_transient'           => [ 'transients', 0, false ],
+		'delete_transient'        => [ 'transients', 0, false ],
+		'set_site_transient'      => [ 'transients', 0, false ],
+		'get_site_transient'      => [ 'transients', 0, false ],
+		'delete_site_transient'   => [ 'transients', 0, false ],
+		'register_meta'           => [ 'meta', 1, false ],
+		'register_post_meta'      => [ 'meta', 1, false ],
+		'register_term_meta'      => [ 'meta', 1, false ],
+		'wp_register_script'      => [ 'assets', 0, false ],
+		'wp_register_style'       => [ 'assets', 0, false ],
+		'wp_enqueue_script'       => [ 'assets', 0, true ],
+		'wp_enqueue_style'        => [ 'assets', 0, true ],
+	];
+
+	/**
+	 * Code the rule applies to.
+	 */
+	private PluginNamespace $plugin_namespace;
+
+	/**
+	 * Prefix, prefix constants and allowed names of each kind of name.
+	 *
+	 * @var array<string, Kind>
+	 */
+	private array $kinds;
+
+	/**
+	 * Reflection, to tell which function a call refers to.
+	 */
+	private ReflectionProvider $reflection;
+
+	/**
+	 * Instantiate a PrefixedNamesRule object.
+	 *
+	 * @param PluginNamespace     $plugin_namespace Code the rule applies to.
+	 * @param array<string, Kind> $kinds            Prefix, prefix constants and
+	 *                                              allowed names of each kind.
+	 * @param ReflectionProvider  $reflection       Reflection, to tell which
+	 *                                              function a call refers to.
+	 */
+	public function __construct( PluginNamespace $plugin_namespace, array $kinds, ReflectionProvider $reflection ) {
+		$this->plugin_namespace = $plugin_namespace;
+		$this->kinds            = $kinds;
+		$this->reflection       = $reflection;
+	}
+
+	/**
+	 * Get the type of node the rule inspects.
+	 *
+	 * @return string Node class name.
+	 */
+	public function getNodeType(): string {
+		return FuncCall::class;
+	}
+
+	/**
+	 * Report a name the plugin creates without its prefix.
+	 *
+	 * @param FuncCall $node  Function call to inspect.
+	 * @param Scope    $scope Scope of the call.
+	 * @return list<IdentifierRuleError> Errors found.
+	 */
+	public function processNode( Node $node, Scope $scope ): array {
+		$called = CalledFunction::name_of( $node, $scope, $this->reflection );
+
+		if ( $called === null
+			|| ! isset( self::FUNCTIONS[ $called ] )
+			|| ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
+			return [];
+		}
+
+		[ $kind, $position, $reads ] = self::FUNCTIONS[ $called ];
+		$settings                    = $this->kinds[ $kind ] ?? null;
+
+		if ( $settings === null ) {
+			return [];
+		}
+
+		// Enqueueing with a source registers the handle, so it creates the name.
+		if ( $kind === 'assets' && $reads && self::passes_source( $node, $scope ) ) {
+			$reads = false;
+		}
+
+		$problem = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads );
+
+		return $problem === null
+			? []
+			: [
+				RuleErrorBuilder::message( $problem )
+					->identifier( RuleManifest::PREFIXED_NAMES )
+					->tip( RuleManifest::get_explanation( RuleManifest::PREFIXED_NAMES ) )
+					->build(),
+			];
+	}
+
+	/**
+	 * Find the argument that gives the name, and check it.
+	 *
+	 * An argument unpacked from a constant array is read from the array. Any
+	 * other unpacking hides the name from the rule.
+	 *
+	 * @param FuncCall $node     Function call.
+	 * @param int      $position Position of the name.
+	 * @param Scope    $scope    Scope of the call.
+	 * @param string   $called   Function the name is passed to.
+	 * @param string   $kind     Kind of name.
+	 * @param Kind     $settings Prefix, prefix constants and allowed names.
+	 * @param bool     $reads    Whether the call only reads the name.
+	 * @return string|null What is wrong and what to do instead, or null.
+	 */
+	private function check_argument(
+		FuncCall $node,
+		int $position,
+		Scope $scope,
+		string $called,
+		string $kind,
+		array $settings,
+		bool $reads
+	): ?string {
+		$index = 0;
+
+		foreach ( $node->getArgs() as $argument ) {
+			if ( ! $argument->unpack ) {
+				if ( $index === $position ) {
+					$type = $scope->getType( $argument->value );
+
+					return $this->check( $argument->value, $type, $called, $kind, $settings, $reads );
+				}
+
+				++$index;
+				continue;
+			}
+
+			$arrays = $scope->getType( $argument->value )->getConstantArrays();
+			if ( count( $arrays ) !== 1 ) {
+				return $this->check( null, $scope->getType( $argument->value ), $called, $kind, $settings, $reads );
+			}
+
+			foreach ( $arrays[0]->getValueTypes() as $type ) {
+				if ( $index === $position ) {
+					return $this->check( null, $type, $called, $kind, $settings, $reads );
+				}
+
+				++$index;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check whether an enqueue call passes a source, which registers the handle.
+	 *
+	 * @param FuncCall $node  Enqueue call.
+	 * @param Scope    $scope Scope of the call.
+	 * @return bool Whether a source other than an empty string may be passed.
+	 */
+	private static function passes_source( FuncCall $node, Scope $scope ): bool {
+		$source = $node->getArgs()[1] ?? null;
+
+		if ( $source === null ) {
+			return false;
+		}
+
+		$strings = $scope->getType( $source->value )->getConstantStrings();
+
+		return $strings === [] || $strings[0]->getValue() !== '';
+	}
+
+	/**
+	 * Check one name.
+	 *
+	 * @param Expr|null $name     Expression that gives the name, if there is
+	 *                            one of its own.
+	 * @param Type      $type     Type of the name.
+	 * @param string    $called   Function the name is passed to.
+	 * @param string    $kind     Kind of name.
+	 * @param Kind      $settings Prefix, prefix constants and allowed names.
+	 * @param bool      $reads    Whether the call only reads the name.
+	 * @return string|null What is wrong and what to do instead, or null.
+	 */
+	private function check(
+		?Expr $name,
+		Type $type,
+		string $called,
+		string $kind,
+		array $settings,
+		bool $reads
+	): ?string {
+		if ( $name !== null && $this->starts_with_prefix_constant( $name, $settings['constants'] ) ) {
+			return null;
+		}
+
+		$how = $settings['constants'] === []
+			? sprintf( "a name that starts with '%s'", $settings['prefix'] )
+			: sprintf(
+				"the prefix constant, as in static::%s . 'name', or a name that starts with '%s'",
+				$settings['constants'][0],
+				$settings['prefix']
+			);
+
+		$strings = $type->getConstantStrings();
+		if ( $strings === [] ) {
+			return sprintf(
+				'%1$s() gets a %2$s name the rule cannot check. Use %3$s, so the name is recognizably the'
+				. ' plugin\'s own.',
+				$called,
+				self::describe_kind( $kind ),
+				$how
+			);
+		}
+
+		foreach ( $strings as $string ) {
+			$value = $string->getValue();
+
+			if ( strpos( $value, $settings['prefix'] ) === 0
+				|| ( $reads && in_array( $value, $settings['allowed'], true ) ) ) {
+				continue;
+			}
+
+			return sprintf(
+				"%1\$s() uses the %2\$s name '%3\$s' without the plugin's prefix. Use %4\$s"
+				. ' (parameters.architecture.prefixedNames.%5$s), so plugins built from this scaffold do not'
+				. ' clash.',
+				$called,
+				self::describe_kind( $kind ),
+				$value,
+				$how,
+				$kind
+			);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check whether a name is built from a prefix constant.
+	 *
+	 * @param Expr          $name      Expression that gives the name.
+	 * @param array<string> $constants Names of the prefix constants.
+	 * @return bool Whether the left-most part is a prefix constant.
+	 */
+	private function starts_with_prefix_constant( Expr $name, array $constants ): bool {
+		while ( $name instanceof Concat ) {
+			$name = $name->left;
+		}
+
+		// Only the plugin's own constant counts, not one of the same name in
+		// another class.
+		return $name instanceof ClassConstFetch
+			&& $name->class instanceof Name
+			&& in_array( $name->class->toLowerString(), [ 'self', 'static' ], true )
+			&& $name->name instanceof Identifier
+			&& in_array( $name->name->toString(), $constants, true );
+	}
+
+	/**
+	 * Describe a kind of name for a message.
+	 *
+	 * @param string $kind Kind of name.
+	 * @return string Description.
+	 */
+	private static function describe_kind( string $kind ): string {
+		$descriptions = [
+			'hooks'      => 'hook',
+			'options'    => 'option',
+			'transients' => 'transient',
+			'meta'       => 'meta key',
+			'assets'     => 'asset handle',
+		];
+
+		return $descriptions[ $kind ] ?? $kind;
+	}
+}

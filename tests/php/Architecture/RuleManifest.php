@@ -72,6 +72,8 @@ final class RuleManifest {
 
 	public const NO_CONTEXT_CHECKS_IN_REGISTER = 'architecture.noContextChecksInRegister';
 
+	public const PREFIXED_NAMES = 'architecture.prefixedNames';
+
 	public const STRICT_TYPES = 'architecture.strictTypes';
 
 	public const DECLARATIONS_FOLLOW_PSR4 = 'architecture.declarationsFollowPsr4';
@@ -142,6 +144,11 @@ final class RuleManifest {
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'configuration'    => 'parameters.architecture.hooks.contextFunctions',
+		],
+		self::PREFIXED_NAMES                        => [
+			'principle'        => 'Principle 13: One plugin, to arbitrary complexity',
+			'principle_anchor' => '13-one-plugin-to-arbitrary-complexity',
+			'configuration'    => 'parameters.architecture.prefixedNames',
 		],
 		self::STRICT_TYPES                          => [
 			'principle'        => 'Hard rule: every PHP class file declares strict_types=1',

@@ -97,3 +97,43 @@ parameters:
                 - is_front_page
                 - is_home
                 - is_archive
+        # The prefix of each kind of name the plugin creates, and the class
+        # constants that hold it (design principle 13). Rename the prefixes
+        # together with the plugin.
+        prefixedNames:
+            hooks:
+                prefix: mwpd.basic_scaffold.
+                constants:
+                    - HOOK_PREFIX
+                # Hooks of WordPress the plugin fires itself.
+                allowed: []
+            options:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                # Options of WordPress the plugin reads.
+                allowed:
+                    - date_format
+                    - time_format
+                    - timezone_string
+                    - gmt_offset
+                    - blogname
+                    - home
+                    - siteurl
+            transients:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                allowed: []
+            meta:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                allowed: []
+            assets:
+                prefix: mwpd-basic-scaffold-
+                constants: []
+                # Scripts and styles of WordPress the plugin enqueues.
+                allowed:
+                    - jquery
+                    - wp-api-fetch
+                    - wp-components
+                    - wp-element
+                    - wp-i18n
