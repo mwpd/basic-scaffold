@@ -43,6 +43,8 @@ final class ThrowOnlyPluginExceptionsRuleTest extends ArchitectureRuleTestCase {
 			[
 				[ $this->message( 'RuntimeException' ), 41, self::TIP ],
 				[ $this->message( 'LogicException' ), 58, self::TIP ],
+				[ $this->message( 'Throwable' ), 82, self::TIP ],
+				[ $this->message( 'mixed' ), 85, self::TIP ],
 			]
 		);
 	}

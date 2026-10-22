@@ -135,7 +135,7 @@ the object that computes it.
 **Checks:** inside the plugin's namespace, no calls to `error_log()`,
 `trigger_error()`, `user_error()` or `_doing_it_wrong()`, no `new WP_Error()`,
 and no `WP_Error` in a parameter, return or property type, native or in a
-docblock.
+docblock, of a method, function, closure or arrow function.
 
 **Allows:** inspecting what WordPress returns with `is_wp_error()` or
 `instanceof WP_Error`, which is how a `WP_Error` becomes an exception where the
@@ -156,7 +156,8 @@ WordPress catches it and decides what the user sees.
 **Checks:** everything the plugin throws implements its marker interface,
 `BasicScaffoldException`.
 
-**Allows:** rethrowing the exception a `catch` block caught.
+**Allows:** rethrowing the exception a `catch` block caught, also from a
+closure that imports it with `use`.
 
 **Configuration:** `exceptions.marker` and `exceptions.namespace` name the
 marker interface and the namespace the exceptions live in.
@@ -168,10 +169,11 @@ marker interface and the namespace the exceptions live in.
 
 **Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
 
-**Checks:** every class that implements the marker interface lives in the
-exception namespace, extends the SPL exception that matches its category, and
-has a named constructor: a public static method that returns `self`. Everything
-in the exception namespace implements the marker interface.
+**Checks:** every class in the plugin's namespace that implements the marker
+interface lives in the exception namespace, extends the SPL exception that
+matches its category, and has a named constructor: a public static method that
+returns `self`. Everything in the exception namespace implements the marker
+interface.
 
 **Allows:** interfaces that extend the marker interface, abstract exceptions
 without a named constructor, and code listed as not being an exception.

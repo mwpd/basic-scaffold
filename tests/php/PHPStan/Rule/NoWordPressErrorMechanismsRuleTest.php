@@ -19,7 +19,9 @@ use PHPStan\Rules\Rule;
  * The rules that share the architecture.noWordPressErrorMechanisms
  * identifier, each tested against the same fixtures.
  *
- * @phpstan-type TestedRule NoErrorReportingFunctionsRule|NoWordPressErrorCreationRule|NoWordPressErrorInMethodsRule|NoWordPressErrorInFunctionsRule|NoWordPressErrorInPropertiesRule
+ * @phpstan-type TestedRule NoErrorReportingFunctionsRule|NoWordPressErrorCreationRule|NoWordPressErrorInMethodsRule
+ *     |NoWordPressErrorInFunctionsRule|NoWordPressErrorInClosuresRule|NoWordPressErrorInArrowFunctionsRule
+ *     |NoWordPressErrorInPropertiesRule
  * @extends ArchitectureRuleTestCase<TestedRule>
  */
 final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase {
@@ -43,7 +45,7 @@ final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase 
 	}
 
 	public function test_it_reports_wordpress_error_functions(): void {
-		$this->rule = new NoErrorReportingFunctionsRule( $this->plugin_namespace() );
+		$this->rule = new NoErrorReportingFunctionsRule( $this->plugin_namespace(), $this->createReflectionProvider() );
 
 		$this->analyse(
 			$this->fixtures(),
@@ -84,6 +86,28 @@ final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase 
 			$this->fixtures(),
 			[
 				[ $this->transport_message( 'Function %s\last_error() takes or returns a WP_Error.' ), 9, self::TIP ],
+			]
+		);
+	}
+
+	public function test_it_reports_closures_that_take_or_return_a_wp_error(): void {
+		$this->rule = new NoWordPressErrorInClosuresRule( $this->transport() );
+
+		$this->analyse(
+			$this->fixtures(),
+			[
+				[ $this->transport_message( 'A closure takes or returns a WP_Error.' ), 67, self::TIP ],
+			]
+		);
+	}
+
+	public function test_it_reports_arrow_functions_that_take_or_return_a_wp_error(): void {
+		$this->rule = new NoWordPressErrorInArrowFunctionsRule( $this->transport() );
+
+		$this->analyse(
+			$this->fixtures(),
+			[
+				[ $this->transport_message( 'An arrow function takes or returns a WP_Error.' ), 70, self::TIP ],
 			]
 		);
 	}

@@ -62,4 +62,28 @@ final class Service {
 	public function create_directly(): void {
 		throw new GoodException( 'Direct.' );
 	}
+
+	public function callbacks(): void {
+		$closure = static function ( WP_Error $error ): WP_Error {
+			return $error;
+		};
+		$arrow   = static fn( WP_Error $error ): WP_Error => $error;
+		$logger  = static fn( string $message ) => \Acme\Logger\error_log( $message );
+	}
+
+	public function rethrow_from_callbacks(): void {
+		try {
+			$this->throw_generic();
+		} catch ( Throwable $throwable ) {
+			$imported = static function () use ( $throwable ): void {
+				throw $throwable;
+			};
+			$shadowed = static function ( Throwable $throwable ): void {
+				throw $throwable;
+			};
+			$nested   = static function (): void {
+				throw $throwable;
+			};
+		}
+	}
 }

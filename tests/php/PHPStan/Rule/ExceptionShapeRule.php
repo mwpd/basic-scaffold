@@ -59,6 +59,11 @@ final class ExceptionShapeRule implements Rule {
 	];
 
 	/**
+	 * Code the rule applies to.
+	 */
+	private PluginNamespace $plugin_namespace;
+
+	/**
 	 * Marker interface every exception of the plugin implements.
 	 */
 	private string $marker;
@@ -83,14 +88,22 @@ final class ExceptionShapeRule implements Rule {
 	/**
 	 * Instantiate an ExceptionShapeRule object.
 	 *
-	 * @param string        $marker              Marker interface of the
-	 *                                           plugin's exceptions.
-	 * @param string        $exception_namespace Namespace the plugin's
-	 *                                           exceptions live in.
-	 * @param array<string> $exempt              Code in the exception namespace
-	 *                                           that is not an exception.
+	 * @param PluginNamespace $plugin_namespace    Code the rule applies to.
+	 * @param string          $marker              Marker interface of the
+	 *                                             plugin's exceptions.
+	 * @param string          $exception_namespace Namespace the plugin's
+	 *                                             exceptions live in.
+	 * @param array<string>   $exempt              Code in the exception
+	 *                                             namespace that is not an
+	 *                                             exception.
 	 */
-	public function __construct( string $marker, string $exception_namespace, array $exempt ) {
+	public function __construct(
+		PluginNamespace $plugin_namespace,
+		string $marker,
+		string $exception_namespace,
+		array $exempt
+	) {
+		$this->plugin_namespace    = $plugin_namespace;
 		$this->marker              = trim( $marker, '\\' );
 		$this->exception_namespace = trim( $exception_namespace, '\\' );
 		$this->exceptions          = new PluginNamespace( $exception_namespace );
@@ -117,7 +130,7 @@ final class ExceptionShapeRule implements Rule {
 		$class = $node->getClassReflection();
 		$name  = $class->getName();
 
-		if ( $class->isAnonymous() ) {
+		if ( $class->isAnonymous() || ! $this->plugin_namespace->contains( $name ) ) {
 			return [];
 		}
 

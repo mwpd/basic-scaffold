@@ -18,6 +18,7 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
@@ -53,12 +54,20 @@ final class NoErrorReportingFunctionsRule implements Rule {
 	private PluginNamespace $plugin_namespace;
 
 	/**
+	 * Reflection, to tell which function a call refers to.
+	 */
+	private ReflectionProvider $reflection;
+
+	/**
 	 * Instantiate a NoErrorReportingFunctionsRule object.
 	 *
-	 * @param PluginNamespace $plugin_namespace Code the rule applies to.
+	 * @param PluginNamespace    $plugin_namespace Code the rule applies to.
+	 * @param ReflectionProvider $reflection       Reflection, to tell which
+	 *                                             function a call refers to.
 	 */
-	public function __construct( PluginNamespace $plugin_namespace ) {
+	public function __construct( PluginNamespace $plugin_namespace, ReflectionProvider $reflection ) {
 		$this->plugin_namespace = $plugin_namespace;
+		$this->reflection       = $reflection;
 	}
 
 	/**
@@ -83,7 +92,14 @@ final class NoErrorReportingFunctionsRule implements Rule {
 			return [];
 		}
 
-		$function = strtolower( $node->name->getLast() );
+		// A function PHPStan does not know, like _doing_it_wrong() without the
+		// WordPress stubs, keeps the name it is called by. An unqualified
+		// name then falls back to the global function, as in PHP.
+		$function = strtolower(
+			$this->reflection->hasFunction( $node->name, $scope )
+				? $this->reflection->getFunction( $node->name, $scope )->getName()
+				: ltrim( $node->name->toString(), '\\' )
+		);
 
 		if ( ! in_array( $function, self::FUNCTIONS, true ) ) {
 			return [];

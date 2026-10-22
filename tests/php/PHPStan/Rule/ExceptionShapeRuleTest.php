@@ -30,7 +30,15 @@ final class ExceptionShapeRuleTest extends ArchitectureRuleTestCase {
 		. 'Rule: docs/architecture-rules.md#architectureexceptionshape';
 
 	protected function getRule(): Rule {
-		return new ExceptionShapeRule( self::MARKER, self::EXCEPTIONS, [ self::EXCEPTIONS . '\Helper' ] );
+		return new ExceptionShapeRule(
+			new PluginNamespace(
+				'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Errors',
+				[ 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Errors\TestDouble' ]
+			),
+			self::MARKER,
+			self::EXCEPTIONS,
+			[ self::EXCEPTIONS . '\Helper' ]
+		);
 	}
 
 	public function test_it_reports_exceptions_out_of_shape(): void {
@@ -81,6 +89,7 @@ final class ExceptionShapeRuleTest extends ArchitectureRuleTestCase {
 			'Exception/NotAnException',
 			'Exception/NotAMarker',
 			'Elsewhere/MisplacedException',
+			'TestDouble/FakeException',
 		];
 
 		return array_map(

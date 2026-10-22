@@ -92,6 +92,20 @@ services:
             - phpstan.rules.rule
 
     -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInClosuresRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoWordPressErrorInArrowFunctionsRule
+        arguments:
+            transport: @architectureWordPressErrorTransport
+        tags:
+            - phpstan.rules.rule
+
+    -
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ThrowOnlyPluginExceptionsRule
         arguments:
             plugin_namespace: @architecturePluginNamespace
@@ -103,6 +117,7 @@ services:
     -
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ExceptionShapeRule
         arguments:
+            plugin_namespace: @architecturePluginNamespace
             marker: %architecture.exceptions.marker%
             exception_namespace: %architecture.exceptions.namespace%
             exempt: %architecture.exceptions.notExceptions%
