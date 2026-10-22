@@ -331,3 +331,35 @@ directories of the view templates that run in production. The exceptions' namesp
 **Fix:** depend on the interface the message names and bind the implementation
 in the composition root, or receive what you need through the constructor. In
 the infrastructure, add an interface the other class implements.
+
+### `architecture.newOnlyWhereAllowed`
+
+**Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph).
+
+**Checks:** every `new` in the plugin's namespace, by default. A collaborator,
+whether a service of the plugin or a WordPress class such as `WP_Query`, comes
+from the injector, not from `new` in the class that uses it. So do
+anonymous classes and objects of a class chosen at runtime.
+
+**Allows:**
+
+- anything inside a factory: a class named `…Factory`, a class implementing an
+  interface named `…Factory`, or a class implementing one of the configured
+  factory interfaces;
+- a poka-yoke default, `$this->property = $parameter ?? new Default()` in a
+  constructor, when the parameter is nullable and typed to an interface the
+  default implements;
+- value objects in the configured list, and anything throwable; how exceptions
+  are created is up to `architecture.throwOnlyPluginExceptions` and
+  `architecture.exceptionsThroughNamedConstructors`.
+
+**Configuration:** `newOnlyWhereAllowed.factories` lists the factory
+interfaces: the scaffold lists `Injector` and `Instantiator`.
+`newOnlyWhereAllowed.valueObjects` lists the value objects: the scaffold lists
+`LazilyInstantiatedService` and PHP's `DateTimeImmutable`, `DateInterval`,
+`ArrayIterator` and `SplObjectStorage`.
+
+**Fix:** receive the object through the constructor, typed to its interface,
+and bind the implementation in the composition root. Ask a factory for objects
+that can only be created later or are needed once per use. Add a class to
+`valueObjects` only if it represents a value rather than a collaborator.
