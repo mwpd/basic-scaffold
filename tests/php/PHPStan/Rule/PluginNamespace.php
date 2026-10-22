@@ -72,6 +72,24 @@ final class PluginNamespace {
 	}
 
 	/**
+	 * Check whether code declared in a namespace is plugin code.
+	 *
+	 * Anonymous classes have no name of their own to check, so rules look at
+	 * the namespace they are declared in.
+	 *
+	 * @param string|null $name Namespace, or null for the global one.
+	 * @return bool Whether code in the namespace belongs to the plugin.
+	 */
+	public function contains_namespace( ?string $name ): bool {
+		if ( $name === null ) {
+			return false;
+		}
+
+		// Any name declared in the namespace stands in for the namespace.
+		return $this->contains( $name . '\\_' );
+	}
+
+	/**
 	 * Normalize a name for comparison.
 	 *
 	 * @param string $name Namespace or fully qualified name.

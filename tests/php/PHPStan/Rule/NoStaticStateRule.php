@@ -19,6 +19,7 @@ use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Static_;
 use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
@@ -60,7 +61,7 @@ final class NoStaticStateRule implements Rule {
 	 */
 	public function __construct( PluginNamespace $plugin_namespace, array $allowed ) {
 		$this->plugin_namespace = $plugin_namespace;
-		$this->allowed          = array_map( [ PluginNamespace::class, 'normalize' ], $allowed );
+		$this->allowed          = array_map( [ self::class, 'normalize_member' ], $allowed );
 	}
 
 	/**
@@ -104,13 +105,13 @@ final class NoStaticStateRule implements Rule {
 	private function check_static_property( Property $node, Scope $scope ): array {
 		$class = $scope->getClassReflection();
 
-		if ( $class === null || ! $this->plugin_namespace->contains( $class->getName() ) ) {
+		if ( $class === null || ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
 			return [];
 		}
 
 		$errors = [];
 		foreach ( $node->props as $property ) {
-			$name = sprintf( '%s::$%s', $class->getName(), $property->name->toString() );
+			$name = sprintf( '%s::$%s', self::get_class_label( $class ), $property->name->toString() );
 
 			if ( $this->is_allowed( $name ) ) {
 				continue;
@@ -139,9 +140,9 @@ final class NoStaticStateRule implements Rule {
 
 		$owner = $class === null
 			? $function->getName()
-			: sprintf( '%s::%s', $class->getName(), $function->getName() );
+			: sprintf( '%s::%s', self::get_class_label( $class ), $function->getName() );
 
-		if ( ! $this->plugin_namespace->contains( $owner ) || $this->is_allowed( $owner ) ) {
+		if ( ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) || $this->is_allowed( $owner ) ) {
 			return [];
 		}
 
@@ -166,7 +167,37 @@ final class NoStaticStateRule implements Rule {
 	 * @return bool Whether it is allowed.
 	 */
 	private function is_allowed( string $name ): bool {
-		return in_array( PluginNamespace::normalize( $name ), $this->allowed, true );
+		return in_array( self::normalize_member( $name ), $this->allowed, true );
+	}
+
+	/**
+	 * Get the name a message uses for a class.
+	 *
+	 * Anonymous classes have no name, and the error's line already points at
+	 * them.
+	 *
+	 * @param ClassReflection $reflection Class to name.
+	 * @return string Name of the class.
+	 */
+	private static function get_class_label( ClassReflection $reflection ): string {
+		return $reflection->isAnonymous() ? 'class@anonymous' : $reflection->getName();
+	}
+
+	/**
+	 * Normalize a method or property name for comparison.
+	 *
+	 * PHP compares class and method names without regard to case, but
+	 * property names with it.
+	 *
+	 * @param string $name Method (`Class::method`) or property (`Class::$property`).
+	 * @return string Normalized name.
+	 */
+	private static function normalize_member( string $name ): string {
+		$parts  = explode( '::', $name, 2 );
+		$member = $parts[1] ?? '';
+
+		return PluginNamespace::normalize( $parts[0] ) . '::'
+			. ( strpos( $member, '$' ) === 0 ? $member : strtolower( $member ) );
 	}
 
 	/**

@@ -35,7 +35,10 @@ final class NoStaticStateRuleTest extends RuleTestCase {
 	protected function getRule(): Rule {
 		return new NoStaticStateRule(
 			new PluginNamespace( self::FIXTURE_NAMESPACE ),
-			[ self::FIXTURE_NAMESPACE . '\PluginFactory::create' ]
+			[
+				self::FIXTURE_NAMESPACE . '\PluginFactory::create',
+				self::FIXTURE_NAMESPACE . '\AllowedCache::$cache',
+			]
 		);
 	}
 
@@ -46,6 +49,9 @@ final class NoStaticStateRuleTest extends RuleTestCase {
 				[ $this->message( 'Static property %s\Registry::$instance' ), 11, self::TIP ],
 				[ $this->message( 'Static variable $calls in %s\Registry::cached()' ), 20, self::TIP ],
 				[ $this->message( 'Static variable $count in %s\counter()' ), 40, self::TIP ],
+				[ $this->message( 'Static property class@anonymous::$count' ), 50, self::TIP ],
+				[ $this->message( 'Static variable $calls in class@anonymous::cached()' ), 53, self::TIP ],
+				[ $this->message( 'Static property %s\AllowedCache::$Cache' ), 65, self::TIP ],
 			]
 		);
 	}

@@ -111,10 +111,12 @@ table in [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-
 namespace.
 
 **Allows:** static methods and class constants, which hold no state, and the
-methods and properties listed in the configuration.
+methods and properties listed in the configuration. Anonymous classes declared
+in the plugin's namespace are checked too.
 
 **Configuration:** `noStaticState.allowed` lists methods as `Class::method` and
-properties as `Class::$property`. The scaffold lists
+properties as `Class::$property`. As in PHP, class and method names match
+regardless of case, property names only exactly. The scaffold lists
 `BasicScaffoldPluginFactory::create`, which keeps the one plugin instance that
 WordPress reaches from outside the object graph.
 
