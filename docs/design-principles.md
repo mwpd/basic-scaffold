@@ -264,7 +264,13 @@ There are exactly two ways to defer part of that tree:
   encapsulated, so it may create what it produces with `new`
   (`src/Infrastructure/View/TemplatedViewFactory.php:59`). Going through the
   injector instead is allowed but not required: the factory is assumed to
-  know best how to build its product.
+  know best how to build its product. The same goes for managing instances:
+  `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
+  variable (`src/BasicScaffoldPluginFactory.php:38-52`). That works around a
+  limitation of WordPress core, which needs static access to the plugin from
+  outside the object graph, for example for the activation hooks. Because the
+  state is encapsulated in the factory, it does not leak into the rest of the
+  code. Static state anywhere else is not acceptable.
 - **Poka-yoke defaults**: an optional constructor dependency that falls back to
   the built-in implementation when none is passed (principle 10).
 
