@@ -66,7 +66,11 @@ choosing between approaches. In short:
 9. **One composition root builds the object graph.** Everything in the
    application flow comes from it via constructor injection, deferred only by
    lazy instantiation or on-demand creation through the injector. `new` is
-   for value objects (and exceptions) only.
+   only for value objects (and exceptions), inside factories, and for
+   poka-yoke defaults.
+10. **Defaults out of the box (poka-yoke).** Optional collaborators fall back
+    to a built-in implementation, so the default needs no wiring and a custom
+    one is just passed in.
 
 A change that contradicts a principle needs `needs: decision` and a maintainer
 ruling on its issue before code.

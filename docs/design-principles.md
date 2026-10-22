@@ -254,9 +254,47 @@ There are exactly two ways to defer part of that tree:
   needs them. `ViewFactory` is the example: services receive the factory and
   ask it for a view each time they render.
 
-**`new` is reserved for value objects**: small, immutable objects that
-represent a value rather than a collaborator, such as an identifier, a
-validated path or a date range. Exceptions, created through their named
-constructors, fall in the same category. Anything with behaviour that is part
-of the application flow (a service, a repository, a view, an adapter around a
-WordPress API) is never created with `new` in the class that uses it.
+**`new` is reserved for three cases:**
+
+- **Value objects**: small, immutable objects that represent a value rather
+  than a collaborator, such as an identifier, a validated path or a date
+  range. Exceptions, created through their named constructors, fall in the
+  same category.
+- **Factories**: a factory's whole job is instantiation, and its internals are
+  encapsulated, so it may create what it produces with `new`
+  (`src/Infrastructure/View/TemplatedViewFactory.php:59`). Going through the
+  injector instead is allowed but not required: the factory is assumed to
+  know best how to build its product.
+- **Poka-yoke defaults**: an optional constructor dependency that falls back to
+  the built-in implementation when none is passed (principle 10).
+
+Anything else with behaviour that is part of the application flow (a service,
+a repository, a view, an adapter around a WordPress API) is never created with
+`new` in the class that uses it.
+
+## 10. Defaults out of the box (poka-yoke)
+
+The scaffold lets you write the cleanest possible code, but does not force you
+to wire everything up before anything works. Where a collaborator has an
+obvious default, the default ships built in. Choosing the default needs no
+configuration at all, and replacing it is just a matter of passing your own.
+
+The pattern is an optional constructor parameter typed to the interface, with
+the built-in implementation as the fallback:
+
+- `ServiceBasedPlugin` accepts any `Injector` and `ServiceContainer`, and falls
+  back to `SimpleInjector` and `SimpleServiceContainer`
+  (`src/Infrastructure/ServiceBasedPlugin.php:125-143`). The code calls this a
+  poka-yoke: a design that makes the easy path also the correct one.
+- `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
+  (`src/Infrastructure/View/SimpleView.php:76`).
+
+The fallback is the only place the default is named. Callers never have to
+repeat it, and swapping it never requires touching the class.
+
+Not every implementation is a replacement point. `TemplatedView` layers
+WordPress core's theme-override behaviour (child theme, then parent theme,
+then plugin) on top of `SimpleView`. That behaviour is fixed on the WordPress
+side, so `TemplatedView` is meant to be used or not used, not replaced or
+reconfigured. Changes to rendering itself belong in `SimpleView`, and
+`TemplatedView` picks them up.
