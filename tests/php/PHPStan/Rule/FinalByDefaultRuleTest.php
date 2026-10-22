@@ -32,8 +32,7 @@ final class FinalByDefaultRuleTest extends RuleTestCase {
 
 	protected function getRule(): Rule {
 		return new FinalByDefaultRule(
-			$this->namespace,
-			[ self::FIXTURE_NAMESPACE . '\Excluded' ],
+			new PluginNamespace( $this->namespace, [ self::FIXTURE_NAMESPACE . '\Excluded' ] ),
 			[ self::FIXTURE_NAMESPACE . '\DesignedBaseClass' ]
 		);
 	}
