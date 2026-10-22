@@ -96,14 +96,17 @@ with a dated note rather than leaving a reader to reconcile the thread.
 ## What an agent does before writing code
 
 1. **Read the issue, its epic, and every link in both.**
-2. **Confirm the context is still true.** Issue bodies cite `file:line`. Code
+2. **Check it against the [design principles](../design-principles.md).** A
+   task that contradicts one was filed wrong: say so on the issue and add
+   `needs: decision` rather than implementing it.
+3. **Confirm the context is still true.** Issue bodies cite `file:line`. Code
    moves. Verify before building on a citation, and correct the issue if it has
    drifted.
-3. **Work the acceptance criteria, not the title.** A fix's test is shown
+4. **Work the acceptance criteria, not the title.** A fix's test is shown
    failing before the change.
-4. **Stay inside the scope.** Something genuinely necessary that the issue did
+5. **Stay inside the scope.** Something genuinely necessary that the issue did
    not anticipate gets a comment, and its own issue if it is more than a line.
-5. **Comment what changed about the plan**, not what you did. The diff says
+6. **Comment what changed about the plan**, not what you did. The diff says
    what you did.
 
 ## Pull requests from forks

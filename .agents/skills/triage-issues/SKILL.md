@@ -12,7 +12,7 @@ Reproductions and factual clarification are triage work. Product, design and
 API rulings are not.
 
 Read [the GitHub skill](../github/SKILL.md), `AGENTS.md`,
-`docs/process/github.md` and `.github/labels.json` first. Set `$REPO` as the
+`docs/design-principles.md`, `docs/process/github.md` and `.github/labels.json` first. Set `$REPO` as the
 GitHub skill shows.
 
 ## Establish the pass
@@ -50,7 +50,7 @@ before writing to it; skip it if it closed or became `agent-ready` meanwhile.
    | Gap | Label |
    | --- | --- |
    | API or structural judgment the code cannot settle | `needs: design` |
-   | Scope, policy or breaking-change ruling | `needs: decision` |
+   | Scope, policy or breaking-change ruling, or a conflict with a design principle | `needs: decision` |
    | Reported failure without a reproduction | `needs: repro` |
    | Access or a verification only a human can do | `needs: human` |
    | No driving scenario | `needs: use-case` |
