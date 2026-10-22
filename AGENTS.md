@@ -19,16 +19,22 @@ material.
 | `src/SampleSubsystem/`, `views/` | Example services and templates that a generated plugin replaces. |
 | `tests/php/Unit`, `tests/php/Integration` | PHPUnit suites. Both use Brain Monkey; neither needs a WordPress install. |
 | `tests/php/Fixture/` | Test doubles and view fixtures. |
+| `tests/php/Architecture/`, `tests/php/PHPStan/` | Architecture rules: the `architecture` suite, PHPStan rules, their tests and fixtures. |
 
 ## Commands
 
 ```sh
 composer install
-composer test               # unit + integration
-composer lint               # phpcs, phpstan (level max), psalm (level 2)
+composer test               # unit + integration + architecture
+composer lint               # phpcs, phpstan (level max), psalm (level 2), PHPStan rule tests
 composer phpcs:fix          # auto-fix coding standards
 vendor/bin/rector --dry-run # rule sets up to PHP 7.4, code quality, style
 ```
+
+The architecture rules are part of both: PHPStan rules in `composer lint`, the
+`architecture` test suite in `composer test`. Every failure says what to do
+instead; [docs/architecture-rules.md](docs/architecture-rules.md) lists the
+rules and how to add one.
 
 Psalm 5 runs on PHP 8.3 at most, and `composer.lock` was resolved for PHP 8.
 CI (`.github/workflows/ci.yml`) is the reference environment: lint on 8.3,
