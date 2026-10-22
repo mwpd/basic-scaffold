@@ -62,31 +62,23 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	/**
 	 * Get the default locations for the templated view.
 	 *
-	 * Uses internal caching to avoid retrieving the paths multiple times across
-	 * instantiations.
+	 * The factory asks for them once, when it is created, and keeps them on
+	 * the instance. They are not cached across instances, so every factory
+	 * reflects the theme that is active when it is created.
 	 *
 	 * @return array<string> Array of default locations.
 	 */
 	private function get_default_locations(): array {
-		/**
-		 * Internal storage for the default locations.
-		 */
-		static $default_locations = null;
-
-		if ( null === $default_locations ) {
-			// We wrap the WP functions here to not make the code directly rely
-			// on WordPress being loaded here.
-			// This makes the code more flexible and testing easier.
-			$default_locations = ( function_exists( 'get_stylesheet_directory' )
-									&& function_exists( 'get_template_directory' ) )
-				? [
-					\get_stylesheet_directory(),
-					\get_template_directory(),
-					\dirname( __DIR__, 3 ),
-				]
-				: [ \dirname( __DIR__, 3 ) ];
-		}
-
-		return $default_locations;
+		// We wrap the WP functions here to not make the code directly rely
+		// on WordPress being loaded here.
+		// This makes the code more flexible and testing easier.
+		return ( function_exists( 'get_stylesheet_directory' )
+				&& function_exists( 'get_template_directory' ) )
+			? [
+				\get_stylesheet_directory(),
+				\get_template_directory(),
+				\dirname( __DIR__, 3 ),
+			]
+			: [ \dirname( __DIR__, 3 ) ];
 	}
 }
