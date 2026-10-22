@@ -140,7 +140,7 @@ In the code:
   (`src/Infrastructure/ServiceContainer.php:44`), not just any object.
   `Registerable`, `Conditional`, `Delayed` and the other service interfaces
   each name one capability.
-- Every failure has its own exception type (`src/Exception/`), such as
+- Failures are typed by category (`src/Exception/`), such as
   `FailedToLoadView`, `InvalidService` and `InvalidContextProperty`, rather than
   generic exceptions with different messages.
 
@@ -202,15 +202,35 @@ The exceptions follow a fixed shape (`src/Exception/`):
 - **They share one marker interface.** Every exception implements
   `BasicScaffoldException` (`src/Exception/BasicScaffoldException.php:25`), so
   everything this plugin throws can be caught in one place.
-- **Each specific condition gets its own class.** A new error condition gets a
+- **Each kind of failure gets its own class.** A new kind of failure gets a
   dedicated, `final` exception rather than a generic exception with a
-  different message.
+  different message. Related conditions within one kind share that class
+  through separate named constructors, and get their own class once callers
+  need to tell them apart.
 - **Named constructors build the message.** Exceptions are created through
   static constructors that state the cause, such as
   `FailedToMakeInstance::for_circular_reference()`
   (`src/Exception/FailedToMakeInstance.php:46`) or
   `InvalidService::from_service_id()`. Messages stay consistent, and the
   `Stringify` trait renders arbitrary values safely inside them.
+- **They keep their cause.** When a lower-level failure is translated, the
+  original is passed on as the previous exception, as `FailedToLoadView` does
+  (`src/Exception/FailedToLoadView.php:39`).
+
+**Exceptions never reach the end user.** They are for internal communication
+and for developers. At the point where control is handed back to WordPress (a
+hook callback, a rendered view, a REST response), the exception is caught and
+the code falls back to how WordPress works:
+
+- **With debug mode on** (`DebugMode`, backed by `WP_DEBUG`), problems surface
+  immediately and loudly, so a developer sees what went wrong and where.
+- **With debug mode off**, the broken part degrades gracefully and the rest of
+  the site keeps working. A view that fails renders nothing. That field or
+  notice is still broken, but the page around it is not taken down with it.
+
+This is the same compromise as principle 3: clean, strict code inside, and the
+WordPress way at the edges, where forcing the clean approach would create more
+problems than it solves.
 
 ## 9. One composition root builds the object graph
 
