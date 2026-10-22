@@ -59,6 +59,10 @@ choosing between approaches. In short:
    types, even when they share a data structure.
 7. **Never trust what WordPress hands over.** Sanitize, validate and normalize
    at the boundary into internal types; internal code then relies on those.
+8. **Errors are exceptions.** No `WP_Error`, falsy returns or log writes for
+   internal errors; convert at the WordPress boundary. Custom exceptions extend
+   the matching SPL exception, implement `BasicScaffoldException`, and are
+   built through named constructors.
 
 A change that contradicts a principle needs `needs: decision` and a maintainer
 ruling on its issue before code.

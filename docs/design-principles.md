@@ -173,3 +173,41 @@ filters, raising `InvalidConfiguration`, `InvalidService` or `InvalidArgument`.
 
 The reverse direction gets the same care: values leaving for HTML output go
 through `SimpleView`'s escaping unless explicitly requested raw.
+
+## 8. Errors are exceptions
+
+Inside the plugin, every error condition is an exception. The scaffold does not
+use WordPress's usual error mechanisms internally: it does not return
+`WP_Error` objects, return `false` or `null` to signal a failure, write to the
+server log with `error_log()`, or raise notices with `trigger_error()` or
+`_doing_it_wrong()`. None of these appear anywhere in `src/`.
+
+WordPress itself still speaks in those terms, so the translation happens at
+the boundary, in the same place as principle 7:
+
+- **Coming in:** a `WP_Error` or a falsy failure value returned by a WordPress
+  function is turned into an exception right where the call is made.
+- **Going out:** where WordPress expects a `WP_Error` (a REST callback, for
+  example) or a user-facing message, the edge code catches the exception and
+  converts it. Internal code never does that conversion itself.
+
+The exceptions follow a fixed shape (`src/Exception/`):
+
+- **They keep PHP's own hierarchy.** Each exception extends the SPL exception
+  that matches its category: `InvalidArgumentException` for invalid input or
+  configuration (`InvalidService`, `InvalidConfiguration`, `InvalidPath`), and
+  `RuntimeException` for failures while running (`FailedToMakeInstance`,
+  `FailedToLoadView`, `FailedToEscapeValue`). Callers can catch by category
+  without knowing the scaffold's classes.
+- **They share one marker interface.** Every exception implements
+  `BasicScaffoldException` (`src/Exception/BasicScaffoldException.php:25`), so
+  everything this plugin throws can be caught in one place.
+- **Each specific condition gets its own class.** A new error condition gets a
+  dedicated, `final` exception rather than a generic exception with a
+  different message.
+- **Named constructors build the message.** Exceptions are created through
+  static constructors that state the cause, such as
+  `FailedToMakeInstance::for_circular_reference()`
+  (`src/Exception/FailedToMakeInstance.php:46`) or
+  `InvalidService::from_service_id()`. Messages stay consistent, and the
+  `Stringify` trait renders arbitrary values safely inside them.
