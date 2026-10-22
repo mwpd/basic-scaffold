@@ -211,3 +211,32 @@ The exceptions follow a fixed shape (`src/Exception/`):
   (`src/Exception/FailedToMakeInstance.php:46`) or
   `InvalidService::from_service_id()`. Messages stay consistent, and the
   `Stringify` trait renders arbitrary values safely inside them.
+
+## 9. One composition root builds the object graph
+
+The plugin's objects are assembled as one tree from a single composition
+root. `BasicScaffoldPlugin` (`src/BasicScaffoldPlugin.php`) declares the
+services, bindings, arguments, shared instances and delegations, and
+`ServiceBasedPlugin` turns that configuration into running services through
+the injector. Every object that takes part in the application flow is obtained
+from there, directly or indirectly, through constructor injection.
+
+There are exactly two ways to defer part of that tree:
+
+- **Lazy instantiation**, for performance or to break a circular dependency.
+  A service that does not need to hook into WordPress is stored as a
+  `LazilyInstantiatedService` and only built when first retrieved
+  (`src/Infrastructure/ServiceBasedPlugin.php:375-379`). `Conditional` and
+  `Delayed` services are not built at all until they are needed.
+- **On-demand instantiation through the injector**, when an object can only be
+  created later or is needed once per use. Such objects are still produced by
+  the injector, or by a factory the injector provides, never by the class that
+  needs them. `ViewFactory` is the example: services receive the factory and
+  ask it for a view each time they render.
+
+**`new` is reserved for value objects**: small, immutable objects that
+represent a value rather than a collaborator, such as an identifier, a
+validated path or a date range. Exceptions, created through their named
+constructors, fall in the same category. Anything with behaviour that is part
+of the application flow (a service, a repository, a view, an adapter around a
+WordPress API) is never created with `new` in the class that uses it.

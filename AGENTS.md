@@ -63,6 +63,10 @@ choosing between approaches. In short:
    internal errors; convert at the WordPress boundary. Custom exceptions extend
    the matching SPL exception, implement `BasicScaffoldException`, and are
    built through named constructors.
+9. **One composition root builds the object graph.** Everything in the
+   application flow comes from it via constructor injection, deferred only by
+   lazy instantiation or on-demand creation through the injector. `new` is
+   for value objects (and exceptions) only.
 
 A change that contradicts a principle needs `needs: decision` and a maintainer
 ruling on its issue before code.
