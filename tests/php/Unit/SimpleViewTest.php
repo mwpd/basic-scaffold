@@ -60,6 +60,33 @@ final class SimpleViewTest extends TestCase {
 		$this->assertEquals( '<strong>raw</strong>', $view->raw( 'some_value' ) );
 	}
 
+	public function test_it_supports_isset_and_empty_on_context_values(): void {
+		$view = new SimpleView( 'tests/php/Fixture/views/plugin/isset-view.php', $this->view_factory );
+
+		$cases = [
+			'isset: yes, empty: no'  => 'present',
+			'isset: yes, empty: yes' => '',
+			'isset: no, empty: yes'  => null,
+		];
+
+		foreach ( $cases as $expected => $value ) {
+			$this->assertEquals( $expected, $this->normalize( $view->render( [ 'some_value' => $value ] ) ) );
+		}
+	}
+
+	public function test_isset_on_a_missing_context_value_does_not_throw_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/isset-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$this->assertEquals( 'isset: no, empty: yes', $this->normalize( $view->render() ) );
+	}
+
 	public function test_it_can_render_partial_views(): void {
 		$partial_view = new SimpleView( 'tests/php/Fixture/views/plugin/partial.php', $this->view_factory );
 		$this->view_factory->method( 'create' )
