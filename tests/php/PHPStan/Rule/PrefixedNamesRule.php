@@ -20,11 +20,13 @@ use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\Type;
 
 /**
  * The names the plugin creates carry its prefix.
@@ -36,7 +38,7 @@ use PHPStan\Rules\RuleErrorBuilder;
  * convention WordPress uses for it.
  *
  * A name passes when PHPStan knows it starts with the prefix, or when it is
- * built from a configured prefix constant, such as
+ * built from one of the class's own prefix constants, such as
  * `static::HOOK_PREFIX . 'services'`. Names that only read what WordPress
  * itself owns, such as `get_option( 'date_format' )`, can be allowed per kind.
  *
@@ -135,14 +137,18 @@ final class PrefixedNamesRule implements Rule {
 		}
 
 		[ $kind, $position, $reads ] = self::FUNCTIONS[ $called ];
-		$argument                    = $node->getArgs()[ $position ] ?? null;
 		$settings                    = $this->kinds[ $kind ] ?? null;
 
-		if ( $argument === null || $settings === null ) {
+		if ( $settings === null ) {
 			return [];
 		}
 
-		$problem = $this->check( $argument->value, $scope, $called, $kind, $settings, $reads );
+		// Enqueueing with a source registers the handle, so it creates the name.
+		if ( $kind === 'assets' && $reads && self::passes_source( $node, $scope ) ) {
+			$reads = false;
+		}
+
+		$problem = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads );
 
 		return $problem === null
 			? []
@@ -155,25 +161,100 @@ final class PrefixedNamesRule implements Rule {
 	}
 
 	/**
-	 * Check one name.
+	 * Find the argument that gives the name, and check it.
 	 *
-	 * @param Expr   $name     Expression that gives the name.
-	 * @param Scope  $scope    Scope of the call.
-	 * @param string $called   Function the name is passed to.
-	 * @param string $kind     Kind of name.
-	 * @param Kind   $settings Prefix, prefix constants and allowed names.
-	 * @param bool   $reads    Whether the call only reads the name.
+	 * An argument unpacked from a constant array is read from the array. Any
+	 * other unpacking hides the name from the rule.
+	 *
+	 * @param FuncCall $node     Function call.
+	 * @param int      $position Position of the name.
+	 * @param Scope    $scope    Scope of the call.
+	 * @param string   $called   Function the name is passed to.
+	 * @param string   $kind     Kind of name.
+	 * @param Kind     $settings Prefix, prefix constants and allowed names.
+	 * @param bool     $reads    Whether the call only reads the name.
 	 * @return string|null What is wrong and what to do instead, or null.
 	 */
-	private function check(
-		Expr $name,
+	private function check_argument(
+		FuncCall $node,
+		int $position,
 		Scope $scope,
 		string $called,
 		string $kind,
 		array $settings,
 		bool $reads
 	): ?string {
-		if ( $this->starts_with_prefix_constant( $name, $settings['constants'] ) ) {
+		$index = 0;
+
+		foreach ( $node->getArgs() as $argument ) {
+			if ( ! $argument->unpack ) {
+				if ( $index === $position ) {
+					$type = $scope->getType( $argument->value );
+
+					return $this->check( $argument->value, $type, $called, $kind, $settings, $reads );
+				}
+
+				++$index;
+				continue;
+			}
+
+			$arrays = $scope->getType( $argument->value )->getConstantArrays();
+			if ( count( $arrays ) !== 1 ) {
+				return $this->check( null, $scope->getType( $argument->value ), $called, $kind, $settings, $reads );
+			}
+
+			foreach ( $arrays[0]->getValueTypes() as $type ) {
+				if ( $index === $position ) {
+					return $this->check( null, $type, $called, $kind, $settings, $reads );
+				}
+
+				++$index;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check whether an enqueue call passes a source, which registers the handle.
+	 *
+	 * @param FuncCall $node  Enqueue call.
+	 * @param Scope    $scope Scope of the call.
+	 * @return bool Whether a source other than an empty string may be passed.
+	 */
+	private static function passes_source( FuncCall $node, Scope $scope ): bool {
+		$source = $node->getArgs()[1] ?? null;
+
+		if ( $source === null ) {
+			return false;
+		}
+
+		$strings = $scope->getType( $source->value )->getConstantStrings();
+
+		return $strings === [] || $strings[0]->getValue() !== '';
+	}
+
+	/**
+	 * Check one name.
+	 *
+	 * @param Expr|null $name     Expression that gives the name, if there is
+	 *                            one of its own.
+	 * @param Type      $type     Type of the name.
+	 * @param string    $called   Function the name is passed to.
+	 * @param string    $kind     Kind of name.
+	 * @param Kind      $settings Prefix, prefix constants and allowed names.
+	 * @param bool      $reads    Whether the call only reads the name.
+	 * @return string|null What is wrong and what to do instead, or null.
+	 */
+	private function check(
+		?Expr $name,
+		Type $type,
+		string $called,
+		string $kind,
+		array $settings,
+		bool $reads
+	): ?string {
+		if ( $name !== null && $this->starts_with_prefix_constant( $name, $settings['constants'] ) ) {
 			return null;
 		}
 
@@ -185,7 +266,7 @@ final class PrefixedNamesRule implements Rule {
 				$settings['prefix']
 			);
 
-		$strings = $scope->getType( $name )->getConstantStrings();
+		$strings = $type->getConstantStrings();
 		if ( $strings === [] ) {
 			return sprintf(
 				'%1$s() gets a %2$s name the rule cannot check. Use %3$s, so the name is recognizably the'
@@ -231,7 +312,11 @@ final class PrefixedNamesRule implements Rule {
 			$name = $name->left;
 		}
 
+		// Only the plugin's own constant counts, not one of the same name in
+		// another class.
 		return $name instanceof ClassConstFetch
+			&& $name->class instanceof Name
+			&& in_array( $name->class->toLowerString(), [ 'self', 'static' ], true )
 			&& $name->name instanceof Identifier
 			&& in_array( $name->name->toString(), $constants, true );
 	}

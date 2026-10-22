@@ -138,6 +138,40 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 					24,
 					self::TIP,
 				],
+				[
+					$this->unprefixed(
+						'register_post_meta',
+						'meta key',
+						'color',
+						$this->how( 'acme_plugin_' ),
+						'meta'
+					),
+					26,
+					self::TIP,
+				],
+				[
+					'do_action() gets a hook name the rule cannot check. Use the prefix constant, as in'
+						. " static::HOOK_PREFIX . 'name', or a name that starts with 'acme.plugin.', so the name is"
+						. " recognizably the plugin's own.",
+					28,
+					self::TIP,
+				],
+				[
+					$this->unprefixed( 'do_action', 'hook', 'other.saved', self::HOOKS_HOW, 'hooks' ),
+					29,
+					self::TIP,
+				],
+				[
+					$this->unprefixed(
+						'wp_enqueue_script',
+						'asset handle',
+						'jquery',
+						$this->how( 'acme-plugin-' ),
+						'assets'
+					),
+					30,
+					self::TIP,
+				],
 			]
 		);
 	}

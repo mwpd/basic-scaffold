@@ -23,5 +23,23 @@ final class Service {
 		wp_enqueue_script( 'jquery' );
 		wp_enqueue_style( 'theme' );
 		wp_enqueue_style( 'acme-plugin-admin' );
+		register_post_meta( ...[ 'post', 'color', [] ] );
+		do_action( ...[ 'acme.plugin.unpacked' ] );
+		do_action( ...$this->names() );
+		do_action( Other::HOOK_PREFIX . 'saved' );
+		wp_enqueue_script( 'jquery', '/plugin/app.js' );
+		wp_enqueue_script( 'jquery', '' );
 	}
+
+	/**
+	 * @return array<string>
+	 */
+	private function names(): array {
+		return [ 'acme.plugin.dynamic' ];
+	}
+}
+
+final class Other {
+
+	public const HOOK_PREFIX = 'other.';
 }

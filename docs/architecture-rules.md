@@ -444,13 +444,14 @@ with the prefix for their kind:
 | `assets` | `wp_register_script`, `wp_register_style`, `wp_enqueue_script`, `wp_enqueue_style` | handle, the 1st argument |
 
 A name passes when PHPStan knows it starts with the prefix, or when it is built
-from one of the kind's prefix constants, as in
+from one of the kind's prefix constants of the class itself, as in
 `static::HOOK_PREFIX . static::SERVICES_FILTER`. A name the rule cannot work
-out fails, so build names from the prefix.
+out fails, so build names from the prefix. Arguments unpacked from a constant
+array are read from the array.
 
 **Allows:** for calls that only read a name, such as `get_option()`,
-`wp_enqueue_script()` or firing a hook, the names WordPress owns that the
-kind lists as allowed. `add_action()` and `add_filter()` are not checked: they
+`wp_enqueue_script()` without a source, or firing a hook, the names WordPress
+owns that the kind lists as allowed. `add_action()` and `add_filter()` are not checked: they
 subscribe to names other code owns.
 
 **Configuration:** `prefixedNames.<kind>` sets the kind's `prefix`, its
