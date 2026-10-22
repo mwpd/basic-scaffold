@@ -55,6 +55,19 @@ final class FinalByDefaultRuleTest extends RuleTestCase {
 		);
 	}
 
+	public function test_it_matches_namespaces_regardless_of_case(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'mixed-case.php', self::FIXTURES . 'mixed-case-excluded.php' ],
+			[
+				[
+					$this->message( strtolower( self::FIXTURE_NAMESPACE ) . '\OpenClassInLowercaseNamespace' ),
+					7,
+					self::TIP,
+				],
+			]
+		);
+	}
+
 	public function test_it_follows_a_renamed_namespace(): void {
 		$this->namespace = 'Acme\RenamedPlugin';
 

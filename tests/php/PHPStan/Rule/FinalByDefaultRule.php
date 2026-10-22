@@ -36,19 +36,19 @@ use PHPStan\Rules\RuleErrorBuilder;
 final class FinalByDefaultRule implements Rule {
 
 	/**
-	 * Root namespace the rule applies to.
+	 * Root namespace the rule applies to, in lowercase.
 	 */
 	private string $root_namespace;
 
 	/**
-	 * Namespaces inside the checked namespace that the rule skips.
+	 * Namespaces inside the checked namespace that the rule skips, in lowercase.
 	 *
 	 * @var array<string>
 	 */
 	private array $excluded_namespaces;
 
 	/**
-	 * Classes deliberately designed as a base for other classes.
+	 * Classes deliberately designed as a base for other classes, in lowercase.
 	 *
 	 * @var array<string>
 	 */
@@ -62,9 +62,10 @@ final class FinalByDefaultRule implements Rule {
 	 * @param array<string> $base_classes        Classes designed as a base.
 	 */
 	public function __construct( string $root_namespace, array $excluded_namespaces, array $base_classes ) {
-		$this->root_namespace      = trim( $root_namespace, '\\' ) . '\\';
+		// PHP compares namespaces and class names without regard to case.
+		$this->root_namespace      = strtolower( trim( $root_namespace, '\\' ) ) . '\\';
 		$this->excluded_namespaces = array_map(
-			static fn( string $excluded ): string => trim( $excluded, '\\' ) . '\\',
+			static fn( string $excluded ): string => strtolower( trim( $excluded, '\\' ) ) . '\\',
 			$excluded_namespaces
 		);
 		$this->base_classes        = array_map(
@@ -124,6 +125,8 @@ final class FinalByDefaultRule implements Rule {
 	 * @return bool Whether the class is checked.
 	 */
 	private function is_checked( string $name ): bool {
+		$name = strtolower( $name );
+
 		if ( strpos( $name, $this->root_namespace ) !== 0 ) {
 			return false;
 		}
