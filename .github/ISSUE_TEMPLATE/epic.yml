@@ -1,0 +1,51 @@
+name: Epic
+description: A theme of work that lands as several tasks. Never coded directly.
+title: "Epic: <the outcome, not the work>"
+labels: ["epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An epic is a tracking issue. Its body holds the shared context every
+        sub-issue would otherwise repeat, and its sub-issue list is the plan.
+        Nobody writes code against an epic.
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What is true when this closes, stated as a fact about the scaffold rather than a list of work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shared-context
+    attributes:
+      label: Shared context
+      description: The files, constraints and decisions every sub-issue needs. Written once here so the tasks can be short.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and non-goals
+      description: What this may not change, and the things a reader will suggest that are deliberately out.
+    validations:
+      required: true
+
+  - type: textarea
+    id: plan
+    attributes:
+      label: Breakdown
+      description: The tasks, in the order they can land. Prose until the sub-issues exist; then GitHub's sub-issue list carries it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      description: How the epic is judged closed, beyond "every sub-issue is closed".
+    validations:
+      required: true

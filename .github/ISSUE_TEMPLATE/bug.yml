@@ -1,0 +1,49 @@
+name: Bug
+description: The scaffold does not behave the way its code or docs say it should.
+title: "<area>: <what goes wrong>"
+labels: ["type: fix"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A bug that cannot be reproduced gets `needs: repro` until it can.
+        The more exact the steps, the sooner it gets fixed.
+
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: What happens
+      description: The observed behaviour, with the exact error or output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-should-happen
+    attributes:
+      label: What should happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: From a fresh clone. A failing test case is the best reproduction.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: PHP version, WordPress version, and the commit you are on.
+      placeholder: "PHP 8.3, WordPress 6.6, main @ a72c7de"
+    validations:
+      required: true
+
+  - type: textarea
+    id: suspicion
+    attributes:
+      label: Where you think it is
+      description: Optional. A file and line, if you have one.

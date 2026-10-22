@@ -43,7 +43,7 @@
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=unit",
         "test:integration": "phpunit --testsuite=integration",
-        "phpstan": "phpstan analyze",
+        "phpstan": "phpstan analyze --memory-limit=1G",
         "psalm": "psalm",
         "analyze": [
             "@phpstan",

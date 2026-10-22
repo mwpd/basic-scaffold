@@ -1,0 +1,167 @@
+[
+  {
+    "name": "type: feat",
+    "color": "1d76db",
+    "description": "A new capability or a change in behaviour."
+  },
+  {
+    "name": "type: fix",
+    "color": "1d76db",
+    "description": "Something is broken and must behave the way it is documented."
+  },
+  {
+    "name": "type: refactor",
+    "color": "1d76db",
+    "description": "Structure changes; behaviour does not."
+  },
+  {
+    "name": "type: test",
+    "color": "1d76db",
+    "description": "Coverage or test harness work with no behaviour change."
+  },
+  {
+    "name": "type: docs",
+    "color": "1d76db",
+    "description": "Documentation only."
+  },
+  {
+    "name": "type: chore",
+    "color": "1d76db",
+    "description": "Tooling, CI, dependencies, static analysis configuration."
+  },
+  {
+    "name": "type: spike",
+    "color": "1d76db",
+    "description": "Time-boxed investigation. The deliverable is a written decision, not code."
+  },
+  {
+    "name": "area: bootstrap",
+    "color": "5319e7",
+    "description": "basic-scaffold.php, the plugin factory and the BasicScaffoldPlugin composition root."
+  },
+  {
+    "name": "area: infrastructure",
+    "color": "5319e7",
+    "description": "src/Infrastructure: services, injector, views, autoloader. What generated plugins build on."
+  },
+  {
+    "name": "area: sample",
+    "color": "5319e7",
+    "description": "src/SampleSubsystem and views/: example code a generated plugin replaces."
+  },
+  {
+    "name": "area: tests",
+    "color": "5319e7",
+    "description": "tests/php: unit and integration suites, fixtures."
+  },
+  {
+    "name": "area: tooling",
+    "color": "5319e7",
+    "description": "composer.json, PHPCS, PHPStan, Psalm and Rector configuration."
+  },
+  {
+    "name": "area: ci",
+    "color": "5319e7",
+    "description": "GitHub Actions workflows, issue/PR templates, label sync."
+  },
+  {
+    "name": "area: docs",
+    "color": "5319e7",
+    "description": "README, AGENTS.md, docs/ and inline documentation meant for plugin authors."
+  },
+  {
+    "name": "priority: p0",
+    "color": "b60205",
+    "description": "Drop everything: a security hole or a scaffold that does not boot."
+  },
+  {
+    "name": "priority: p1",
+    "color": "d93f0b",
+    "description": "Next up."
+  },
+  {
+    "name": "priority: p2",
+    "color": "fbca04",
+    "description": "Wanted, not scheduled."
+  },
+  {
+    "name": "priority: p3",
+    "color": "c2e0c6",
+    "description": "Someday. Needs a driving use case before it starts."
+  },
+  {
+    "name": "needs: decision",
+    "color": "e99695",
+    "description": "Blocked on a maintainer ruling, not on code. State the question and options."
+  },
+  {
+    "name": "needs: design",
+    "color": "e99695",
+    "description": "Blocked on an API or structural design answer the code cannot settle."
+  },
+  {
+    "name": "needs: repro",
+    "color": "e99695",
+    "description": "Blocked on a reproduction."
+  },
+  {
+    "name": "needs: human",
+    "color": "e99695",
+    "description": "Waiting on an action only a human can perform. State the action in the issue."
+  },
+  {
+    "name": "needs: use-case",
+    "color": "e99695",
+    "description": "Deliberately parked until something real drives it."
+  },
+  {
+    "name": "epic",
+    "color": "3e4b9e",
+    "description": "A tracking issue. The work lives in its sub-issues; never coded directly."
+  },
+  {
+    "name": "agent-ready",
+    "color": "0e8a16",
+    "description": "Context and acceptance criteria are complete enough for an agent to take this unattended."
+  },
+  {
+    "name": "blocked",
+    "color": "000000",
+    "description": "Waiting on another issue. Name it on a 'Blocked by #N' line in the body."
+  },
+  {
+    "name": "breaking",
+    "color": "b60205",
+    "description": "Changes an interface or convention generated plugins rely on. Needs a ruling before code."
+  },
+  {
+    "name": "security",
+    "color": "ee0701",
+    "description": "Escaping, sanitization, capabilities, nonces, or anything exploitable."
+  },
+  {
+    "name": "good first issue",
+    "color": "7057ff",
+    "description": "Small, well-bounded, and does not need the whole architecture in your head."
+  },
+  {
+    "name": "help wanted",
+    "color": "008672",
+    "description": "The maintainer would like someone else to take this."
+  },
+  {
+    "name": "question",
+    "color": "d876e3",
+    "description": "A question rather than a work item."
+  },
+  {
+    "name": "duplicate",
+    "color": "cfd3d7",
+    "description": "Already tracked somewhere else. Link it and close."
+  },
+  {
+    "name": "wontfix",
+    "color": "ffffff",
+    "description": "A deliberate no. The reason belongs in a closing comment."
+  }
+]
