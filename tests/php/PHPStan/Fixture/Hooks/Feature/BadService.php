@@ -36,4 +36,8 @@ final class BadService implements Registerable {
 	public function filter(): void {
 		remove_action( 'wp', [ $this, 'filter' ] );
 	}
+
+	public function arrow(): callable {
+		return fn() => add_action( 'shutdown', [ $this, 'filter' ] );
+	}
 }

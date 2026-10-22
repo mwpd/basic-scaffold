@@ -74,8 +74,9 @@ final class HookPlacementRulesTest extends RuleTestCase {
 			self::HOOKS . '\Exception',
 			[ self::HOOKS . '\Plugin' ],
 			[
-				'register' => self::HOOKS . '\Infrastructure\Registerable',
-				'activate' => self::HOOKS . '\Infrastructure\Activateable',
+				'register'   => self::HOOKS . '\Infrastructure\Registerable',
+				'activate'   => self::HOOKS . '\Infrastructure\Activateable',
+				'deactivate' => self::HOOKS . '\Infrastructure\Deactivateable',
 			],
 			$this->createReflectionProvider()
 		);
@@ -89,6 +90,7 @@ final class HookPlacementRulesTest extends RuleTestCase {
 				[ $this->lifecycle( 'add_filter', 'a closure in ' . self::BAD . '::register()' ), 26, $tip ],
 				[ $this->lifecycle( 'add_action', self::BAD . '::helper()' ), 33, $tip ],
 				[ $this->lifecycle( 'remove_action', self::BAD . '::filter()' ), 37, $tip ],
+				[ $this->lifecycle( 'add_action', 'a closure in ' . self::BAD . '::arrow()' ), 41, $tip ],
 				[ $this->lifecycle( 'add_action', self::HOOKS . '\Feature\NotRegisterable::register()' ), 10, $tip ],
 			]
 		);
@@ -122,6 +124,7 @@ final class HookPlacementRulesTest extends RuleTestCase {
 		$files = [
 			'Infrastructure/Registerable',
 			'Infrastructure/Activateable',
+			'Infrastructure/Deactivateable',
 			'Infrastructure/Orchestrator',
 			'Feature/GoodService',
 			'Feature/BadService',
