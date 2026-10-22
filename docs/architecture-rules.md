@@ -92,6 +92,45 @@ the findings as their own issues and land the rule after them.
 PHPStan rules only use the parts of PHPStan's API that its versions 1 and 2
 share, because `composer.json` allows both.
 
+## What each principle is checked by
+
+Not everything a principle asks for can be checked mechanically. This table
+says which rules enforce each principle, and what stays with review.
+
+| Principle | Checked by | Reviewed by hand |
+| --- | --- | --- |
+| [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4` | Loading without `vendor/` (#33) |
+| [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
+| [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
+| [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
+| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `compositionRootContracts` | |
+| [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed` | Collaborators pulled from globals, HTML echoed from business logic, god classes |
+| [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
+| [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
+| [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors` | Graceful degradation at the boundary (#27, #30) |
+| [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | Behaviour tests | Every new lifecycle step (#26) |
+| [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle (#21) |
+| [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
+| [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run | Whether comments explain why |
+| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered` | |
+
+## Mistakes the checks catch
+
+Each of these mistakes fails `composer lint` or `composer test` with a message
+that names the fix. The fixtures and tests listed prove it.
+
+| Mistake | Fails with | Proven by |
+| --- | --- | --- |
+| A hook added in a constructor | `noHooksInConstructor` | `tests/php/PHPStan/Fixture/Hooks/Feature/BadService.php` |
+| `new` of a service inside another service | `newOnlyWhereAllowed` | `tests/php/PHPStan/Fixture/Creation/Consumer.php` |
+| A class that is not `final` | `finalByDefault` | `tests/php/PHPStan/Fixture/FinalByDefault/classes.php` |
+| A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
+| A custom hook without the plugin's prefix | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php` |
+| A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
+| A sample service depending on a concrete infrastructure class | `dependencyDirection` | `tests/php/PHPStan/Fixture/Layers/Feature/Service.php` |
+| A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
+
 ## Rules
 
 ### `architecture.finalByDefault`
