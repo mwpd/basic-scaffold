@@ -115,6 +115,12 @@
         <exclude-pattern>/tests/*</exclude-pattern>
         <exclude-pattern>/views/*</exclude-pattern>
     </rule>
+    <!-- The architecture checks read and write files and run without
+         WordPress, so WordPress's alternatives to PHP's functions do not apply -->
+    <rule ref="WordPress.WP.AlternativeFunctions">
+        <exclude-pattern>/tests/php/Architecture/*</exclude-pattern>
+    </rule>
+
     <!-- PHPStan's interfaces and test case name their methods in camelCase -->
     <rule ref="WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid">
         <exclude-pattern>/tests/php/PHPStan/*</exclude-pattern>

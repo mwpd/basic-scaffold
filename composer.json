@@ -27,7 +27,8 @@
         "psalm/plugin-phpunit": "^0.19",
         "humanmade/psalm-plugin-wordpress": "^3",
         "rector/rector": "^1.2",
-        "brain/monkey": "^2"
+        "brain/monkey": "^2",
+        "shipmonk/composer-dependency-analyser": "^1.8"
     },
     "autoload": {
         "psr-4": {

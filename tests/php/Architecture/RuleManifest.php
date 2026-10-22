@@ -19,7 +19,9 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
  * Every architecture rule, whether it is a PHPStan rule or a check in the
  * architecture test suite, has exactly one entry here. The entry ties the
  * rule's identifier to the design principle it enforces, to the configuration
- * that tunes it, and to its section in the rule catalogue.
+ * that tunes it, and to its section in the rule catalogue. A rule that
+ * enforces one of the hard rules in AGENTS.md rather than a design principle
+ * names that document instead.
  *
  * Failure messages take their "why" from this list, so a rule never has to
  * repeat where its principle is documented.
@@ -28,6 +30,7 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
  *     principle: string,
  *     principle_anchor: string,
  *     configuration: string,
+ *     document?: string,
  * }
  */
 final class RuleManifest {
@@ -42,6 +45,11 @@ final class RuleManifest {
 	 */
 	public const CATALOGUE = 'docs/architecture-rules.md';
 
+	/**
+	 * Document that holds the hard rules, relative to the plugin root.
+	 */
+	public const HARD_RULES = 'AGENTS.md';
+
 	public const FINAL_BY_DEFAULT = 'architecture.finalByDefault';
 
 	public const NO_STATIC_STATE = 'architecture.noStaticState';
@@ -53,6 +61,16 @@ final class RuleManifest {
 	public const EXCEPTION_SHAPE = 'architecture.exceptionShape';
 
 	public const EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS = 'architecture.exceptionsThroughNamedConstructors';
+
+	public const STRICT_TYPES = 'architecture.strictTypes';
+
+	public const DECLARATIONS_FOLLOW_PSR4 = 'architecture.declarationsFollowPsr4';
+
+	public const NO_SIDE_EFFECTS_ON_INCLUDE = 'architecture.noSideEffectsOnInclude';
+
+	public const NO_RUNTIME_DEPENDENCIES = 'architecture.noRuntimeDependencies';
+
+	public const TESTS_ARE_DISCOVERED = 'architecture.testsAreDiscovered';
 
 	/**
 	 * All rules, keyed by their identifier.
@@ -90,6 +108,33 @@ final class RuleManifest {
 			'principle_anchor' => '10-errors-are-exceptions',
 			'configuration'    => 'parameters.architecture.exceptions',
 		],
+		self::STRICT_TYPES                          => [
+			'principle'        => 'Hard rule: every PHP class file declares strict_types=1',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'RepositoryLayout',
+			'document'         => self::HARD_RULES,
+		],
+		self::DECLARATIONS_FOLLOW_PSR4              => [
+			'principle'        => 'Principle 1: Runs on PHP and WordPress alone',
+			'principle_anchor' => '1-runs-on-php-and-wordpress-alone',
+			'configuration'    => 'RepositoryLayout',
+		],
+		self::NO_SIDE_EFFECTS_ON_INCLUDE            => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'configuration'    => 'RepositoryLayout',
+		],
+		self::NO_RUNTIME_DEPENDENCIES               => [
+			'principle'        => 'Principle 1: Runs on PHP and WordPress alone',
+			'principle_anchor' => '1-runs-on-php-and-wordpress-alone',
+			'configuration'    => 'composer-dependency-analyser.php',
+		],
+		self::TESTS_ARE_DISCOVERED                  => [
+			'principle'        => 'Hard rule: do not weaken the gates',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'RepositoryLayout',
+			'document'         => self::HARD_RULES,
+		],
 	];
 
 	/**
@@ -115,6 +160,16 @@ final class RuleManifest {
 	}
 
 	/**
+	 * Get the document that holds the principle a rule enforces.
+	 *
+	 * @param string $identifier Identifier of the rule.
+	 * @return string Path of the document, relative to the plugin root.
+	 */
+	public static function get_principle_document( string $identifier ): string {
+		return self::RULES[ $identifier ]['document'] ?? self::DESIGN_PRINCIPLES;
+	}
+
+	/**
 	 * Get the explanation that closes every failure message of a rule.
 	 *
 	 * It names the principle and links to it and to the rule's catalogue
@@ -129,7 +184,7 @@ final class RuleManifest {
 		return sprintf(
 			'%1$s, see %2$s#%3$s. Rule: %4$s#%5$s',
 			$rule['principle'],
-			self::DESIGN_PRINCIPLES,
+			self::get_principle_document( $identifier ),
 			$rule['principle_anchor'],
 			self::CATALOGUE,
 			self::get_catalogue_anchor( $identifier )
