@@ -36,19 +36,12 @@ use PHPStan\Rules\RuleErrorBuilder;
 final class FinalByDefaultRule implements Rule {
 
 	/**
-	 * Root namespace the rule applies to, in lowercase.
+	 * Code the rule applies to.
 	 */
-	private string $root_namespace;
+	private PluginNamespace $plugin_namespace;
 
 	/**
-	 * Namespaces inside the checked namespace that the rule skips, in lowercase.
-	 *
-	 * @var array<string>
-	 */
-	private array $excluded_namespaces;
-
-	/**
-	 * Classes deliberately designed as a base for other classes, in lowercase.
+	 * Classes deliberately designed as a base for other classes, normalized.
 	 *
 	 * @var array<string>
 	 */
@@ -57,21 +50,12 @@ final class FinalByDefaultRule implements Rule {
 	/**
 	 * Instantiate a FinalByDefaultRule object.
 	 *
-	 * @param string        $root_namespace      Root namespace the rule applies to.
-	 * @param array<string> $excluded_namespaces Namespaces inside it to skip.
-	 * @param array<string> $base_classes        Classes designed as a base.
+	 * @param PluginNamespace $plugin_namespace Code the rule applies to.
+	 * @param array<string>   $base_classes     Classes designed as a base.
 	 */
-	public function __construct( string $root_namespace, array $excluded_namespaces, array $base_classes ) {
-		// PHP compares namespaces and class names without regard to case.
-		$this->root_namespace      = strtolower( trim( $root_namespace, '\\' ) ) . '\\';
-		$this->excluded_namespaces = array_map(
-			static fn( string $excluded ): string => strtolower( trim( $excluded, '\\' ) ) . '\\',
-			$excluded_namespaces
-		);
-		$this->base_classes        = array_map(
-			static fn( string $base_class ): string => strtolower( trim( $base_class, '\\' ) ),
-			$base_classes
-		);
+	public function __construct( PluginNamespace $plugin_namespace, array $base_classes ) {
+		$this->plugin_namespace = $plugin_namespace;
+		$this->base_classes     = array_map( [ PluginNamespace::class, 'normalize' ], $base_classes );
 	}
 
 	/**
@@ -98,8 +82,8 @@ final class FinalByDefaultRule implements Rule {
 			|| $class->isAnonymous()
 			|| $class->isAbstract()
 			|| $class->isFinalByKeyword()
-			|| ! $this->is_checked( $name )
-			|| in_array( strtolower( $name ), $this->base_classes, true ) ) {
+			|| ! $this->plugin_namespace->contains( $name )
+			|| in_array( PluginNamespace::normalize( $name ), $this->base_classes, true ) ) {
 			return [];
 		}
 
@@ -116,27 +100,5 @@ final class FinalByDefaultRule implements Rule {
 				->tip( RuleManifest::get_explanation( RuleManifest::FINAL_BY_DEFAULT ) )
 				->build(),
 		];
-	}
-
-	/**
-	 * Check whether a class falls under the rule.
-	 *
-	 * @param string $name Fully qualified class name.
-	 * @return bool Whether the class is checked.
-	 */
-	private function is_checked( string $name ): bool {
-		$name = strtolower( $name );
-
-		if ( strpos( $name, $this->root_namespace ) !== 0 ) {
-			return false;
-		}
-
-		foreach ( $this->excluded_namespaces as $excluded ) {
-			if ( strpos( $name, $excluded ) === 0 ) {
-				return false;
-			}
-		}
-
-		return true;
 	}
 }
