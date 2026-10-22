@@ -44,6 +44,8 @@ final class RuleManifest {
 
 	public const FINAL_BY_DEFAULT = 'architecture.finalByDefault';
 
+	public const NO_STATIC_STATE = 'architecture.noStaticState';
+
 	/**
 	 * All rules, keyed by their identifier.
 	 *
@@ -54,6 +56,11 @@ final class RuleManifest {
 			'principle'        => 'Principle 6: Final by default',
 			'principle_anchor' => '6-final-by-default',
 			'configuration'    => 'parameters.architecture.finalByDefault',
+		],
+		self::NO_STATIC_STATE  => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'configuration'    => 'parameters.architecture.noStaticState',
 		],
 	];
 

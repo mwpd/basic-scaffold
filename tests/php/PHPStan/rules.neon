@@ -12,14 +12,31 @@ parametersSchema:
         finalByDefault: structure([
             baseClasses: listOf(string())
         ])
+        noStaticState: structure([
+            allowed: listOf(string())
+        ])
     ])
 
 services:
+    architecturePluginNamespace:
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\PluginNamespace
+        arguments:
+            root: %architecture.namespace%
+            excluded: %architecture.excludedNamespaces%
+        autowired: false
+
     -
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\FinalByDefaultRule
         arguments:
-            root_namespace: %architecture.namespace%
-            excluded_namespaces: %architecture.excludedNamespaces%
+            plugin_namespace: @architecturePluginNamespace
             base_classes: %architecture.finalByDefault.baseClasses%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoStaticStateRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            allowed: %architecture.noStaticState.allowed%
         tags:
             - phpstan.rules.rule

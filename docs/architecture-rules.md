@@ -100,3 +100,24 @@ extended. The scaffold lists `SimpleView`, the base of `TemplatedView`.
 **Fix:** declare the class `final`, and vary its behaviour through interfaces
 and injected collaborators. Add it to `baseClasses` only when it is designed
 for extension from the start.
+
+### `architecture.noStaticState`
+
+**Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph),
+which allows static state only in the plugin factory, and the anti-pattern
+table in [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns).
+
+**Checks:** no static properties and no `static` variables in the plugin's
+namespace.
+
+**Allows:** static methods and class constants, which hold no state, and the
+methods and properties listed in the configuration.
+
+**Configuration:** `noStaticState.allowed` lists methods as `Class::method` and
+properties as `Class::$property`. The scaffold lists
+`BasicScaffoldPluginFactory::create`, which keeps the one plugin instance that
+WordPress reaches from outside the object graph.
+
+**Fix:** keep the value on an instance, and let the injector share that
+instance with `share()` when more than one object needs it. A cache belongs on
+the object that computes it.
