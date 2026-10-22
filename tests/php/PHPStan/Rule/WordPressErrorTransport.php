@@ -16,6 +16,7 @@ namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ParametersAcceptor;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\RuleErrorBuilder;
 use PHPStan\Type\Type;
@@ -50,15 +51,27 @@ final class WordPressErrorTransport {
 	private array $boundary_adapters;
 
 	/**
+	 * Reflection, to recognize subclasses of WP_Error.
+	 */
+	private ReflectionProvider $reflection;
+
+	/**
 	 * Instantiate a WordPressErrorTransport object.
 	 *
-	 * @param PluginNamespace $plugin_namespace  Code the rules apply to.
-	 * @param array<string>   $boundary_adapters Classes allowed to produce and
-	 *                                           pass on WP_Error objects.
+	 * @param PluginNamespace    $plugin_namespace  Code the rules apply to.
+	 * @param array<string>      $boundary_adapters Classes allowed to produce
+	 *                                              and pass on WP_Error objects.
+	 * @param ReflectionProvider $reflection        Reflection, to recognize
+	 *                                              subclasses of WP_Error.
 	 */
-	public function __construct( PluginNamespace $plugin_namespace, array $boundary_adapters ) {
+	public function __construct(
+		PluginNamespace $plugin_namespace,
+		array $boundary_adapters,
+		ReflectionProvider $reflection
+	) {
 		$this->plugin_namespace  = $plugin_namespace;
 		$this->boundary_adapters = array_map( [ PluginNamespace::class, 'normalize' ], $boundary_adapters );
+		$this->reflection        = $reflection;
 	}
 
 	/**
@@ -83,6 +96,8 @@ final class WordPressErrorTransport {
 	/**
 	 * Check whether a type mentions WP_Error, on its own or in a union.
 	 *
+	 * A subclass of WP_Error counts as a WP_Error.
+	 *
 	 * @param Type $type Type to check.
 	 * @return bool Whether the type mentions WP_Error.
 	 */
@@ -90,6 +105,16 @@ final class WordPressErrorTransport {
 		foreach ( $type->getReferencedClasses() as $class_name ) {
 			if ( PluginNamespace::normalize( $class_name ) === self::WP_ERROR ) {
 				return true;
+			}
+
+			if ( ! $this->reflection->hasClass( $class_name ) ) {
+				continue;
+			}
+
+			foreach ( $this->reflection->getClass( $class_name )->getParentClassesNames() as $parent ) {
+				if ( PluginNamespace::normalize( $parent ) === self::WP_ERROR ) {
+					return true;
+				}
 			}
 		}
 

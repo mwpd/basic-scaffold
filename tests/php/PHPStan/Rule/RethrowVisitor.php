@@ -15,6 +15,8 @@ namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\ArrowFunction;
+use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\AssignRef;
 use PhpParser\Node\Expr\Closure;
 use PhpParser\Node\Expr\Throw_ as ThrowExpression;
 use PhpParser\Node\Expr\Variable;
@@ -33,7 +35,8 @@ use PhpParser\NodeVisitorAbstract;
  *
  * A caught variable is only visible where PHP makes it visible: a nested
  * function or class starts without it, a closure keeps it only if it imports
- * it with `use`, and a parameter of the same name hides it.
+ * it with `use`, and a parameter of the same name hides it. Once the
+ * variable is assigned something else, it no longer holds what was caught.
  */
 final class RethrowVisitor extends NodeVisitorAbstract {
 
@@ -63,6 +66,14 @@ final class RethrowVisitor extends NodeVisitorAbstract {
 	public function enterNode( Node $node ) {
 		if ( $node instanceof Catch_ ) {
 			$this->caught[] = $node->var !== null && is_string( $node->var->name ) ? $node->var->name : null;
+
+			return null;
+		}
+
+		if ( ( $node instanceof Assign || $node instanceof AssignRef )
+			&& $node->var instanceof Variable
+			&& is_string( $node->var->name ) ) {
+			$this->caught = array_values( array_diff( $this->caught, [ $node->var->name ] ) );
 
 			return null;
 		}

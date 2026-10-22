@@ -86,4 +86,17 @@ final class Service {
 			};
 		}
 	}
+
+	public function replace_caught(): void {
+		try {
+			$this->throw_generic();
+		} catch ( Throwable $throwable ) {
+			$throwable = new LogicException( 'Replacement.' );
+			throw $throwable;
+		}
+	}
+
+	public function custom(): CustomError {
+		return new CustomError();
+	}
 }

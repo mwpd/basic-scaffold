@@ -84,6 +84,7 @@ final class ExceptionShapeRuleTest extends ArchitectureRuleTestCase {
 			'Exception/PluginLogicException',
 			'Exception/Helper',
 			'Exception/GoodException',
+			'Exception/TraitConstructed',
 			'Exception/NoNamedConstructor',
 			'Exception/NotSpl',
 			'Exception/NotAnException',

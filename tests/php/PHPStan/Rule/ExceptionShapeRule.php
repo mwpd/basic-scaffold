@@ -15,13 +15,14 @@ namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
 
 use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PhpParser\Node;
-use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\InClassNode;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use ReflectionMethod;
+use ReflectionNamedType;
 
 /**
  * Every exception of the plugin has the same shape.
@@ -182,7 +183,7 @@ final class ExceptionShapeRule implements Rule {
 			);
 		}
 
-		if ( ! $class->isAbstract() && ! $this->has_named_constructor( $node ) ) {
+		if ( ! $class->isAbstract() && ! $this->has_named_constructor( $class ) ) {
 			$errors[] = $this->build_error(
 				sprintf(
 					'Exception %s has no named constructor. Add a public static method that states the cause and'
@@ -212,22 +213,25 @@ final class ExceptionShapeRule implements Rule {
 	}
 
 	/**
-	 * Check whether a class declares a named constructor.
+	 * Check whether a class has a named constructor.
 	 *
-	 * A named constructor is a public static method that returns `self` or
-	 * `static`.
+	 * A named constructor is a public static method that returns `self`, or
+	 * the class itself. It may come from a parent class or a trait.
 	 *
-	 * @param InClassNode $node Class node to check.
-	 * @return bool Whether the class declares a named constructor.
+	 * @param ClassReflection $reflection Class to check.
+	 * @return bool Whether the class has a named constructor.
 	 */
-	private function has_named_constructor( InClassNode $node ): bool {
-		foreach ( $node->getOriginalNode()->getMethods() as $method ) {
+	private function has_named_constructor( ClassReflection $reflection ): bool {
+		foreach ( $reflection->getNativeReflection()->getMethods( ReflectionMethod::IS_STATIC ) as $method ) {
 			$return_type = $method->getReturnType();
 
 			if ( $method->isPublic()
-				&& $method->isStatic()
-				&& $return_type instanceof Name
-				&& in_array( $return_type->toLowerString(), [ 'self', 'static' ], true ) ) {
+				&& $return_type instanceof ReflectionNamedType
+				&& in_array(
+					strtolower( $return_type->getName() ),
+					[ 'self', 'static', strtolower( $reflection->getName() ) ],
+					true
+				) ) {
 				return true;
 			}
 		}

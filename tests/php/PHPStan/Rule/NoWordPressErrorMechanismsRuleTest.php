@@ -19,9 +19,15 @@ use PHPStan\Rules\Rule;
  * The rules that share the architecture.noWordPressErrorMechanisms
  * identifier, each tested against the same fixtures.
  *
- * @phpstan-type TestedRule NoErrorReportingFunctionsRule|NoWordPressErrorCreationRule|NoWordPressErrorInMethodsRule
- *     |NoWordPressErrorInFunctionsRule|NoWordPressErrorInClosuresRule|NoWordPressErrorInArrowFunctionsRule
- *     |NoWordPressErrorInPropertiesRule
+ * @phpstan-type TestedRule (
+ *     NoErrorReportingFunctionsRule
+ *     | NoWordPressErrorCreationRule
+ *     | NoWordPressErrorInMethodsRule
+ *     | NoWordPressErrorInFunctionsRule
+ *     | NoWordPressErrorInClosuresRule
+ *     | NoWordPressErrorInArrowFunctionsRule
+ *     | NoWordPressErrorInPropertiesRule
+ * )
  * @extends ArchitectureRuleTestCase<TestedRule>
  */
 final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase {
@@ -64,6 +70,7 @@ final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase 
 			$this->fixtures(),
 			[
 				[ $this->transport_message( 'new WP_Error() carries an error through the plugin.' ), 29, self::TIP ],
+				[ $this->transport_message( 'new WP_Error() carries an error through the plugin.' ), 100, self::TIP ],
 			]
 		);
 	}
@@ -75,6 +82,11 @@ final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase 
 			$this->fixtures(),
 			[
 				[ $this->transport_message( 'Method %s\Service::fail() takes or returns a WP_Error.' ), 28, self::TIP ],
+				[
+					$this->transport_message( 'Method %s\Service::custom() takes or returns a WP_Error.' ),
+					99,
+					self::TIP,
+				],
 			]
 		);
 	}
@@ -129,7 +141,11 @@ final class NoWordPressErrorMechanismsRuleTest extends ArchitectureRuleTestCase 
 	}
 
 	private function transport(): WordPressErrorTransport {
-		return new WordPressErrorTransport( $this->plugin_namespace(), [ self::FIXTURE_NAMESPACE . '\Adapter' ] );
+		return new WordPressErrorTransport(
+			$this->plugin_namespace(),
+			[ self::FIXTURE_NAMESPACE . '\Adapter' ],
+			$this->createReflectionProvider()
+		);
 	}
 
 	/**
