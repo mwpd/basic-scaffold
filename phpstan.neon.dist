@@ -51,3 +51,14 @@ parameters:
         noWordPressErrorMechanisms:
             # Classes that hand a WP_Error to WordPress where it expects one.
             boundaryAdapters: []
+        dependencyDirection:
+            # The layer generated plugins build on (design principle 4).
+            infrastructure: MWPD\BasicScaffold\Infrastructure
+            # The only classes that know the concrete classes and wire the
+            # plugin together (design principle 5).
+            compositionRoot:
+                - MWPD\BasicScaffold\BasicScaffoldPlugin
+                - MWPD\BasicScaffold\BasicScaffoldPluginFactory
+            # Directories of the view templates that run in production.
+            views:
+                - %currentWorkingDirectory%/views
