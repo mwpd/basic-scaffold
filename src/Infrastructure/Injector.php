@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -34,11 +35,11 @@ interface Injector extends Service {
 	/**
 	 * Make an object instance out of an interface or class.
 	 *
-	 * @param string $interface_or_class Interface or class to make an object
-	 *                                   instance out of.
-	 * @param array  $arguments          Optional. Additional arguments to pass
-	 *                                   to the constructor. Defaults to an
-	 *                                   empty array.
+	 * @param class-string         $interface_or_class Interface or class to make an object
+	 *                                                 instance out of.
+	 * @param array<string, mixed> $arguments          Optional. Additional arguments to pass
+	 *                                                 to the constructor. Defaults to an
+	 *                                                 empty array.
 	 * @return object Instantiated object.
 	 */
 	public function make( string $interface_or_class, array $arguments = [] ): object;
@@ -49,21 +50,18 @@ interface Injector extends Service {
 	 * Note: The implementation can be an interface as well, as long as it can
 	 * be resolved to an instantiatable class at runtime.
 	 *
-	 * @param string $from Interface or class to bind an implementation to.
-	 * @param string $to   Interface or class that provides the implementation.
-	 * @return Injector
+	 * @param class-string $from Interface or class to bind an implementation to.
+	 * @param class-string $to   Interface or class that provides the implementation.
 	 */
 	public function bind( string $from, string $to ): Injector;
 
 	/**
 	 * Bind an argument for a class to a specific value.
 	 *
-	 * @param string $interface_or_class Interface or class to bind an argument
+	 * @param class-string $interface_or_class Interface or class to bind an argument
 	 *                                   for.
-	 * @param string $argument_name      Argument name to bind a value to.
-	 * @param mixed  $value              Value to bind the argument to.
-	 *
-	 * @return Injector
+	 * @param string       $argument_name      Argument name to bind a value to.
+	 * @param mixed        $value              Value to bind the argument to.
 	 */
 	public function bind_argument(
 		string $interface_or_class,
@@ -75,18 +73,16 @@ interface Injector extends Service {
 	 * Always reuse and share the same instance for the provided interface or
 	 * class.
 	 *
-	 * @param string $interface_or_class Interface or class to reuse.
-	 * @return Injector
+	 * @param class-string $interface_or_class Interface or class to reuse.
 	 */
 	public function share( string $interface_or_class ): Injector;
 
 	/**
 	 * Delegate instantiation of an interface or class to a callable.
 	 *
-	 * @param string   $interface_or_class Interface or class to delegate the
+	 * @param class-string $interface_or_class Interface or class to delegate the
 	 *                                     instantiation of.
-	 * @param callable $callable           Callable to use for instantiation.
-	 * @return Injector
+	 * @param callable     $delegation         Callable to use for instantiation.
 	 */
-	public function delegate( string $interface_or_class, callable $callable ): Injector;
+	public function delegate( string $interface_or_class, callable $delegation ): Injector;
 }

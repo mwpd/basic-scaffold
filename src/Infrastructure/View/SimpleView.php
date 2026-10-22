@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,58 +9,77 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
+use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
+use MWPD\BasicScaffold\Infrastructure\Service\WordPressDebugMode;
+use stdClass;
 use Throwable;
 
 /**
  * A simplified implementation of a renderable view object.
+ *
+ * This extends stdClass to get around a deprecation notice in PHP 8.2.
+ *
+ * @see https://php.watch/versions/8.2/dynamic-properties-deprecated#stdClass
  */
-class SimpleView implements View {
+class SimpleView extends stdClass implements View {
 
 	/**
 	 * Extension to use for view files.
+	 *
+	 * @var string
 	 */
 	protected const VIEW_EXTENSION = 'php';
 
 	/**
 	 * Path to the view file to render.
-	 *
-	 * @var string
 	 */
-	protected $path;
+	protected string $path;
 
 	/**
 	 * Internal storage for passed-in context.
 	 *
-	 * @var array
+	 * @var array<string, mixed>
 	 */
 	protected $_context_ = [];
 
-	/** @var ViewFactory */
-	protected $view_factory;
+	/**
+	 * View factory instance to use.
+	 */
+	protected ViewFactory $view_factory;
+
+	/**
+	 * Debug mode instance to use.
+	 */
+	private DebugMode $debug_mode;
 
 	/**
 	 * Instantiate a SimpleView object.
 	 *
 	 * @param string      $path         Path to the view file to render.
 	 * @param ViewFactory $view_factory View factory instance to use.
+	 * @param ?DebugMode  $debug_mode   Debug mode instance to use. Optional, defaults to WordPressDebugMode.
 	 * @throws InvalidPath If an invalid Path was passed into the View.
 	 */
-	public function __construct( string $path, ViewFactory $view_factory ) {
+	public function __construct( string $path, ViewFactory $view_factory, ?DebugMode $debug_mode = null ) {
 		$this->path         = $this->validate( $path );
 		$this->view_factory = $view_factory;
+		$this->debug_mode   = $debug_mode ?? new WordPressDebugMode();
 	}
 
 	/**
 	 * Render the current view with a given context.
 	 *
-	 * @param array $context Context in which to render.
+	 * @param array<string, mixed> $context Context in which to render.
 	 *
 	 * @return string Rendered HTML.
 	 * @throws FailedToLoadView If the View path could not be loaded.
@@ -78,19 +96,27 @@ class SimpleView implements View {
 		\ob_start();
 
 		try {
+			/**
+			 * This include cannot be followed to be statically analyzed.
+			 *
+			 * @psalm-suppress UnresolvableInclude
+			 */
 			include $this->path;
-		} catch ( \Exception $exception ) {
+		} catch ( Throwable $throwable ) {
 			// Remove whatever levels were added up until now.
 			while ( \ob_get_level() > $buffer_level ) {
 				\ob_end_clean();
 			}
+
 			throw FailedToLoadView::from_view_exception(
 				$this->path,
-				$exception
+				$throwable
 			);
 		}
 
-		return \ob_get_clean() ?: '';
+		$buffer = \ob_get_clean();
+
+		return false === $buffer ? '' : $buffer;
 	}
 
 	/**
@@ -102,8 +128,8 @@ class SimpleView implements View {
 	 * The passed-in context is optional, and will fall back to the parent's
 	 * context if omitted.
 	 *
-	 * @param string     $path    Path of the partial to render.
-	 * @param array|null $context Context in which to render the partial.
+	 * @param string                    $path    Path of the partial to render.
+	 * @param array<string, mixed>|null $context Context in which to render the partial.
 	 *
 	 * @return string Rendered HTML.
 	 * @throws InvalidPath If the provided path was not valid.
@@ -111,7 +137,7 @@ class SimpleView implements View {
 	 */
 	public function render_partial( string $path, array $context = null ): string {
 		return $this->view_factory->create( $path )
-		                          ->render( $context ?: $this->_context_ );
+									->render( $context ?? $this->_context_ );
 	}
 
 	/**
@@ -123,6 +149,7 @@ class SimpleView implements View {
 	 *
 	 * @param string $property Property for which to return the raw value.
 	 * @return mixed Raw context property value.
+	 * @throws InvalidContextProperty If the property does not exist (in debug mode).
 	 */
 	public function raw( $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
@@ -184,6 +211,7 @@ class SimpleView implements View {
 	 * Ensure the path has a trailing slash.
 	 *
 	 * @param string $path Path to maybe add a trailing slash.
+	 *
 	 * @return string Path with trailing slash.
 	 */
 	protected function ensure_trailing_slash( string $path ): string {
@@ -191,21 +219,20 @@ class SimpleView implements View {
 	}
 
 	/**
-	 * Use magic getter to provide automatic escaping by default.
+	 * Return the escaped value of a context property.
 	 *
 	 * Use the raw() method to skip automatic escaping.
 	 *
-	 * @param string $property Property to get.
-	 * @return mixed
+	 * @param string $property Property for which to return the escaped value.
+	 * @return string Escaped context property value.
+	 * @throws InvalidContextProperty If the property does not exist (in debug mode).
 	 */
-	public function __get( $property ) {
+	public function __get( string $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
 			$value = $this->_context_[ $property ];
-			try {
-				return $this->escape( (string) $this->_context_[ $property ] );
-			} catch ( Throwable $exception ) {
-				// Value could not be converted to string, so just return as-is.
-				return $value;
+
+			if ( $this->is_stringable( $value ) ) {
+				return $this->escape( $value );
 			}
 		}
 
@@ -218,7 +245,8 @@ class SimpleView implements View {
 			throw InvalidContextProperty::from_property( $property );
 		}
 
-		return null;
+		// Return an empty string if the property does not exist.
+		return '';
 	}
 
 	/**
@@ -236,9 +264,22 @@ class SimpleView implements View {
 	 *
 	 * @param mixed $value Value to escape.
 	 * @return string Escaped value.
+	 * @throws FailedToEscapeValue If the value could not be escaped.
 	 */
 	protected function escape( $value ): string {
-		return htmlspecialchars( (string) $value, ENT_COMPAT, 'UTF-8' );
+		if ( is_object( $value ) && method_exists( $value, '__toString' ) ) {
+			$value = (string) $value;
+		}
+
+		if ( is_scalar( $value ) ) {
+			$value = (string) $value;
+		}
+
+		if ( ! is_string( $value ) ) {
+			throw FailedToEscapeValue::from_value( $value );
+		}
+
+		return htmlspecialchars( $value, ENT_COMPAT, 'UTF-8' );
 	}
 
 	/**
@@ -247,6 +288,17 @@ class SimpleView implements View {
 	 * @return bool Whether debugging mode is enabled.
 	 */
 	protected function is_debug_mode(): bool {
-		return defined( 'WP_DEBUG' ) && WP_DEBUG;
+		return $this->debug_mode->is_debug_mode();
+	}
+
+	/**
+	 * Check if a value is stringable.
+	 *
+	 * @param mixed $value Value to check.
+	 * @return bool Whether the value is stringable.
+	 */
+	protected function is_stringable( $value ): bool {
+		return is_scalar( $value )
+			|| ( is_object( $value ) && method_exists( $value, '__toString' ) );
 	}
 }

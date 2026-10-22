@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -25,8 +26,6 @@ interface Deactivateable {
 
 	/**
 	 * Deactivate the service.
-	 *
-	 * @return void
 	 */
 	public function deactivate(): void;
 }

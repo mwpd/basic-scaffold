@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 
@@ -22,10 +23,10 @@ use ArrayObject;
  *
  * We extend ArrayObject so we have default implementations for iterators and
  * array access.
+ *
+ * @extends ArrayObject<string, Service>
  */
-final class SimpleServiceContainer
-	extends ArrayObject
-	implements ServiceContainer {
+final class SimpleServiceContainer extends ArrayObject implements ServiceContainer {
 
 	/**
 	 * Find a service of the container by its identifier and return it.
@@ -41,12 +42,25 @@ final class SimpleServiceContainer
 			throw InvalidService::from_service_id( $id );
 		}
 
+		/**
+		 * The offsetGet method returns null if the key does not exist.
+		 *
+		 * @var Service|null
+		 */
 		$service = $this->offsetGet( $id );
+
+		if ( null === $service ) {
+			throw InvalidService::from_service_id( $id );
+		}
 
 		// Instantiate actual services if they were stored lazily.
 		if ( $service instanceof LazilyInstantiatedService ) {
 			$service = $service->instantiate();
 			$this->put( $id, $service );
+		}
+
+		if ( ! $service instanceof Service ) {
+			throw InvalidService::from_service_id( $id );
 		}
 
 		return $service;
@@ -57,8 +71,6 @@ final class SimpleServiceContainer
 	 * identifier.
 	 *
 	 * @param string $id Identifier of the service to look for.
-	 *
-	 * @return bool
 	 */
 	public function has( string $id ): bool {
 		return $this->offsetExists( $id );

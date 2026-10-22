@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -27,7 +28,7 @@ interface Delayed {
 	/**
 	 * Get the action to use for registering the service.
 	 *
-	 * @return string Registration action to use.
+	 * @return non-empty-string Registration action to use.
 	 */
 	public static function get_registration_action(): string;
 }

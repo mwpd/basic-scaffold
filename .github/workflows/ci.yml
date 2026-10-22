@@ -1,0 +1,58 @@
+# The merge bar. A PR merges only with both jobs green on its current head.
+#
+# Lint runs on PHP 8.3 because Psalm 5 does not support newer versions.
+# Tests run on the supported floor and on 8.3. composer.lock was resolved for
+# PHP 8, so the 7.4 job resolves its own dependency set instead of using it.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (phpcs, phpstan, psalm)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - uses: ramsey/composer-install@v4
+        with:
+          dependency-versions: locked
+      - run: composer lint
+
+  test:
+    name: test (PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: "7.4"
+            dependencies: highest
+          - php: "8.3"
+            dependencies: locked
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - uses: ramsey/composer-install@v4
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+      - run: composer test

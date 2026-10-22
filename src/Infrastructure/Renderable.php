@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
@@ -23,8 +24,8 @@ interface Renderable {
 	/**
 	 * Render the renderable.
 	 *
-	 * @param array $context Optional. Contextual information to use while
-	 *                       rendering. Defaults to an empty array.
+	 * @param array<string, mixed> $context Optional. Contextual information to use while
+	 *                                      rendering. Defaults to an empty array.
 	 * @return string Rendered result.
 	 */
 	public function render( array $context = [] ): string;

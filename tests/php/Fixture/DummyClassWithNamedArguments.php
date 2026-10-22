@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -10,15 +9,15 @@
  * @copyright 2019 Alain Schlesser
  */
 
+declare( strict_types=1 );
+
 namespace MWPD\BasicScaffold\Tests\Fixture;
 
 final class DummyClassWithNamedArguments {
 
-	/** @var int */
-	private $argument_a;
+	private int $argument_a;
 
-	/** @var string */
-	private $argument_b;
+	private string $argument_b;
 
 	public function __construct( int $argument_a, string $argument_b = 'Mr Meeseeks' ) {
 		$this->argument_a = $argument_a;

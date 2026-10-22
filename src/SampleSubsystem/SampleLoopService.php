@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\SampleSubsystem;
 
@@ -21,18 +22,29 @@ use MWPD\BasicScaffold\Infrastructure\{
 };
 use WP_Post;
 
+/**
+ * Sample loop service.
+ */
 final class SampleLoopService implements Service, Registerable, Conditional, Delayed {
 
 	/**
 	 * We only want to register this service once the loop has been set up, as
 	 * we want to use smart injection to retrieve the current post.
+	 *
+	 * @var non-empty-string
 	 */
 	private const REGISTRATION_HOOK = 'wp';
 
-	/** @var ViewFactory */
-	private $view_factory;
+	/**
+	 * View factory.
+	 */
+	private ViewFactory $view_factory;
 
-	/** @var WP_Post */
+	/**
+	 * Post.
+	 *
+	 *  @var WP_Post
+	 */
 	private $post;
 
 	/**
@@ -53,7 +65,7 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	/**
 	 * Get the action to use for registering the service.
 	 *
-	 * @return string Registration action to use.
+	 * @return non-empty-string Registration action to use.
 	 */
 	public static function get_registration_action(): string {
 		return self::REGISTRATION_HOOK;
@@ -87,8 +99,6 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 
 	/**
 	 * Register the service.
-	 *
-	 * @return void
 	 */
 	public function register(): void {
 		/*
@@ -104,13 +114,13 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	 * @param string $content The content to be filtered.
 	 * @return string Filtered content prepended with a post header.
 	 */
-	public function prepend_post_header( $content ): string {
+	public function prepend_post_header( string $content ): string {
 		/*
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.
 		 */
 		$post_header = $this->view_factory->create( 'views/test-loop-service' )
-		                                  ->render( [ 'post' => $this->post ] );
+											->render( [ 'post' => $this->post ] );
 
 		return $post_header . $content;
 	}

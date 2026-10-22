@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
@@ -25,7 +26,8 @@ final class SimpleViewFactory implements Service, ViewFactory {
 	 * Create a new view object for a given relative path.
 	 *
 	 * @param string $relative_path Relative path to create the view for.
-	 * @return View Instantiated view object.
+	 *
+	 * @return SimpleView Instantiated view object.
 	 */
 	public function create( string $relative_path ): View {
 		return new SimpleView( $relative_path, $this );

@@ -1,5 +1,4 @@
-<?php declare( strict_types=1 );
-
+<?php
 /**
  * MWPD Basic Plugin Scaffold.
  *
@@ -9,6 +8,8 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  */
+
+declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 
@@ -35,6 +36,16 @@ final class BasicScaffoldPluginFactory {
 	 * @return Plugin Plugin instance.
 	 */
 	public static function create(): Plugin {
+		/**
+		 * We use a static variable to ensure that the plugin is only instantiated
+		 * once. This is important for performance reasons and to ensure that the
+		 * plugin is properly initialized.
+		 *
+		 * This serves the same purpose as a Singleton, but it is implemented as
+		 * a factory to stick to SOLID principles.
+		 *
+		 * @var Plugin|null $plugin
+		 */
 		static $plugin = null;
 
 		if ( null === $plugin ) {
