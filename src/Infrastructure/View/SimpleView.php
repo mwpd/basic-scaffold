@@ -102,22 +102,25 @@ class SimpleView extends stdClass implements View {
 			 * @psalm-suppress UnresolvableInclude
 			 */
 			include $this->path;
+
+			// Buffers the template opened and left open hold part of its
+			// output, so they are flushed into the view's own buffer rather
+			// than leaked. Flushing runs their output handlers, which can
+			// throw, so it stays inside the try. A buffer that cannot be
+			// removed stops the loop instead of retrying it forever.
+			while ( \ob_get_level() > $buffer_level + 1 && \ob_end_flush() ) {
+				continue;
+			}
 		} catch ( Throwable $throwable ) {
 			// Remove whatever levels were added up until now.
-			while ( \ob_get_level() > $buffer_level ) {
-				\ob_end_clean();
+			while ( \ob_get_level() > $buffer_level && \ob_end_clean() ) {
+				continue;
 			}
 
 			throw FailedToLoadView::from_view_exception(
 				$this->path,
 				$throwable
 			);
-		}
-
-		// Buffers the template opened and left open hold part of its output,
-		// so they are flushed into the view's own buffer rather than leaked.
-		while ( \ob_get_level() > $buffer_level + 1 ) {
-			\ob_end_flush();
 		}
 
 		// If the template closed the view's own buffer, there is nothing left
@@ -238,17 +241,31 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Return the escaped value of a context property.
 	 *
-	 * Use the raw() method to skip automatic escaping. A value that cannot be
-	 * escaped is handled by escape(): it throws FailedToEscapeValue in debug
-	 * mode and becomes an empty string otherwise.
+	 * Use the raw() method to skip automatic escaping.
 	 *
 	 * @param string $property Property for which to return the escaped value.
 	 * @return string Escaped context property value.
 	 * @throws InvalidContextProperty If the property does not exist (in debug mode).
+	 * @throws FailedToEscapeValue If the value cannot be escaped (in debug mode).
 	 */
 	public function __get( string $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
-			return $this->escape( $this->_context_[ $property ] );
+			$value = $this->_context_[ $property ];
+
+			if ( $this->is_stringable( $value ) ) {
+				return $this->escape( $value );
+			}
+
+			/*
+			 * The property exists, so reporting it as missing would send the
+			 * developer looking in the wrong place. Like a missing property,
+			 * it only throws in debugging mode and renders nothing otherwise.
+			 */
+			if ( $this->is_debug_mode() ) {
+				throw FailedToEscapeValue::from_value( $value );
+			}
+
+			return '';
 		}
 
 		/*

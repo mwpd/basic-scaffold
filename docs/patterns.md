@@ -629,7 +629,7 @@ try {
 ```
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`,
-`src/Infrastructure/View/SimpleView.php:98-115` and
+`src/Infrastructure/View/SimpleView.php:98-124` and
 `src/Exception/FailedToLoadView.php:39`.
 
 **Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,

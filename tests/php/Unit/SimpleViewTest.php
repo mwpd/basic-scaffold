@@ -365,6 +365,35 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	/**
+	 * @dataProvider data_debug_modes
+	 */
+	public function test_it_restores_the_buffer_level_when_flushing_a_template_buffer_fails( bool $debug_mode ): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( $debug_mode );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/throwing-buffer-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$level     = \ob_get_level();
+		$exception = null;
+
+		try {
+			$view->render();
+		} catch ( FailedToLoadView $failed_to_load_view ) {
+			$exception = $failed_to_load_view;
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertInstanceOf( FailedToLoadView::class, $exception );
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
+	}
+
+	/**
 	 * Both debug modes, for behaviour that must not depend on them.
 	 *
 	 * @return array<string, array{bool}>
