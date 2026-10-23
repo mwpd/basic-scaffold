@@ -534,7 +534,7 @@ checked separately by `architecture.rawIsEscaped` and PHPCS. The sample's
 PHPCS suppression is still needed because PHPCS does not recognize the
 rendering method as automatically escaped.
 
-**Pattern:** [I need to print output](patterns.md#i-need-to-print-output).
+**Patterns:** [I need to print output](patterns.md#i-need-to-print-output), [I need to see why a service did not run](patterns.md#i-need-to-see-why-a-service-did-not-run).
 
 ### `architecture.rawIsEscaped`
 
@@ -915,7 +915,7 @@ interfaces: the scaffold lists `Injector` and `Instantiator`.
 `newOnlyWhereAllowed.valueObjects` lists the value objects: the scaffold lists
 `LazilyInstantiatedService`, `ViewLocations`, `ViewConfiguration`, the
 lifecycle values in `Infrastructure\Lifecycle` (IDs, scope, contexts and
-selections) and PHP's `DateTimeImmutable`,
+selections), `RegistrationRecord` and PHP's `DateTimeImmutable`,
 `DateInterval`, `ArrayIterator` and `SplObjectStorage`.
 
 **Fix:** receive the object through the constructor, typed to its interface,
@@ -1331,11 +1331,11 @@ add.
 and the capability interfaces of [the core idea](design-principles.md#how-services-map-to-it).
 
 **Checks:** a class implementing `Registerable`, `Conditional`, `Delayed`,
-`HasDependencies`, `Activateable`, `Deactivateable` or one of the eight scoped
-lifecycle interfaces (`SiteActivateable`, `NetworkActivateable`,
-`SiteDeactivateable`, `NetworkDeactivateable`, `SiteInitializable`,
-`SiteUninitializable`, `SiteUninstallable`, `NetworkUninstallable`) also
-implements `Service`.
+`HasDependencies`, `Activateable`, `Deactivateable`, `ObservesRegistration` or
+one of the eight scoped lifecycle interfaces (`SiteActivateable`,
+`NetworkActivateable`, `SiteDeactivateable`, `NetworkDeactivateable`,
+`SiteInitializable`, `SiteUninitializable`, `SiteUninstallable`,
+`NetworkUninstallable`) also implements `Service`.
 A `Delayed` class also implements `Registerable`: waiting for an action only
 makes sense when the service has hooks to register. Inherited interfaces count,
 including on abstract classes.
@@ -1356,6 +1356,8 @@ exclusions come from `dependencyDirection.infrastructure` and
 `Delayed` class, implement `Registerable` and add its hooks in `register()`.
 Declare the service in the composition root as shown in
 [I need to add a feature](patterns.md#i-need-to-add-a-feature).
+
+**Patterns:** [I need to add a feature](patterns.md#i-need-to-add-a-feature), [I need to see why a service did not run](patterns.md#i-need-to-see-why-a-service-did-not-run).
 
 ### `architecture.servicesDeclared`
 
