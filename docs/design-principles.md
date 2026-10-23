@@ -207,7 +207,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:643-647`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:656-660`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -248,8 +248,8 @@ locator. It depends on which side of the graph's edge the code is on:
 
 - **Inside the graph**, a class receives what it needs through its
   constructor. When it needs an object later or once per use, it receives a
-  factory, or, once the injector can be injected (#22), the injector, and calls
-  only `make()` on it. When it has to
+  factory, or the injector (`src/Infrastructure/ServiceBasedPlugin.php:241-244`),
+  and calls only `make()` on it. When it has to
   choose between implementations at runtime, it receives a typed registry for
   that one concept. It never looks a service up in the container.
 - **At the edge**, where WordPress calls in from outside, a listed *bridge*
@@ -336,7 +336,7 @@ At every boundary where data comes from WordPress:
 In the code: the service list passes through a filter that any plugin can
 hook, so `ServiceBasedPlugin` checks each identifier and class name before
 using it and throws `InvalidService` on anything unexpected
-(`src/Infrastructure/ServiceBasedPlugin.php:254-280`). Bindings, arguments,
+(`src/Infrastructure/ServiceBasedPlugin.php:267-293`). Bindings, arguments,
 shared instances and delegations receive the same treatment after their
 filters, raising `InvalidConfiguration`, `InvalidService` or `InvalidArgument`.
 
@@ -412,7 +412,7 @@ WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
 happened (`src/Infrastructure/ServiceBasedPlugin.php:218-221`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:598-601`).
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:611-614`).
 A step that runs a second time must leave the plugin exactly as the first run
 did.
 
@@ -424,7 +424,7 @@ plugin file is being included. At include time, plugins loaded after this one
 have had no chance to add their callbacks, so an extension point that runs
 then only works for code that happens to load earlier. So the plugin applies
 its filters during registration at `plugins_loaded`: the `services` filter
-(`src/Infrastructure/ServiceBasedPlugin.php:254-257`), and the injector
+(`src/Infrastructure/ServiceBasedPlugin.php:267-270`), and the injector
 filters, because the injector is configured there and not in the constructor
 (`src/Infrastructure/ServiceBasedPlugin.php:231`).
 
@@ -441,7 +441,7 @@ collaboration or synchronization between plugins.
 
 **Everything public carries the plugin's prefix**, so that several plugins
 built from this scaffold can run side by side without clashing. That covers
-hook names and service identifiers (`src/BasicScaffoldPlugin.php:196-198`), as
+hook names and service identifiers (`src/BasicScaffoldPlugin.php:206-208`), as
 well as option, meta and transient names, script and style handles, and the
 paths a theme uses to override the plugin's views. The prefixes prevent
 collisions; they are not a coordination protocol.

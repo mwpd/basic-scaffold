@@ -10,6 +10,7 @@ use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\Injector;
+use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
@@ -23,6 +24,7 @@ use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceA;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceB;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceC;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingB;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingInjector;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingUnneeded;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededService;
@@ -445,5 +447,38 @@ class ServiceBasedPluginTest extends TestCase {
 		foreach ( self::INJECTOR_FILTERS as $filter ) {
 			$this->assertSame( 1, Filters\applied( $filter ) );
 		}
+	}
+
+	/**
+	 * Test that a service whose constructor takes the Injector interface
+	 * receives the injector the plugin itself uses.
+	 */
+	public function test_a_service_can_receive_the_plugin_injector(): void {
+		$plugin = new TestServicesPlugin( [ 'needs_injector' => TestServiceNeedingInjector::class ] );
+		$plugin->register_services();
+
+		$service = $plugin->get_container()->get( 'needs_injector' );
+
+		$this->assertInstanceOf( TestServiceNeedingInjector::class, $service );
+		$this->assertSame( $this->get_registered_injector( $plugin ), $service->get_injector() );
+	}
+
+	/**
+	 * Test that a custom injector passed to the plugin is the one that gets
+	 * injected, both into services and into objects made on demand.
+	 */
+	public function test_a_custom_injector_is_the_one_injected(): void {
+		$injector = new SimpleInjector();
+		$plugin   = new TestServicesPlugin(
+			[ 'needs_injector' => TestServiceNeedingInjector::class ],
+			$injector
+		);
+		$plugin->register_services();
+
+		$service = $plugin->get_container()->get( 'needs_injector' );
+
+		$this->assertInstanceOf( TestServiceNeedingInjector::class, $service );
+		$this->assertSame( $injector, $service->get_injector() );
+		$this->assertSame( $injector, $injector->make( Injector::class ) );
 	}
 }
