@@ -44,6 +44,176 @@ final class SuppressionTest extends TestCase {
 		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
 	}
 
+	public function test_the_plugin_names_every_inline_suppression(): void {
+		$checks   = new SuppressionChecks( RepositoryLayout::of_plugin() );
+		$problems = $checks->check_named_suppressions();
+
+		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
+	}
+
+	/**
+	 * @dataProvider unnamed_suppressions
+	 *
+	 * @param string $directive Suppression written in a comment.
+	 * @param string $fix       Narrow form to recommend.
+	 */
+	public function test_it_reports_each_unnamed_suppression_with_the_full_message(
+		string $directive,
+		string $fix
+	): void {
+		$problems = $this->repository()
+			->write( 'src/Service.php', "<?php\n/**\n * Example.\n * " . $directive . "\n */\n" )
+			->checks_for_suppression()
+			->check_named_suppressions();
+
+		$this->assertSame( [ self::named_problem( 'src/Service.php:4', $directive, $fix ) ], $problems );
+	}
+
+	/**
+	 * @return array<string, array{string, string}> Directives and their narrow alternatives.
+	 */
+	public static function unnamed_suppressions(): array {
+		$phpstan = '// @phpstan-ignore argument.type (reason)';
+		$phpcs   = '// phpcs:ignore Category.Sniff -- reason';
+		$psalm   = '@psalm-suppress IssueType reason';
+
+		return [
+			'PHPStan line'                => [ '@phpstan-ignore-line', $phpstan ],
+			'PHPStan next line'           => [ '@phpstan-ignore-next-line', $phpstan ],
+			'PHPStan line with a name'    => [ '@phpstan-ignore-line argument.type', $phpstan ],
+			'PHPStan next line with name' => [ '@phpstan-ignore-next-line argument.type', $phpstan ],
+			'PHPStan missing identifier'  => [ '@phpstan-ignore', $phpstan ],
+			'PHPStan reason only'         => [ '@phpstan-ignore (argument.type is a false positive)', $phpstan ],
+			'PHPStan undotted name'       => [ '@phpstan-ignore argument', $phpstan ],
+			'PHPCS ignore'                => [ 'phpcs:ignore', $phpcs ],
+			'PHPCS disable'               => [ 'phpcs:disable', $phpcs ],
+			'PHPCS prefixed ignore'       => [ '@phpcs:ignore', $phpcs ],
+			'PHPCS prefixed disable'      => [ '@phpcs:disable', $phpcs ],
+			'PHPCS ignore reason only'    => [ 'phpcs:ignore -- Category.Sniff is a false positive', $phpcs ],
+			'PHPCS disable reason only'   => [ '@phpcs:disable -- Category.Sniff is a false positive', $phpcs ],
+			'PHPCS undotted name'         => [ 'phpcs:ignore WordPress', $phpcs ],
+			'PHPCS ignore file'           => [ 'phpcs:ignoreFile', $phpcs ],
+			'PHPCS prefixed ignore file'  => [ '@phpcs:ignoreFile', $phpcs ],
+			'PHPCS named ignore file'     => [ 'phpcs:ignoreFile WordPress.Security.EscapeOutput', $phpcs ],
+			'PHPCS prefixed named file'   => [ '@phpcs:ignoreFile Category.Sniff -- reason', $phpcs ],
+			'Psalm missing issue'         => [ '@psalm-suppress', $psalm ],
+		];
+	}
+
+	public function test_it_accepts_named_suppressions_and_out_of_scope_directives(): void {
+		$source = implode(
+			"\n",
+			[
+				'<?php',
+				'// @phpstan-ignore argument.type',
+				'// @phpstan-ignore argument.type, method.notFound (reason)',
+				'/* @phpstan-ignore argument.type (reason) */',
+				'// phpcs:ignore WordPress.Security.EscapeOutput',
+				'// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- reason',
+				'// @phpcs:disable Category.Sniff, Other.Sniff.code -- reason',
+				'// phpcs:disable Category.Sniff',
+				'/** @psalm-suppress UnresolvableInclude */',
+				'// @psalm-suppress UnresolvableInclude reason',
+				'// @phpstan-ignore-file',
+				'// phpcs:enable',
+				'// @phpcs:enable',
+				'// phpcs:set Category.Sniff property value',
+			]
+		);
+
+		$problems = $this->repository()
+			->write( 'src/Service.php', $source )
+			->checks_for_suppression()
+			->check_named_suppressions();
+
+		$this->assertSame( [], $problems );
+	}
+
+	public function test_it_reports_each_occurrence_on_its_comment_line(): void {
+		$phpstan  = '// @phpstan-ignore argument.type (reason)';
+		$problems = $this->repository()
+			->write(
+				'src/Service.php',
+				"<?php\n// @phpstan-ignore-line @phpstan-ignore-next-line\n"
+				. "/*\n * phpcs:ignore\n * @psalm-suppress\n */\n"
+			)
+			->checks_for_suppression()
+			->check_named_suppressions();
+
+		$this->assertSame(
+			[
+				self::named_problem( 'src/Service.php:2', '@phpstan-ignore-line', $phpstan ),
+				self::named_problem( 'src/Service.php:2', '@phpstan-ignore-next-line', $phpstan ),
+				self::named_problem( 'src/Service.php:4', 'phpcs:ignore', '// phpcs:ignore Category.Sniff -- reason' ),
+				self::named_problem( 'src/Service.php:5', '@psalm-suppress', '@psalm-suppress IssueType reason' ),
+			],
+			$problems
+		);
+	}
+
+	public function test_it_checks_the_bootstrap_sources_views_and_tests(): void {
+		$paths      = [
+			'plugin.php',
+			'src/Service.php',
+			'views/example.php',
+			'tests/php/Unit/ExampleTest.php',
+		];
+		$repository = $this->repository();
+		$expected   = [];
+
+		foreach ( $paths as $path ) {
+			$repository->write( $path, "<?php\n// phpcs:ignore\n" );
+			$expected[] = self::named_problem(
+				$path . ':2',
+				'phpcs:ignore',
+				'// phpcs:ignore Category.Sniff -- reason'
+			);
+		}
+
+		$problems = $repository->checks_for_suppression()->check_named_suppressions();
+		sort( $expected );
+		sort( $problems );
+
+		$this->assertSame( $expected, $problems );
+	}
+
+	public function test_it_ignores_suppression_strings_and_rule_fixtures(): void {
+		$repository = $this->repository();
+
+		foreach ( self::unnamed_suppressions() as [ $directive ] ) {
+			$repository->write( 'src/Service.php', "<?php\n\$example = " . (string) json_encode( $directive ) . ";\n" );
+			$this->assertSame( [], $repository->checks_for_suppression()->check_named_suppressions() );
+		}
+
+		$repository->write( 'tests/php/PHPStan/Fixture/Broken.php', "<?php\n// phpcs:ignore\n" );
+		$layout = new RepositoryLayout(
+			$repository->get_root(),
+			'plugin.php',
+			[ 'src' ],
+			[ 'views' ],
+			'tests',
+			[],
+			[ 'tests/php/PHPStan/Fixture' ]
+		);
+
+		$this->assertSame( [], ( new SuppressionChecks( $layout ) )->check_named_suppressions() );
+	}
+
+	/**
+	 * Build the complete expected message independently of the manifest.
+	 *
+	 * @param string $location  Relative file and line number.
+	 * @param string $directive Suppression found in the comment.
+	 * @param string $fix       Narrow form to recommend.
+	 * @return string Complete failure message.
+	 */
+	private static function named_problem( string $location, string $directive, string $fix ): string {
+		return '[architecture.suppressionsAreNamed] ' . $location . ' uses a broad or unnamed suppression ('
+			. explode( ' ', $directive )[0] . '). Use ' . $fix
+			. '; a reason is recommended. Hard rule: do not weaken the gates, see AGENTS.md#hard-rules.'
+			. ' Rule: docs/architecture-rules.md#architecturesuppressionsarenamed.';
+	}
+
 	public function test_it_reports_an_inline_ignore_of_an_architecture_rule(): void {
 		$problems = $this->repository()
 			->write(

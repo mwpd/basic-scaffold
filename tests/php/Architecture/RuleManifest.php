@@ -135,6 +135,8 @@ final class RuleManifest {
 
 	public const NO_SUPPRESSION = 'architecture.noSuppression';
 
+	public const SUPPRESSIONS_ARE_NAMED = 'architecture.suppressionsAreNamed';
+
 	public const GATES_AT_STRENGTH = 'architecture.gatesAtStrength';
 
 	public const CAPABILITIES_ON_SERVICES = 'architecture.capabilitiesOnServices';
@@ -563,6 +565,16 @@ final class RuleManifest {
 			'checked_by'       => [
 				SuppressionTest::class . '::test_the_plugin_does_not_silence_architecture_rules',
 				RuleRegistrationTest::class . '::test_every_rule_is_registered_listed_and_documented',
+			],
+			'signatures'       => [],
+		],
+		self::SUPPRESSIONS_ARE_NAMED                => [
+			'principle'        => 'Hard rule: do not weaken the gates',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'RepositoryLayout::RULE_FIXTURES',
+			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				SuppressionTest::class . '::test_the_plugin_names_every_inline_suppression',
 			],
 			'signatures'       => [],
 		],

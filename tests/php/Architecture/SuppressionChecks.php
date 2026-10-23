@@ -45,7 +45,68 @@ final class SuppressionChecks {
 	 */
 	public function check_inline_suppressions(): array {
 		$problems = [];
-		$files    = array_merge(
+
+		foreach ( $this->comment_lines() as $comment ) {
+			if ( preg_match( '/@phpstan-ignore(?:-line|-next-line)?\b.*\barchitecture\.\w+/', $comment['text'] ) ) {
+				$problems[] = $this->problem(
+					sprintf(
+						'%1$s:%2$d silences an architecture rule.',
+						$this->layout->relative( $comment['path'] ),
+						$comment['line']
+					)
+				);
+			}
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Every inline suppression names the errors it silences.
+	 *
+	 * @return array<string> Problems found.
+	 */
+	public function check_named_suppressions(): array {
+		$problems  = [];
+		$directive = '@phpstan-ignore(?:-next-line|-line)?(?![\w-])'
+			. '|@?phpcs:(?:ignoreFile|ignore|disable)\b|@psalm-suppress\b';
+
+		foreach ( $this->comment_lines() as $comment ) {
+			preg_match_all(
+				'/(' . $directive . ')(.*?)(?=(?:' . $directive . ')|$)/',
+				$comment['text'],
+				$matches,
+				PREG_SET_ORDER
+			);
+
+			foreach ( $matches as $match ) {
+				$fix = self::named_suppression_fix( $match[1], $match[2] );
+
+				if ( $fix !== null ) {
+					$problems[] = sprintf(
+						'[%1$s] %2$s:%3$d uses a broad or unnamed suppression (%4$s). Use %5$s;'
+						. ' a reason is recommended. %6$s.',
+						RuleManifest::SUPPRESSIONS_ARE_NAMED,
+						$this->layout->relative( $comment['path'] ),
+						$comment['line'],
+						$match[1],
+						$fix,
+						RuleManifest::get_explanation( RuleManifest::SUPPRESSIONS_ARE_NAMED )
+					);
+				}
+			}
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Read comment lines from the shared scope of the suppression checks.
+	 *
+	 * @return iterable<array{path: string, line: int, text: string}> Comment lines with their locations.
+	 */
+	private function comment_lines(): iterable {
+		$files = array_merge(
 			[ $this->layout->get_bootstrap() ],
 			$this->layout->get_production_files(),
 			$this->layout->get_view_template_files(),
@@ -57,28 +118,49 @@ final class SuppressionChecks {
 				continue;
 			}
 
-			// Only comments can silence PHPStan, so strings that mention an
-			// ignore, such as in a test, do not count.
+			// Only comment tokens can suppress errors; strings in tests do not count.
 			foreach ( token_get_all( (string) file_get_contents( $path ) ) as $token ) {
 				if ( ! is_array( $token ) || ! in_array( $token[0], [ T_COMMENT, T_DOC_COMMENT ], true ) ) {
 					continue;
 				}
 
 				foreach ( explode( "\n", $token[1] ) as $offset => $line ) {
-					if ( preg_match( '/@phpstan-ignore(?:-line|-next-line)?\b.*\barchitecture\.\w+/', $line ) ) {
-						$problems[] = $this->problem(
-							sprintf(
-								'%1$s:%2$d silences an architecture rule.',
-								$this->layout->relative( $path ),
-								$token[2] + $offset
-							)
-						);
-					}
+					yield [
+						'path' => $path,
+						'line' => $token[2] + $offset,
+						'text' => $line,
+					];
 				}
 			}
 		}
+	}
 
-		return $problems;
+	/**
+	 * Recommend a narrow form when a directive does not name its target.
+	 *
+	 * @param string $directive Suppression directive.
+	 * @param string $tail      Rest of its comment line.
+	 * @return string|null Recommended form, or null for a named suppression.
+	 */
+	private static function named_suppression_fix( string $directive, string $tail ): ?string {
+		$dotted_name = '[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+';
+		$has_name    = preg_match( '/^\h+' . $dotted_name . '(?=\h|,|\(|\*\/|$)/', $tail ) === 1;
+
+		if ( strpos( $directive, '@phpstan-' ) === 0 ) {
+			return $directive === '@phpstan-ignore' && $has_name
+				? null
+				: '// @phpstan-ignore argument.type (reason)';
+		}
+
+		if ( strpos( $directive, 'phpcs:' ) !== false ) {
+			return strpos( $directive, 'ignoreFile' ) === false && $has_name
+				? null
+				: '// phpcs:ignore Category.Sniff -- reason';
+		}
+
+		return preg_match( '/^\h+[A-Za-z][A-Za-z0-9_]*(?=\h|\*\/|$)/', $tail ) === 1
+			? null
+			: '@psalm-suppress IssueType reason';
 	}
 
 	/**
