@@ -128,12 +128,23 @@ final class RuleManifest {
 
 	public const COMPOSITION_ROOT_CONTRACTS = 'architecture.compositionRootContracts';
 
+	public const CITATIONS_RESOLVE = 'architecture.citationsResolve';
+
 	/**
 	 * All rules, keyed by their identifier.
 	 *
 	 * @var array<string, RuleEntry>
 	 */
 	private const RULES = [
+		self::CITATIONS_RESOLVE                     => [
+			'principle'        => 'Principle 14: The code teaches',
+			'principle_anchor' => '14-the-code-teaches',
+			'configuration'    => 'RepositoryLayout::DOCUMENTATION',
+			'checked_by'       => [
+				RepositoryStructureTest::class . '::test_the_documentation_citations_resolve',
+			],
+			'signatures'       => [],
+		],
 		self::FINAL_BY_DEFAULT                      => [
 			'principle'        => 'Principle 6: Final by default',
 			'principle_anchor' => '6-final-by-default',

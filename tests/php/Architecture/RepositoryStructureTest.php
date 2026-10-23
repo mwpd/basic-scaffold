@@ -43,6 +43,87 @@ final class RepositoryStructureTest extends TestCase {
 		$this->assertNoProblems( $this->plugin_checks()->check_strict_types() );
 	}
 
+	public function test_the_documentation_citations_resolve(): void {
+		$this->assertNoProblems( $this->plugin_checks()->check_citations_resolve() );
+	}
+
+	public function test_it_reports_broken_documentation_citations_with_full_messages(): void {
+		$problems = $this->repository()
+			->write( 'target.txt', "First.\nLast.\n" )
+			->write( 'AGENTS.md', '``src/Missing.php:1``' )
+			->write( 'README.md', '`target.txt:3`' )
+			->write(
+				'docs/nested/citations.md',
+				'`src/Missing.php:1` `target.txt:3` `target.txt:2-1` `target.txt:1-3` `target.txt:0`'
+			)
+			->checks()
+			->check_citations_resolve();
+
+		$explanation = ' Principle 14: The code teaches, see docs/design-principles.md#14-the-code-teaches.'
+			. ' Rule: docs/architecture-rules.md#architecturecitationsresolve.';
+		$fix         = ' Correct the path or line numbers to cite existing lines in the repository.';
+		$this->assertSame(
+			[
+				'[architecture.citationsResolve] AGENTS.md cites src/Missing.php:1, but the file'
+					. ' does not exist.' . $fix . $explanation,
+				'[architecture.citationsResolve] README.md cites target.txt:3, but line 3 is beyond'
+					. ' the end of target.txt (2 lines).' . $fix . $explanation,
+				'[architecture.citationsResolve] docs/nested/citations.md cites src/Missing.php:1, but the file'
+					. ' does not exist.' . $fix . $explanation,
+				'[architecture.citationsResolve] docs/nested/citations.md cites target.txt:3, but line 3 is beyond'
+					. ' the end of target.txt (2 lines).' . $fix . $explanation,
+				'[architecture.citationsResolve] docs/nested/citations.md cites target.txt:2-1, but the range is'
+					. ' reversed (2 > 1).' . $fix . $explanation,
+				'[architecture.citationsResolve] docs/nested/citations.md cites target.txt:1-3, but line 3 is beyond'
+					. ' the end of target.txt (2 lines).' . $fix . $explanation,
+				'[architecture.citationsResolve] docs/nested/citations.md cites target.txt:0, but line numbers'
+					. ' start at 1.' . $fix . $explanation,
+			],
+			$problems
+		);
+	}
+
+	public function test_it_checks_inline_citations_only_in_the_documentation_paths(): void {
+		$problems = $this->repository()
+			->write( 'target.txt', "First.\nLast." )
+			->write( 'AGENTS.md', '`target.txt:1`' )
+			->write( 'README.md', '``target.txt:1-2`` and `target.txt:2`, including the final unterminated line.' )
+			->write(
+				'docs/citations.md',
+				implode(
+					"\n",
+					[
+						'`target.txt:1, target.txt:2-2` and a multiline `target.txt:1',
+						'target.txt:2` span.',
+						'Outside code: absent.php:999. Escaped backticks: \\`absent.php:999\\`.',
+						'`https://example.com/absent.php:999` `http://example.com:8080` `localhost:8080`',
+						'`Class::method()` `Class.php::123` `/tmp/absent.php:999` `../absent.php:999`',
+						'`12:34` `label:123` `absent.unknown:123`',
+						'```md',
+						'`absent.php:999`',
+						'```',
+						'~~~md',
+						'`absent.php:999`',
+						'~~~',
+						'   ```md',
+						'`absent.php:999`',
+						'   ````',
+						'  ~~~~md',
+						'`absent.php:999`',
+						'  ~~~~~',
+						'```md',
+						'`absent.php:999` in an unclosed fence.',
+					]
+				)
+			)
+			->write( 'other.md', '`absent.php:999`' )
+			->write( 'docs/other.txt', '`absent.php:999`' )
+			->checks()
+			->check_citations_resolve();
+
+		$this->assertSame( [], $problems );
+	}
+
 	public function test_it_reports_a_class_file_without_strict_types(): void {
 		$problems = $this->repository()
 			->write( 'src/Service.php', $this->php( 'namespace NAMESPACE;', '', 'final class Service {', '}' ) )

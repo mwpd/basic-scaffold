@@ -40,6 +40,92 @@ final class RepositoryChecks {
 	}
 
 	/**
+	 * Inline code citations point to existing files and lines in the repository.
+	 *
+	 * @return array<string> Problems found.
+	 */
+	public function check_citations_resolve(): array {
+		$problems = [];
+		foreach ( $this->layout->get_documentation_files() as $document ) {
+			// Fences can be indented by up to three spaces and closed by a
+			// longer delimiter of the same kind. An unclosed fence runs to EOF.
+			$markdown = (string) preg_replace(
+				'/^ {0,3}(`{3,})[^`\n]*\n.*?(?:^ {0,3}\1`*[ \t\r]*$|\z)'
+				. '|^ {0,3}(~{3,})[^\n]*\n.*?(?:^ {0,3}\2~*[ \t\r]*$|\z)/ms',
+				'',
+				(string) file_get_contents( $document )
+			);
+			// Matching delimiter lengths allow double-backtick spans and avoid
+			// treating escaped backticks or fenced examples as citations.
+			preg_match_all( '/(?<![\\\\`])(`+)(?!`)(.*?)(?<!`)\1(?!`)/s', $markdown, $spans );
+			foreach ( $spans[2] as $span ) {
+				// A bounded relative path with a known file extension excludes URLs,
+				// absolute paths, parent traversal, host:port and static references.
+				preg_match_all(
+					'~(?<![\w./:\\\\-])((?:[\w.-]+/)*[\w.-]+\.'
+					. '(?:php|md|txt|json|lock|neon|ya?ml|xml|dist|ini|sh|js|ts|css|html|svg))'
+					. ':([0-9]+)(?:-([0-9]+))?(?![\w:-])~',
+					$span,
+					$citations,
+					PREG_SET_ORDER
+				);
+				foreach ( $citations as $citation ) {
+					if ( in_array( '..', explode( '/', $citation[1] ), true ) ) {
+						continue;
+					}
+					$problem = $this->citation_problem(
+						$citation[1],
+						(int) $citation[2],
+						(int) ( $citation[3] ?? $citation[2] )
+					);
+					if ( $problem !== '' ) {
+						$problems[] = $this->problem(
+							RuleManifest::CITATIONS_RESOLVE,
+							sprintf(
+								'%s cites %s, but %s Correct the path or line numbers to cite existing lines'
+								. ' in the repository.',
+								$this->layout->relative( $document ),
+								$citation[0],
+								$problem
+							)
+						);
+					}
+				}
+			}
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Describe the invalid part of a citation, if any.
+	 *
+	 * @param string $path  File relative to the repository root.
+	 * @param int    $start First cited line.
+	 * @param int    $end   Last cited line.
+	 * @return string Problem, or an empty string for a valid citation.
+	 */
+	private function citation_problem( string $path, int $start, int $end ): string {
+		$absolute = $this->layout->absolute( $path );
+		if ( ! is_file( $absolute ) ) {
+			return 'the file does not exist.';
+		}
+		if ( $start < 1 || $end < 1 ) {
+			return 'line numbers start at 1.';
+		}
+		if ( $start > $end ) {
+			return sprintf( 'the range is reversed (%d > %d).', $start, $end );
+		}
+		$contents = (string) file_get_contents( $absolute );
+		$lines    = substr_count( $contents, "\n" ) + ( $contents !== '' && substr( $contents, -1 ) !== "\n" ? 1 : 0 );
+		if ( $end > $lines ) {
+			return sprintf( 'line %d is beyond the end of %s (%d lines).', $end, $path, $lines );
+		}
+
+		return '';
+	}
+
+	/**
 	 * The main file and every class file declare strict types, and view
 	 * templates declare nothing.
 	 *

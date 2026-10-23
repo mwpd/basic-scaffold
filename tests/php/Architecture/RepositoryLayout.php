@@ -76,6 +76,11 @@ final class RepositoryLayout {
 	public const RULE_FIXTURES = [ 'tests/php/PHPStan/Fixture', 'tests/php/Fixture/WordPress' ];
 
 	/**
+	 * Markdown files, and directories searched recursively, with code citations.
+	 */
+	public const DOCUMENTATION = [ 'AGENTS.md', 'README.md', 'docs' ];
+
+	/**
 	 * Root of the repository, without a trailing slash.
 	 */
 	private string $root;
@@ -383,6 +388,30 @@ final class RepositoryLayout {
 	}
 
 	/**
+	 * Get the Markdown documents whose repository-relative citations are checked.
+	 *
+	 * @return array<string> Absolute paths, sorted.
+	 */
+	public function get_documentation_files(): array {
+		$files = [];
+		foreach ( self::DOCUMENTATION as $path ) {
+			$absolute = $this->absolute( $path );
+			if ( is_file( $absolute ) ) {
+				$files[] = $absolute;
+			} elseif ( is_dir( $absolute ) ) {
+				foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $absolute ) ) as $file ) {
+					if ( $file instanceof SplFileInfo && $file->isFile() && $file->getExtension() === 'md' ) {
+						$files[] = $file->getPathname();
+					}
+				}
+			}
+		}
+		sort( $files );
+
+		return $files;
+	}
+
+	/**
 	 * Get the PHP files in the view template directories.
 	 *
 	 * @return array<string> Absolute paths.
@@ -432,7 +461,7 @@ final class RepositoryLayout {
 	 * @param string $path Path relative to the root.
 	 * @return string Absolute path.
 	 */
-	private function absolute( string $path ): string {
+	public function absolute( string $path ): string {
 		return $this->root . '/' . ltrim( $path, '/' );
 	}
 
