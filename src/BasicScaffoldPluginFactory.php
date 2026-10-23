@@ -30,8 +30,10 @@ final class BasicScaffoldPluginFactory {
 	/**
 	 * Create and return an instance of the plugin.
 	 *
-	 * This always returns a shared instance. This way, outside code can always
-	 * get access to the object instance of the plugin.
+	 * This always returns a shared instance, so that the main plugin file and
+	 * the listed bridges, where WordPress calls in from outside the object
+	 * graph, all reach the same plugin. It is not an API for themes or other
+	 * plugins, which integrate through the plugin's hooks (principle 13).
 	 *
 	 * @return Plugin Plugin instance.
 	 */
