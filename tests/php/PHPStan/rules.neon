@@ -20,6 +20,9 @@ parametersSchema:
             marker: string()
             notExceptions: listOf(string())
         ])
+        exceptionsKeepCause: structure([
+            emptyCatches: listOf(string())
+        ])
         noWordPressErrorMechanisms: structure([
             boundaryAdapters: listOf(string())
         ])
@@ -164,6 +167,14 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             marker: %architecture.exceptions.marker%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ExceptionsKeepCauseRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            empty_catches: %architecture.exceptionsKeepCause.emptyCatches%
         tags:
             - phpstan.rules.rule
 

@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Exception;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * Exception thrown when a class instance cannot be made.
@@ -86,35 +87,41 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 * Create a new instance of the exception for an interface or class that
 	 * could not be reflected upon.
 	 *
-	 * @param string $interface_or_class Interface or class that could not be
-	 *                                   reflected upon.
+	 * @param string         $interface_or_class Interface or class that could not
+	 *                                          be reflected upon.
+	 * @param Throwable|null $previous           Optional. Original reflection failure.
 	 */
-	public static function for_unreflectable_class( string $interface_or_class ): self {
+	public static function for_unreflectable_class( string $interface_or_class, ?Throwable $previous = null ): self {
 		$message = \sprintf(
 			'Could not reflect on the interface or class "%s", probably not a valid FQCN.',
 			$interface_or_class
 		);
 
-		return new self( $message, self::UNREFLECTABLE_CLASS );
+		return new self( $message, self::UNREFLECTABLE_CLASS, $previous );
 	}
 
 	/**
 	 * Create a new instance of the exception for an argument that could not be
 	 * resolved.
 	 *
-	 * @param string $argument_name Name of the argument that could not be
-	 *                              resolved.
-	 * @param string $class_name         Class that had the argument in its
-	 *                              constructor.
+	 * @param string         $argument_name Name of the argument that could not be
+	 *                                     resolved.
+	 * @param string         $class_name    Class that had the argument in its
+	 *                                     constructor.
+	 * @param Throwable|null $previous      Optional. Original default value failure.
 	 */
-	public static function for_unresolved_argument( string $argument_name, string $class_name ): self {
+	public static function for_unresolved_argument(
+		string $argument_name,
+		string $class_name,
+		?Throwable $previous = null
+	): self {
 		$message = \sprintf(
 			'Could not resolve the argument "%s" while trying to instantiate the class "%s".',
 			$argument_name,
 			$class_name
 		);
 
-		return new self( $message, self::UNRESOLVED_ARGUMENT );
+		return new self( $message, self::UNRESOLVED_ARGUMENT, $previous );
 	}
 
 	/**
