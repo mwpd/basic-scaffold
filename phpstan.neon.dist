@@ -61,6 +61,10 @@ parameters:
         noWordPressErrorMechanisms:
             # Classes that hand a WP_Error to WordPress where it expects one.
             boundaryAdapters: []
+        outputOnlyThroughViews:
+            # Named classes allowed to output without a rendered view
+            # (design principle 7). Templates are checked by rawIsEscaped.
+            allowed: []
         rawIsEscaped:
             # A raw() read bypasses automatic escaping; templates must escape
             # it for its output context (design principle 9).

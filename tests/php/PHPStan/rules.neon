@@ -32,6 +32,9 @@ parametersSchema:
         rawIsEscaped: structure([
             escapingFunctions: listOf(string())
         ])
+        outputOnlyThroughViews: structure([
+            allowed: listOf(string())
+        ])
         dependencyDirection: structure([
             infrastructure: string()
             compositionRoot: listOf(string())
@@ -212,6 +215,17 @@ services:
         arguments:
             views: %architecture.dependencyDirection.views%
             escaping_functions: %architecture.rawIsEscaped.escapingFunctions%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\OutputOnlyThroughViewsRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            infrastructure: %architecture.dependencyDirection.infrastructure%
+            views: %architecture.dependencyDirection.views%
+            allowed: %architecture.outputOnlyThroughViews.allowed%
+            reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule
 
