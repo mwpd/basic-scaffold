@@ -92,35 +92,11 @@ final class SimpleInjector implements Injector {
 	 * @throws FailedToMakeInstance If the object could not be instantiated.
 	 */
 	public function make( string $interface_or_class, array $arguments = [] ): object {
-		$injection_chain = $this->resolve(
+		return $this->make_dependency(
 			new InjectionChain(),
-			$interface_or_class
-		);
-
-		$class_name = $injection_chain->get_class();
-
-		if ( $this->has_shared_instance( $class_name ) ) {
-			return $this->get_shared_instance( $class_name );
-		}
-
-		if ( $this->has_delegate( $class_name ) ) {
-			return $this->make_with_delegate( $class_name );
-		}
-
-		$reflection = $this->get_class_reflection( $class_name );
-		$this->ensure_is_instantiable( $reflection );
-		$dependencies = $this->get_dependencies_for(
-			$injection_chain,
-			$reflection,
+			$interface_or_class,
 			$arguments
 		);
-		$object       = $this->instantiator->instantiate( $class_name, $dependencies );
-
-		if ( \array_key_exists( $class_name, $this->shared_instances ) ) {
-			$this->shared_instances[ $class_name ] = $object;
-		}
-
-		return $object;
 	}
 
 	/**
@@ -192,47 +168,117 @@ final class SimpleInjector implements Injector {
 	/**
 	 * Make an object instance out of an interface or class.
 	 *
-	 * @param InjectionChain $injection_chain    Injection chain to track
-	 *                                           resolutions.
-	 * @param class-string   $interface_or_class Interface or class to make an
-	 *                                           object instance out of.
+	 * Both make() and the dependencies it resolves go through this one path,
+	 * so sharing and delegation behave the same at the top of the object
+	 * graph and anywhere inside it.
+	 *
+	 * @param InjectionChain       $injection_chain    Injection chain to track
+	 *                                                 resolutions.
+	 * @param class-string         $interface_or_class Interface or class to make an
+	 *                                                 object instance out of.
+	 * @param array<string, mixed> $arguments          Optional. Additional arguments
+	 *                                                 to pass to the constructor.
+	 *                                                 Defaults to an empty array.
 	 * @return object Instantiated object.
 	 * @throws FailedToMakeInstance If the object could not be instantiated.
 	 */
 	private function make_dependency(
 		InjectionChain $injection_chain,
-		string $interface_or_class
+		string $interface_or_class,
+		array $arguments = []
 	): object {
 		$injection_chain = $this->resolve(
 			$injection_chain,
 			$interface_or_class
 		);
 
-		$class_name = $injection_chain->get_class();
+		$class_name      = $injection_chain->get_class();
+		$resolution_path = $this->get_resolution_path( $interface_or_class );
+		$shared_instance = $this->find_shared_instance( $resolution_path );
 
-		if ( $this->has_shared_instance( $class_name ) ) {
-			return $this->get_shared_instance( $class_name );
+		if ( null !== $shared_instance ) {
+			$this->store_shared_instance( $resolution_path, $shared_instance );
+
+			return $shared_instance;
 		}
 
 		if ( $this->has_delegate( $class_name ) ) {
-			return $this->make_with_delegate( $class_name );
+			$object = $this->make_with_delegate( $class_name );
+		} else {
+			$reflection = $this->get_class_reflection( $class_name );
+			$this->ensure_is_instantiable( $reflection );
+
+			$dependencies = $this->get_dependencies_for(
+				$injection_chain,
+				$reflection,
+				$arguments
+			);
+
+			$object = $this->instantiator->instantiate( $class_name, $dependencies );
 		}
 
-		$reflection = $this->get_class_reflection( $class_name );
-		$this->ensure_is_instantiable( $reflection );
-
-		$dependencies = $this->get_dependencies_for(
-			$injection_chain,
-			$reflection
-		);
-
-		$object = $this->instantiator->instantiate( $class_name, $dependencies );
-
-		if ( \array_key_exists( $class_name, $this->shared_instances ) ) {
-			$this->shared_instances[ $class_name ] = $object;
-		}
+		$this->store_shared_instance( $resolution_path, $object );
 
 		return $object;
+	}
+
+	/**
+	 * Get the names a requested interface or class resolves through.
+	 *
+	 * Sharing is configured by name, and the name that was shared can be any
+	 * step between what was asked for and the class that gets built: an
+	 * interface, an alias bound to another one, or the class itself.
+	 * resolve() has already rejected cycles, so the walk ends.
+	 *
+	 * @param class-string $interface_or_class Interface or class that was requested.
+	 * @return array<int, class-string> The requested name, every name it is
+	 *                                  bound to in turn, and the class that is
+	 *                                  built, in that order.
+	 */
+	private function get_resolution_path( string $interface_or_class ): array {
+		$path = [ $interface_or_class ];
+
+		while ( \array_key_exists( $interface_or_class, $this->mappings ) ) {
+			$interface_or_class = $this->mappings[ $interface_or_class ];
+			$path[]             = $interface_or_class;
+		}
+
+		return $path;
+	}
+
+	/**
+	 * Find an instance already shared under any name on a resolution path.
+	 *
+	 * @param array<int, class-string> $resolution_path Names the request
+	 *                                                  resolves through.
+	 * @return object|null Shared instance, or null if none was made yet.
+	 */
+	private function find_shared_instance( array $resolution_path ): ?object {
+		foreach ( $resolution_path as $name ) {
+			if ( isset( $this->shared_instances[ $name ] ) ) {
+				return $this->shared_instances[ $name ];
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Store an instance under every shared name on a resolution path.
+	 *
+	 * Names that were not shared are left alone, so sharing an interface does
+	 * not also share its implementation when that is asked for directly.
+	 *
+	 * @param array<int, class-string> $resolution_path Names the request
+	 *                                                  resolves through.
+	 * @param object                   $instance        Instance to share.
+	 */
+	private function store_shared_instance( array $resolution_path, object $instance ): void {
+		foreach ( $resolution_path as $name ) {
+			if ( \array_key_exists( $name, $this->shared_instances ) ) {
+				$this->shared_instances[ $name ] = $instance;
+			}
+		}
 	}
 
 	/**
@@ -430,32 +476,6 @@ final class SimpleInjector implements Injector {
 
 		// Out of options, fail with an exception.
 		throw FailedToMakeInstance::for_unresolved_argument( $name, $class_name );
-	}
-
-	/**
-	 * Check whether a shared instance exists for a given class.
-	 *
-	 * @param class-string $class_name Class to check for a shared instance.
-	 * @return bool Whether a shared instance exists.
-	 */
-	private function has_shared_instance( string $class_name ): bool {
-		return \array_key_exists( $class_name, $this->shared_instances )
-				&& null !== $this->shared_instances[ $class_name ];
-	}
-
-	/**
-	 * Get the shared instance for a given class.
-	 *
-	 * @param class-string $class_name Class to get the shared instance for.
-	 * @return object Shared instance.
-	 * @throws FailedToMakeInstance If the shared instance could not be found.
-	 */
-	private function get_shared_instance( string $class_name ): object {
-		if ( ! $this->has_shared_instance( $class_name ) ) {
-			throw FailedToMakeInstance::for_uninstantiated_shared_instance( $class_name );
-		}
-
-		return (object) $this->shared_instances[ $class_name ];
 	}
 
 	/**
