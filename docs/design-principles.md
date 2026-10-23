@@ -298,6 +298,24 @@ the code works.
 
 ## 8. Types name concepts, not just data
 
+Names say what a type is, never what kind of type it is. A type that starts
+as one concrete class can later be promoted to an interface with several
+implementations without breaking a single type hint, `instanceof` or `catch`.
+Principle 5 confines `new` of collaborators to factories and the composition
+root, so the promotion breaks nothing outside them; principle 6 makes classes
+`final`, so no subclass breaks either. A name that encodes the kind
+(`FooInterface`, `IFoo`, `AbstractFoo`, `FooImpl`) is wrong the moment the kind
+changes, and renaming it breaks every hint. Implementations are named by what
+distinguishes them (`Simple…`, `WordPress…`, `Cached…`), never `…Impl`,
+`Default…` or `Base…`. The interfaces `Injector`, `ServiceContainer`, `View`,
+`ViewFactory`, `DebugMode` and `Plugin` name their concepts; `SimpleInjector`,
+`SimpleServiceContainer`, `TemplatedViewFactory` and `WordPressDebugMode` name
+what distinguishes their implementations. The abstract base
+`ServiceBasedPlugin` and the trait `Stringify` follow the same rule.
+Exceptions name the failure, such as `FailedToLoadView` and `InvalidService`;
+only the configured exception marker interface (`BasicScaffoldException` in
+this scaffold) may end in `Exception`.
+
 Types are used for concepts as well as for data structures. When two things
 mean different things, they get different types, even if they share the same
 underlying data.

@@ -560,8 +560,7 @@ creates collaborators (principle 5), and nothing extends a `final` class
 `WordPressDebugMode` (`src/Infrastructure/Service/WordPressDebugMode.php`),
 `Injector` and `SimpleInjector`, `ViewFactory` and `TemplatedViewFactory`.
 
-**Rules:** `architecture.finalByDefault`. Names that encode the kind of type
-are reported once #94 lands.
+**Rules:** `architecture.finalByDefault`, `architecture.namesWithoutTypeKind`.
 
 ## I need to print output
 

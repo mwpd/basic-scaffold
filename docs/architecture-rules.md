@@ -117,7 +117,7 @@ says which rules enforce each principle, and what stays with review.
 | [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
 | [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `constructorsOnlyAssign`, `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
-| [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
+| [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | `namesWithoutTypeKind`; PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own; whether implementation names describe their distinguishing behaviour |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
@@ -198,6 +198,35 @@ and injected collaborators. Add it to `baseClasses` only when it is designed
 for extension from the start.
 
 **Pattern:** [I need to start simple and add implementations later](patterns.md#i-need-to-start-simple-and-add-implementations-later).
+
+### `architecture.namesWithoutTypeKind`
+
+**Principle:** [8. Types name concepts, not just data](design-principles.md#8-types-name-concepts-not-just-data):
+a name survives promotion from a concrete class to an interface.
+
+**Checks:** class, interface and trait names in the plugin's namespace do not
+start with `I` followed by an uppercase letter, `Abstract` or `Base`, and do
+not end in `Interface`, `Trait`, `Abstract`, `Impl`, `Implementation`, `Class`
+or `Exception`. Messages name the type, suggest its name without the marker
+words, and explain why the name must survive promotion.
+
+**Allows:** anonymous classes, names outside the plugin's namespace, names in
+`excludedNamespaces`, and reviewed allowances. Only the configured exception
+marker interface may keep the `Exception` suffix; other exception interfaces
+and concrete exceptions are checked. Roles such as `FooFactory`, capabilities
+such as `Registerable` and `HasDependencies`, distinguishing names such as
+`SimpleFoo`, and `Image` (an `I` followed by lowercase) pass.
+
+**Configuration:** `namesWithoutTypeKind.allowed` lists fully qualified type
+names accepted after review, empty by default. The exception marker comes
+from `exceptions.marker`. Both are compared without regard to case and with
+leading or trailing namespace separators removed. Marker words themselves
+are matched case-sensitively.
+
+**Fix:** remove the kind marker and name the concept. Name implementations by
+what distinguishes them (`Simple…`, `WordPress…`, `Cached…`), never `…Impl`,
+`Default…` or `Base…`. The choice of a distinguishing name stays with review.
+See [I need to start simple and add implementations later](patterns.md#i-need-to-start-simple-and-add-implementations-later).
 
 ### `architecture.noStaticState`
 
