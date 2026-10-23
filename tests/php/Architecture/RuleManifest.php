@@ -96,6 +96,8 @@ final class RuleManifest {
 
 	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
 
+	public const CONSTRUCTORS_ONLY_ASSIGN = 'architecture.constructorsOnlyAssign';
+
 	public const NO_HOOKS_IN_CONSTRUCTOR = 'architecture.noHooksInConstructor';
 
 	public const HOOKS_IN_LIFECYCLE_METHODS = 'architecture.hooksInLifecycleMethods';
@@ -324,6 +326,18 @@ final class RuleManifest {
 				'creates a collaborator',
 				'new with a class chosen at runtime',
 				'is not a nullable parameter typed to an interface',
+			],
+		],
+		self::CONSTRUCTORS_ONLY_ASSIGN              => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-add-hooks',
+			'configuration'    => 'parameters.architecture.constructorsOnlyAssign.allowed',
+			'checked_by'       => [
+				Rule\ConstructorsOnlyAssignRule::class,
+			],
+			'signatures'       => [
+				'does work beyond storing dependencies',
 			],
 		],
 		self::NO_HOOKS_IN_CONSTRUCTOR               => [

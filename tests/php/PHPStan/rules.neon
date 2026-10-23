@@ -54,6 +54,9 @@ parametersSchema:
             factories: listOf(string())
             valueObjects: listOf(string())
         ])
+        constructorsOnlyAssign: structure([
+            allowed: listOf(string())
+        ])
         hooks: structure([
             lifecycleMethods: arrayOf(string(), string())
             contextFunctions: listOf(string())
@@ -296,6 +299,16 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             allowances: @architectureCreationAllowances
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\ConstructorsOnlyAssignRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            infrastructure: %architecture.dependencyDirection.infrastructure%
+            allowed: %architecture.constructorsOnlyAssign.allowed%
+            reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule
 

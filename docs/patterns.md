@@ -108,8 +108,10 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-77`.
 
 **Rules:** `architecture.noHooksInConstructor`,
-`architecture.hooksInLifecycleMethods`. A constructor that does any other work
-is reported once #83 lands.
+`architecture.hooksInLifecycleMethods`, `architecture.constructorsOnlyAssign`.
+Service constructors only assign parameters to properties, with optional
+poka-yoke defaults. Move other work into `register()` or a callback, or into a
+factory if it is construction logic.
 
 ## I need a service only in some requests
 
@@ -273,10 +275,19 @@ echo $this->view_factory->create( 'views/test-backend-service' )->render( [ … 
 final class TemplatedViewFactory implements Service, ViewFactory {
 
 	public function create( string $relative_path ): View {
+		if ( $this->locations === [] ) {
+			$this->locations = $this->get_default_locations();
+		}
+
 		return new TemplatedView( $relative_path, $this, $this->locations );
 	}
 }
 ```
+
+`TemplatedViewFactory` only stores the optional locations in its constructor.
+When none are passed, it reads the theme directories on the first `create()`
+call and keeps those locations for later calls. Explicit locations keep their
+order and bypass theme lookups.
 
 When writing a dedicated factory is overkill, receive the `Injector` itself
 and call `make()` on it. A constructor parameter typed `Injector` gets the
@@ -295,7 +306,7 @@ $report = $this->injector->make( Report::class );
 ```
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
-`:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:58-60`,
+`:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:57-63`,
 bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:346-349`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:685-737`.
