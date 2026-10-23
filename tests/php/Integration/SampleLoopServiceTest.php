@@ -13,7 +13,7 @@ use WP_Post;
 
 /**
  * The sample loop service on a singular view, built from the real
- * composition root.
+ * composition root, exercising the views/test-loop-service template.
  */
 final class SampleLoopServiceTest extends TestCase {
 
