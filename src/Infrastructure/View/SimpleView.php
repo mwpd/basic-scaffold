@@ -177,9 +177,12 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Remove the innermost output buffer and discard its content.
 	 *
+	 * Removing a buffer runs its output handler, which can throw. PHP removes
+	 * the buffer anyway, which is why the caller checks the buffer level after
+	 * a failure. PHPStan types ob_end_clean() as never throwing, so the
+	 * possibility is described here rather than declared with a throws tag.
+	 *
 	 * @return bool Whether a buffer was removed.
-	 * @throws Throwable If the buffer's output handler throws. PHP removes the
-	 *                   buffer anyway.
 	 */
 	private function remove_buffer(): bool {
 		return \ob_end_clean();

@@ -949,18 +949,12 @@ class ServiceBasedPluginTest extends TestCase {
 	 * @return array<string,array{class-string}>
 	 */
 	public static function data_reserved_injector_binding_targets(): array {
-		/**
-		 * An unloadable target still needs the reserved-source diagnostic.
-		 *
-		 * @var class-string $missing
-		 */
-		$missing = __NAMESPACE__ . '\\NoSuchInjector';
-
 		return [
 			'implementation' => [ SimpleInjector::class ],
 			'self mapping'   => [ Injector::class ],
 			'unrelated type' => [ DummyClass::class ],
-			'unknown type'   => [ $missing ],
+			// An unloadable target still needs the reserved-source diagnostic.
+			'unknown type'   => [ self::missing_class( 'NoSuchInjector' ) ],
 		];
 	}
 
