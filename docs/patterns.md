@@ -198,8 +198,9 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 }
 ```
 
-When writing a dedicated factory is overkill, a service can receive the
-`Injector` and call `make()`; that becomes possible with #22. A service only
+When writing a dedicated factory is overkill, a service will be able to
+receive the `Injector` and call `make()` once #22 lands; today the injector
+cannot be injected. A service only
 ever calls `make()` on it: bindings, sharing and delegations stay in the
 composition root (#92).
 
@@ -223,9 +224,8 @@ wants the choice typed.
 
 **Instead:** a typed factory or registry for that one concept. It takes the
 key as a value, returns the interface, and is injected like any other
-collaborator. `ViewFactory` is the scaffold's own case: it takes a view path
-and returns a `View`, and the template it picks depends on the path and the
-active theme.
+collaborator. The example below is illustrative; the scaffold does not ship a
+registry yet.
 
 ```php
 interface PaymentGateways {
@@ -244,9 +244,10 @@ The composition root binds `PaymentGateways` to an implementation, which
 builds or receives the gateways it knows. Nothing outside it knows the
 concrete classes.
 
-**Proven by:** `src/Infrastructure/ViewFactory.php:33` and
-`src/Infrastructure/View/TemplatedViewFactory.php:58-60`, the same shape with
-a view path as the key.
+**Proven by:** no registry in the scaffold yet. `ViewFactory` has the same
+outer shape (`src/Infrastructure/ViewFactory.php:33`): it is injected, takes a
+value (a view path) and returns an interface (`View`). It always builds the
+same implementation, though; the path only picks the template file.
 
 **Rules:** `architecture.newOnlyWhereAllowed`,
 `architecture.dependencyDirection`. Container lookups from a subsystem are
@@ -259,9 +260,11 @@ call. All three plugins known to be built on this scaffold added one (#22).
 
 **Why not here:** [principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
 and the singleton row of [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
-a locator hides dependencies, keeps static state, and lets any code reach any
-object. It needs a static property, which `architecture.noStaticState`
-already rejects.
+a locator hides dependencies and lets any code reach any object. A locator
+that keeps its own registry needs static state, which
+`architecture.noStaticState` already rejects. One that only forwards to the
+plugin factory, `BasicScaffoldPluginFactory::create()->get_container()->get( $id )`,
+holds no state of its own, and is not caught until #86 and #92 land.
 
 **Instead:** find the need behind it. Each one has its own answer:
 
@@ -276,9 +279,10 @@ already rejects.
 
 **Proven by:** the sections linked above.
 
-**Rules:** `architecture.noStaticState`. Container lookups and reconfiguring
-the injector from a subsystem are reported once #92 lands, and calls to the
-plugin factory outside the main file and listed bridges once #86 lands.
+**Rules:** `architecture.noStaticState`, for locators with a registry of
+their own. Container lookups and reconfiguring the injector from a subsystem
+are reported once #92 lands, and calls to the plugin factory outside the main
+file and listed bridges once #86 lands.
 
 ## I need a singleton
 
@@ -339,11 +343,12 @@ A bridge outside the main plugin file follows the same contract:
   with no logic of its own;
 - it is listed in the configuration, so every way into the object graph from
   outside is visible and reviewed;
-- it is the point where WordPress hands over control, so it handles
+- it is the point where WordPress hands over control, so it has to handle
   [principle 10](design-principles.md#10-errors-are-exceptions) there: a call
   before `plugins_loaded`, a `Conditional` service that is not registered in
   this request, or any other failure becomes a dedicated exception, caught
-  where WordPress takes over again.
+  before control goes back to WordPress. The activation hooks do not catch
+  yet; that is #27.
 
 The uninstall bridge (#34) is the first bridge the scaffold itself adds.
 

@@ -248,14 +248,16 @@ locator. It depends on which side of the graph's edge the code is on:
 
 - **Inside the graph**, a class receives what it needs through its
   constructor. When it needs an object later or once per use, it receives a
-  factory, or the injector and calls only `make()` on it. When it has to
+  factory, or, once the injector can be injected (#22), the injector, and calls
+  only `make()` on it. When it has to
   choose between implementations at runtime, it receives a typed registry for
   that one concept. It never looks a service up in the container.
 - **At the edge**, where WordPress calls in from outside, a listed *bridge*
   gets the plugin through the plugin factory and delegates at once to instance
   methods, as the activation hooks do (`basic-scaffold.php:115-121`). A bridge
-  holds no state and no logic of its own, and it is where exceptions are
-  caught before control goes back to WordPress (principle 10).
+  holds no state and no logic of its own, and it is where exceptions have to
+  be caught before control goes back to WordPress (principle 10); the
+  activation hooks do not do that yet (#27).
 
 The [patterns](patterns.md#i-need-a-service-locator) show each case with
 code.
