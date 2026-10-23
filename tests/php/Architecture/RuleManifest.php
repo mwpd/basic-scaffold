@@ -139,6 +139,8 @@ final class RuleManifest {
 
 	public const GATES_AT_STRENGTH = 'architecture.gatesAtStrength';
 
+	public const EVERY_PATH_ANALYSED = 'architecture.everyPathAnalysed';
+
 	public const CAPABILITIES_ON_SERVICES = 'architecture.capabilitiesOnServices';
 
 	public const SERVICES_DECLARED = 'architecture.servicesDeclared';
@@ -585,6 +587,16 @@ final class RuleManifest {
 			'document'         => self::HARD_RULES,
 			'checked_by'       => [
 				GatesAtStrengthTest::class . '::test_the_plugin_keeps_its_quality_gates_at_strength',
+			],
+			'signatures'       => [],
+		],
+		self::EVERY_PATH_ANALYSED                   => [
+			'principle'        => 'Hard rule: do not weaken the gates',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'RepositoryLayout and the gate configurations',
+			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				EveryPathAnalysedTest::class . '::test_the_plugin_analyses_every_required_path',
 			],
 			'signatures'       => [],
 		],
