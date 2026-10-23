@@ -783,7 +783,7 @@ native types and in any documentation tag, such as `@var`, `@throws` or
 | --- | --- |
 | the exceptions (`src/Exception/`) | other exceptions |
 | the infrastructure (`src/Infrastructure/`) | the infrastructure and the exceptions |
-| a feature subsystem (any other top-level namespace, such as `src/SampleSubsystem/`) | the infrastructure's interfaces, the exceptions and the subsystems |
+| a feature subsystem (any other top-level namespace, such as `src/SampleSubsystem/`) | the infrastructure's interfaces (and traits that only fulfil them), the exceptions and the subsystems |
 | the composition root | everything |
 | any other class directly in the root namespace | the infrastructure's interfaces and the exceptions |
 | a view template (`views/`) | everything but the tests |
@@ -792,7 +792,11 @@ Nothing but the tests depends on the tests, not even the composition root.
 Classes from PHP or WordPress are always fine.
 
 **Allows:** a subsystem depending on another subsystem; there is no case yet to
-decide otherwise.
+decide otherwise. A subsystem class may also use a trait of the infrastructure
+whose methods all belong to infrastructure interfaces the class implements,
+such as `DefaultRegistrationPriority` for `Delayed`: the trait only fulfils a
+contract the class already depends on, and is not an object the composition
+root could bind instead. A trait that brings any other method is reported.
 
 **Configuration:** `dependencyDirection.infrastructure` names the
 infrastructure's namespace, and `dependencyDirection.compositionRoot` lists the

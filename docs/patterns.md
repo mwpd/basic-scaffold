@@ -205,7 +205,7 @@ priority that has passed.
 
 **Proven by:** `src/SampleSubsystem/SampleLoopService.php:29-77`, and the
 priority and dependency cases in
-`tests/php/Unit/ServiceBasedPluginTest.php:520-612`.
+`tests/php/Unit/ServiceBasedPluginTest.php:530-634`.
 
 **Rules:** `architecture.noContextChecksInRegister`,
 `architecture.queryContextNeedsDelay`, `architecture.registrationActionKnown`.
@@ -362,7 +362,7 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:32` and `:69-90`,
 bound at `src/BasicScaffoldPlugin.php:110`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:346-349`, proven by
-`tests/php/Unit/ServiceBasedPluginTest.php:821-873`.
+`tests/php/Unit/ServiceBasedPluginTest.php:839-891`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`, `architecture.noServiceLocator`;
 `architecture.dependencyDirection` keeps the consumer on the interface.
@@ -608,7 +608,7 @@ other code. Two investigations are open, and neither is approved:
 
 **Proven by:** the configuration filters at
 `src/Infrastructure/ServiceBasedPlugin.php:372-375` and `:835-887`, and
-`tests/php/Unit/ServiceBasedPluginTest.php:711-733`, where a filter added
+`tests/php/Unit/ServiceBasedPluginTest.php:729-751`, where a filter added
 after the plugin was constructed, as a plugin loaded later would add it,
 takes effect at `plugins_loaded`.
 

@@ -510,7 +510,8 @@ class ServiceBasedPluginTest extends TestCase {
 	 */
 	private function probe( string $action, int $priority, ServiceBasedPlugin $plugin, string ...$ids ): ArrayObject {
 		$container = $plugin->get_container();
-		$seen      = new ArrayObject();
+		/** @var ArrayObject<string,bool> $seen */
+		$seen = new ArrayObject();
 
 		$this->callbacks[ $action ][ $priority ][] = static function () use ( $container, $ids, $seen ): void {
 			foreach ( $ids as $id ) {
