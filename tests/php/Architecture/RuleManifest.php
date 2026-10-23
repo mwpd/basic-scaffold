@@ -543,7 +543,7 @@ final class RuleManifest {
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'pattern'          => 'i-need-to-add-a-feature',
-			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT',
+			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT, RepositoryLayout::REGISTRATION_ACTIONS',
 			'checked_by'       => [
 				CompositionRootContractTest::class . '::test_the_plugin_keeps_the_promises_of_its_composition_root',
 				// Principle 11 extends this contract; it uses the same identifier and explanation.

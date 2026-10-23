@@ -23,6 +23,14 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\GoodService;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\IncompatibleBindingPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BoundToSomethingElse;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\NotAService;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\CyclicDependencyPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\MisorderedDependencyPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\ValidDependencyGraphPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\UnknownActionDependencyPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\SelfDependentPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\InvalidDependencyGraphPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\DependsOnB;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\OverlappingCyclesPlugin;
 use stdClass;
 use WP_Post;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
@@ -169,6 +177,94 @@ final class CompositionRootContractTest extends TestCase {
 		$problems = ( new CompositionRootContract( IdempotentLifecyclePlugin::class ) )->check();
 
 		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
+	}
+
+	public function test_it_reports_a_dependency_cycle_once_with_the_fix(): void {
+		$problems = ( new CompositionRootContract( CyclicDependencyPlugin::class ) )->check();
+
+		$this->assertSame(
+			[
+				$this->graph_problem(
+					CyclicDependencyPlugin::class,
+					'a',
+					'has a dependency cycle: a -> b -> a. Remove a dependency from the cycle so services can register.'
+				),
+			],
+			$problems
+		);
+	}
+
+	public function test_it_reports_each_overlapping_cycle_once(): void {
+		$problems = ( new CompositionRootContract( OverlappingCyclesPlugin::class ) )->check();
+
+		$this->assertCount( 2, $problems );
+		$this->assertStringContainsString( 'a -> b -> c -> a.', $problems[0] );
+		$this->assertStringContainsString( 'a -> c -> a.', $problems[1] );
+	}
+
+	public function test_it_reports_a_self_dependency_once(): void {
+		$problems = ( new CompositionRootContract( SelfDependentPlugin::class ) )->check();
+
+		$this->assertSame(
+			[
+				$this->graph_problem(
+					SelfDependentPlugin::class,
+					'b',
+					'has a dependency cycle: b -> b. Remove a dependency from the cycle so services can register.'
+				),
+			],
+			$problems
+		);
+	}
+
+	public function test_it_reports_a_dependency_that_registers_later(): void {
+		$problems = ( new CompositionRootContract( MisorderedDependencyPlugin::class ) )->check();
+
+		$this->assertSame(
+			[
+				$this->graph_problem(
+					MisorderedDependencyPlugin::class,
+					'a',
+					'registers at "plugins_loaded" before its dependency "b" at "wp".'
+					. ' Delay this service until the dependency\'s action or later,'
+					. ' or register the dependency earlier.'
+				),
+			],
+			$problems
+		);
+	}
+
+	public function test_it_accepts_dependencies_at_the_same_or_an_earlier_action(): void {
+		$this->assertSame( [], ( new CompositionRootContract( ValidDependencyGraphPlugin::class ) )->check() );
+	}
+
+	public function test_it_skips_unknown_actions_on_either_side_of_a_dependency(): void {
+		$this->assertSame( [], ( new CompositionRootContract( UnknownActionDependencyPlugin::class ) )->check() );
+	}
+
+	public function test_it_skips_invalid_declarations_in_graph_checks(): void {
+		$problems = ( new CompositionRootContract( InvalidDependencyGraphPlugin::class ) )->check();
+
+		$this->assertCount( 1, $problems );
+		$this->assertStringContainsString( 'is not a class implementing Service.', $problems[0] );
+	}
+
+	public function test_it_uses_the_layouts_registration_action_order(): void {
+		$layout = new RepositoryLayout( __DIR__, '', [], [], '', [], [], [], [ 'wp', 'plugins_loaded' ] );
+
+		$this->assertSame(
+			[],
+			( new CompositionRootContract( MisorderedDependencyPlugin::class, $layout ) )->check()
+		);
+	}
+
+	/**
+	 * @param class-string<\MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin> $plugin Fixture root.
+	 */
+	private function graph_problem( string $plugin, string $id, string $problem ): string {
+		return '[architecture.compositionRootContracts] The service "' . $id . '" ('
+			. DependsOnB::class . ') of ' . $plugin . ' ' . $problem . ' '
+			. RuleManifest::get_explanation( RuleManifest::COMPOSITION_ROOT_CONTRACTS ) . '.';
 	}
 
 	private function lifecycle_problem( string $service, string $problem ): string {
