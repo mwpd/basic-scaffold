@@ -129,7 +129,12 @@ public static function is_needed(): bool {
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:45-52`.
 
-**Rules:** `architecture.noContextChecksInRegister`.
+When the answer depends on the query, such as `is_singular()`, also implement
+`Delayed` and wait for `wp` or a later action as shown in
+[I need to hook in later](#i-need-to-hook-in-later).
+
+**Rules:** `architecture.noContextChecksInRegister`,
+`architecture.queryContextNeedsDelay`.
 
 ## I need to hook in later
 
@@ -162,9 +167,10 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 
 **Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-72`.
 
-**Rules:** `architecture.noContextChecksInRegister`. A query-dependent
-`is_needed()` without `Delayed` is reported once #71 lands, `did_action()` in
-`register()` once #84 lands, and an action that never fires once #82 lands.
+**Rules:** `architecture.noContextChecksInRegister`,
+`architecture.queryContextNeedsDelay`. `did_action()` in `register()` is
+reported once #84 lands, and an action that never fires or runs too early for
+the condition once #82 lands.
 
 ## I need to create objects on demand
 

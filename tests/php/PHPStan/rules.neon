@@ -36,6 +36,9 @@ parametersSchema:
             lifecycleMethods: arrayOf(string(), string())
             contextFunctions: listOf(string())
         ])
+        queryContextNeedsDelay: structure([
+            queryFunctions: listOf(string())
+        ])
         prefixedNames: arrayOf(
             structure([
                 prefix: string()
@@ -228,6 +231,16 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             context_functions: %architecture.hooks.contextFunctions%
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\QueryContextNeedsDelayRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            infrastructure: %architecture.dependencyDirection.infrastructure%
+            query_functions: %architecture.queryContextNeedsDelay.queryFunctions%
             reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule
