@@ -74,7 +74,9 @@ services; neither knows about the other.
 
 **Rules:** `architecture.compositionRootContracts` builds every declared
 service; `architecture.dependencyDirection` keeps a subsystem on the
-infrastructure's interfaces. An undeclared service is reported once #80 lands.
+infrastructure's interfaces. `architecture.capabilitiesOnServices` keeps lifecycle
+capabilities on services, and `architecture.servicesDeclared` catches an
+undeclared subsystem service.
 
 ## I need to add hooks
 
