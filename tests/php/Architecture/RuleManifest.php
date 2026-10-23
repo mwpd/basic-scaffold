@@ -110,6 +110,8 @@ final class RuleManifest {
 
 	public const NO_SUPPRESSION = 'architecture.noSuppression';
 
+	public const GATES_AT_STRENGTH = 'architecture.gatesAtStrength';
+
 	public const COMPOSITION_ROOT_CONTRACTS = 'architecture.compositionRootContracts';
 
 	/**
@@ -375,6 +377,16 @@ final class RuleManifest {
 			'checked_by'       => [
 				SuppressionTest::class . '::test_the_plugin_does_not_silence_architecture_rules',
 				RuleRegistrationTest::class . '::test_every_rule_is_registered_listed_and_documented',
+			],
+			'signatures'       => [],
+		],
+		self::GATES_AT_STRENGTH                     => [
+			'principle'        => 'Hard rule: do not weaken the gates',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'GatesAtStrengthChecks',
+			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				GatesAtStrengthTest::class . '::test_the_plugin_keeps_its_quality_gates_at_strength',
 			],
 			'signatures'       => [],
 		],

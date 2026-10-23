@@ -124,7 +124,7 @@ says which rules enforce each principle, and what stays with review.
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run | Whether comments explain why |
-| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered` | |
+| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength` | |
 
 ## Mistakes the checks catch
 
@@ -402,6 +402,34 @@ directory in `RepositoryLayout`.
 
 **Fix:** move the test into a suite directory and name its file after the
 class with a `Test.php` suffix, or add a suite for its directory.
+
+### `architecture.gatesAtStrength`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the gates.
+
+**Checks:** PHPStan stays at `level: max` without baseline includes; Psalm's
+`errorLevel` is at most 2 and has no `errorBaseline` attribute; PHPCS references
+both `WordPress` and `PHPCompatibility` with `testVersion` set to `7.4-`;
+`phpunit.xml.dist` declares the `unit`, `integration`, `architecture` and
+`phpstan-rules` suites. Missing, unreadable or malformed configurations fail
+with guidance to restore them. Local PHPStan includes are checked too, and an
+include whose filename contains `baseline` is rejected even if it is missing.
+Included files containing PHPStan's generated counted, path-specific ignores
+are recognized as baselines even under another filename.
+
+**Allows:** stronger Psalm levels, additional PHPUnit suites and ordinary
+PHPStan extension includes. Installed packages' configurations are not checked.
+Existing PHPStan `ignoreErrors` entries and Psalm `issueHandlers` are outside
+this rule's scope, as are inline suppressions and which paths each tool checks.
+
+**Configuration:** the expected levels, standards, compatibility version and
+suite names are constants at the top of `GatesAtStrengthChecks` in
+`tests/php/Architecture/`. A deliberate change to a value is a one-line diff
+there for review.
+
+**Fix:** fix the code instead of weakening the gate; restore the required
+configuration. A deliberate change to the policy needs a maintainer ruling
+on an issue with `needs: decision` before changing the expectation.
 
 ### `architecture.dependencyDirection`
 
