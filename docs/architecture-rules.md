@@ -800,6 +800,8 @@ through the plugin's own injector configuration:
   implementing `Service`;
 - a `Delayed` service names an action to wait for, and a `HasDependencies`
   service only depends on services the root declares;
+- the plugin accepts its own injector configuration, which it validates as
+  it applies it, for example that each binding points to a subtype;
 - the plugin can build every service from its own bindings, arguments and
   delegations, and what it builds is a `Service`;
 - building a service adds, removes or fires no hook, and registers no
