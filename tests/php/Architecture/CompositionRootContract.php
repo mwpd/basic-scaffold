@@ -15,10 +15,13 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
 
 use Brain\Monkey\Container;
 use Brain\Monkey\Functions;
+use MWPD\BasicScaffold\Infrastructure\Activateable;
+use MWPD\BasicScaffold\Infrastructure\Deactivateable;
 use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\HasDependencies;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
+use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use ReflectionClass;
@@ -38,7 +41,8 @@ use Throwable;
  *   dependencies make sense;
  * - the plugin can build every service from its own wiring;
  * - building a service changes no hooks, not even through a collaborator its
- *   constructor creates.
+ *   constructor creates;
+ * - running a service lifecycle step twice leaves the recorded state unchanged.
  *
  * They need Brain Monkey to be set up, and every WordPress function the
  * wiring calls to be stubbed, but no binding the composition root lacks.
@@ -46,9 +50,12 @@ use Throwable;
 final class CompositionRootContract {
 
 	/**
-	 * Functions that change hooks but leave no trace in Brain Monkey's storage.
+	 * Hook mutations to record directly, including lifecycle aliases left by
+	 * the previous service's check.
 	 */
 	private const WATCHED_FUNCTIONS = [
+		'add_action',
+		'add_filter',
 		'remove_action',
 		'remove_filter',
 		'register_activation_hook',
@@ -174,9 +181,8 @@ final class CompositionRootContract {
 	/**
 	 * Start watching for hook changes.
 	 *
-	 * Adding and firing hooks shows in Brain Monkey's hook storage. Removing a
-	 * hook that was never added leaves no trace there, so those calls, and the
-	 * activation hooks Brain Monkey does not know, are recorded directly.
+	 * Record mutations directly so a previous service's lifecycle watcher cannot
+	 * hide constructor calls. Firing hooks still shows in Brain Monkey's storage.
 	 *
 	 * @param array<string> $calls Receives the watched functions called.
 	 * @return mixed Snapshot of Brain Monkey's hook storage.
@@ -244,8 +250,9 @@ final class CompositionRootContract {
 			];
 		}
 
+		$problems = [];
 		if ( $calls !== [] || self::get_hooks() !== $before ) {
-			return [
+			$problems = [
 				$this->problem(
 					$id,
 					$class_name,
@@ -255,7 +262,78 @@ final class CompositionRootContract {
 			];
 		}
 
-		return [];
+		return array_merge( $problems, $this->check_lifecycle( $id, $class_name, $service ) );
+	}
+
+	/**
+	 * Run each declared lifecycle capability twice on the same service.
+	 *
+	 * @param string                $id         Service identifier.
+	 * @param class-string<Service> $class_name Declared service class.
+	 * @param Service               $service    Service built by the injector.
+	 * @return array<string> Problems found.
+	 */
+	private function check_lifecycle( string $id, string $class_name, Service $service ): array {
+		$steps = [];
+		if ( $service instanceof Registerable ) {
+			$steps['register'] = static function () use ( $service ): void {
+				$service->register();
+			};
+		}
+		if ( $service instanceof Activateable ) {
+			$steps['activate'] = static function () use ( $service ): void {
+				$service->activate();
+			};
+		}
+		if ( $service instanceof Deactivateable ) {
+			$steps['deactivate'] = static function () use ( $service ): void {
+				$service->deactivate();
+			};
+		}
+
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		$problems = [];
+		foreach ( $steps as $method => $step ) {
+			$before = [];
+			foreach ( [ 'first', 'second' ] as $run ) {
+				try {
+					$step();
+				} catch ( Throwable $throwable ) {
+					$problems[] = $this->problem(
+						$id,
+						$class_name,
+						sprintf(
+							'throws on the %s call of %s(): %s. Make the lifecycle step safe to run twice.',
+							$run,
+							$method,
+							$throwable->getMessage()
+						)
+					);
+					break;
+				}
+
+				if ( $run === 'first' ) {
+					$before = $effects->snapshot();
+					continue;
+				}
+
+				foreach ( $effects->changes_since( $before ) as $effect ) {
+					$problems[] = $this->problem(
+						$id,
+						$class_name,
+						sprintf(
+							'changes the plugin on the second call of %s(): it %s.'
+							. ' Guard the step so a second run does nothing, or make it set rather than add.',
+							$method,
+							$effect
+						)
+					);
+				}
+			}
+		}
+
+		return $problems;
 	}
 
 	/**

@@ -120,7 +120,7 @@ says which rules enforce each principle, and what stays with review.
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors` | Graceful degradation at the boundary (#27, #30) |
-| [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | Behaviour tests | Every new lifecycle step (#26) |
+| [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run | Whether comments explain why |
@@ -631,6 +631,7 @@ step:
 ### `architecture.compositionRootContracts`
 
 **Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph),
+[11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent),
 and the capability interfaces of [the core idea](design-principles.md#how-services-map-to-it).
 
 **Checks:** the real composition root, and every service it declares, built
@@ -644,16 +645,34 @@ through the plugin's own injector configuration:
   delegations, and what it builds is a `Service`;
 - building a service adds, removes or fires no hook, and registers no
   activation or deactivation hook, not even through a collaborator its
-  constructor creates.
+  constructor creates;
+- every declared service implementing `Registerable`, `Activateable` or
+  `Deactivateable` can run `register()`, `activate()` or `deactivate()` twice
+  without changing the recorded state on the second call. The check records
+  hook additions and removals, option and transient writes, and post, user,
+  term and comment meta writes. Failures name the service, method and effect;
+  exceptions in either call are reported as problems.
 
 **Allows:** the tests stub the WordPress functions the wiring calls, such as
 `get_post()`, and use stand-ins for WordPress classes such as `WP_Post`. They
-never add a binding the composition root does not have.
+never add a binding the composition root does not have. WordPress writes are
+modelled in memory: adding an existing option or unique meta row is a no-op,
+setting a value replaces it, and non-unique meta additions append. Hooks are
+keyed by hook name, priority and callback identity, as in WordPress. Re-adding
+the same callback at the same priority replaces the entry; a fresh closure,
+a different object or method, or a different priority adds an entry. Removing
+an existing entry changes state; removing a missing entry leaves it unchanged.
+Actions and filters share hook entries, and fired hooks retain their call
+history. This does not check the plugin's own
+`register_services()` orchestration (#26), activation reaching lazy or delayed
+services (#25), or database and filesystem effects Brain Monkey cannot see.
 
 **Configuration:** `RepositoryLayout::COMPOSITION_ROOT` names the composition
 root. A service added to it is checked without changing the test.
 
 **Fix:** bind what a service needs in the composition root, declare the
-services it depends on, and keep constructors to storing dependencies.
+services it depends on, and keep constructors to storing dependencies. Guard
+each lifecycle step so a second run does nothing, or make it set rather than
+add.
 
 **Pattern:** [I need to add a feature](patterns.md#i-need-to-add-a-feature).
