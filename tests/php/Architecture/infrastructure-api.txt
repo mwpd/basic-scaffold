@@ -117,6 +117,13 @@ Infrastructure\View::public abstract function render( array $context = [] ): str
 Infrastructure\View::public abstract function render_partial( string $path, ?array $context = null ): string
 Infrastructure\ViewFactory interface
 Infrastructure\ViewFactory::public abstract function create( string $relative_path ): Infrastructure\View
+Infrastructure\View\EmptyView final class
+Infrastructure\View\EmptyView implements Infrastructure\Renderable
+Infrastructure\View\EmptyView implements Infrastructure\View
+Infrastructure\View\EmptyView::public function __get( string $property )
+Infrastructure\View\EmptyView::public function raw( $property )
+Infrastructure\View\EmptyView::public function render( array $context = [] ): string
+Infrastructure\View\EmptyView::public function render_partial( string $path, ?array $context = null ): string
 Infrastructure\View\SimpleView class
 Infrastructure\View\SimpleView implements Infrastructure\Renderable
 Infrastructure\View\SimpleView implements Infrastructure\View
@@ -139,11 +146,12 @@ Infrastructure\View\SimpleView::public function render_partial( string $path, ?a
 Infrastructure\View\SimpleViewFactory final class
 Infrastructure\View\SimpleViewFactory implements Infrastructure\Service
 Infrastructure\View\SimpleViewFactory implements Infrastructure\ViewFactory
+Infrastructure\View\SimpleViewFactory::public function __construct( ?Infrastructure\Service\DebugMode $debug_mode = null )
 Infrastructure\View\SimpleViewFactory::public function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\TemplatedView final class
 Infrastructure\View\TemplatedView implements Infrastructure\Renderable
 Infrastructure\View\TemplatedView implements Infrastructure\View
-Infrastructure\View\TemplatedView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, array $locations = [] )
+Infrastructure\View\TemplatedView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, array $locations = [], ?Infrastructure\Service\DebugMode $debug_mode = null )
 Infrastructure\View\TemplatedView::public function __get( string $property )
 Infrastructure\View\TemplatedView::public function __isset( string $property ): bool
 Infrastructure\View\TemplatedView::public function add_location( string $location ): self
@@ -153,7 +161,7 @@ Infrastructure\View\TemplatedView::public function render_partial( string $path,
 Infrastructure\View\TemplatedViewFactory final class
 Infrastructure\View\TemplatedViewFactory implements Infrastructure\Service
 Infrastructure\View\TemplatedViewFactory implements Infrastructure\ViewFactory
-Infrastructure\View\TemplatedViewFactory::public function __construct( array $locations = [] )
+Infrastructure\View\TemplatedViewFactory::public function __construct( array $locations = [], ?Infrastructure\Service\DebugMode $debug_mode = null )
 Infrastructure\View\TemplatedViewFactory::public function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\ViewLocations final class
 Infrastructure\View\ViewLocations::public function __construct( array $locations )

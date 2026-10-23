@@ -34,10 +34,15 @@ interface View extends Renderable {
 	/**
 	 * Render the current view with a given context.
 	 *
+	 * In debug mode, a failure surfaces as an exception. In production, the
+	 * view renders nothing instead, so that a broken view does not take the
+	 * rest of the page down with it.
+	 *
 	 * @param array<string, mixed> $context Context in which to render.
 	 *
-	 * @return string Rendered HTML.
-	 * @throws FailedToLoadView If the view could not be loaded.
+	 * @return string Rendered HTML, or an empty string if rendering failed
+	 *                outside of debug mode.
+	 * @throws FailedToLoadView If the view could not be loaded (in debug mode).
 	 */
 	public function render( array $context = [] ): string;
 
@@ -53,9 +58,10 @@ interface View extends Renderable {
 	 * @param string                    $path    Path of the partial to render.
 	 * @param array<string, mixed>|null $context Context in which to render the partial.
 	 *
-	 * @return string Rendered HTML.
-	 * @throws InvalidPath If the provided path was not valid.
-	 * @throws FailedToLoadView If the view could not be loaded.
+	 * @return string Rendered HTML, or an empty string if rendering failed
+	 *                outside of debug mode.
+	 * @throws InvalidPath If the provided path was not valid (in debug mode).
+	 * @throws FailedToLoadView If the view could not be loaded (in debug mode).
 	 */
 	public function render_partial( string $path, ?array $context = null ): string;
 

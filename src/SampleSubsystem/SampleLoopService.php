@@ -123,6 +123,11 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		/*
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.
+		 *
+		 * If the view fails, debug mode (WP_DEBUG) surfaces the exception. In
+		 * production, the header renders as an empty string, so the filter
+		 * still returns the post content, just without the header. As in
+		 * SampleBackendService, this covers failures of the view only.
 		 */
 		$post_header = $this->view_factory->create( 'views/test-loop-service' )
 											->render( [ 'post' => $this->post ] );

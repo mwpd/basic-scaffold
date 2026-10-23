@@ -83,6 +83,16 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 		/*
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.
+		 *
+		 * There is no try/catch here, because the view handles its own
+		 * failures. If the template is missing or throws, debug mode
+		 * (WP_DEBUG) surfaces the exception so you can see what broke. In
+		 * production, the view renders nothing: the notice is missing, but
+		 * the admin screen around it keeps working.
+		 *
+		 * That covers failures of the view only. An exception thrown by any
+		 * other code in a callback like this one still reaches WordPress, in
+		 * debug mode and in production alike.
 		 */
 		echo $this->view_factory->create( 'views/test-backend-service' ) // phpcs:ignore WordPress.Security.EscapeOutput,Generic.Files.LineLength
 								->render( [ 'plugin' => 'MWPD Boilerplate' ] );
