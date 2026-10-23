@@ -116,7 +116,7 @@ says which rules enforce each principle, and what stays with review.
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
 | [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
-| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed`, `noGlobalState` | HTML echoed from business logic, god classes |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
@@ -140,6 +140,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A custom hook without the plugin's prefix | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
 | A service pulling a collaborator or request input from globals | `noGlobalState` | `tests/php/PHPStan/Fixture/NoGlobalState/Service.php` |
+| HTML or a string printed directly by a service | `outputOnlyThroughViews` | `tests/php/PHPStan/Fixture/OutputOnlyThroughViews/Service.php` |
 | A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
 | A sample service depending on a concrete infrastructure class | `dependencyDirection` | `tests/php/PHPStan/Fixture/Layers/Feature/Service.php` |
 | A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
@@ -329,6 +330,41 @@ when throwing. The scaffold needs no empty catches.
 its previous cause, or rethrow it. Handle the failure in an empty catch; list
 the method only when doing nothing is an intentional, reviewed recovery.
 See [I need to report a failure](patterns.md#i-need-to-report-a-failure).
+
+### `architecture.outputOnlyThroughViews`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
+HTML belongs in views, rather than in business logic.
+
+**Checks:** in the plugin's namespace, every expression output by `echo`,
+`print`, `printf()` or `vprintf()` is a direct method call on an object
+PHPStan knows is a `Renderable` or `View`. Each argument of a multi-argument
+`echo` or formatting call is checked; a rendered view never exempts its
+siblings. Inline HTML in namespaced PHP files also fails. String literals,
+string variables (even a saved rendering result), concatenations and calls
+on unrelated objects with a `render()` method fail.
+
+**Allows:** calls such as `echo $view->render()`,
+`echo $factory->create( 'views/notice' )->render()` and
+`echo $view->render_partial( 'views/partial' )`. Production templates,
+code outside the plugin's namespace, `excludedNamespaces` and explicitly
+listed classes are exempt. WordPress output functions such as
+`wp_send_json()` are outside this rule's scope.
+
+**Configuration:** `outputOnlyThroughViews.allowed` lists named classes
+allowed to output directly; the scaffold needs none. Names match without
+regard to case or a leading backslash; subclasses need their own entry.
+The rendering interfaces' namespace comes from
+`dependencyDirection.infrastructure`, and production template directories
+from `dependencyDirection.views`.
+
+**Fix:** render a view from an injected `ViewFactory` and echo its result.
+Put markup and formatting in the template. Escaping inside templates is
+checked separately by `architecture.rawIsEscaped` and PHPCS. The sample's
+PHPCS suppression is still needed because PHPCS does not recognize the
+rendering method as automatically escaped.
+
+**Pattern:** [I need to print output](patterns.md#i-need-to-print-output).
 
 ### `architecture.rawIsEscaped`
 
