@@ -21,6 +21,14 @@ use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithFunctionNamedArguments;
 use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
 use MWPD\BasicScaffold\Tests\Fixture\ImmutableInjector;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\DelayedLifecycleService;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\DependentLifecycleService;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\LazyLifecycleService;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\LifecycleRecorder;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\NeededLifecycleService;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\RewriteLifecycleService;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\UnneededDelayedLifecycleService;
+use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\UnneededLifecycleService;
 use MWPD\BasicScaffold\Tests\Fixture\Resolver;
 use MWPD\BasicScaffold\Tests\Fixture\TestInjectorConfigurationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServiceBasedPlugin;
@@ -761,5 +769,207 @@ class ServiceBasedPluginTest extends TestCase {
 			DummyClassWithDependency::class,
 			$this->get_registered_injector( $plugin )->make( DummyInterface::class )
 		);
+	}
+
+	/**
+	 * Build a plugin whose services all receive the same recorder.
+	 *
+	 * @param array<string,class-string> $services Services, in configuration order.
+	 */
+	private function make_lifecycle_plugin( array $services, LifecycleRecorder $recorder ): TestServicesPlugin {
+		return new TestServicesPlugin(
+			$services,
+			( new SimpleInjector() )->delegate( LifecycleRecorder::class, static fn(): LifecycleRecorder => $recorder )
+		);
+	}
+
+	/**
+	 * Expect exactly one soft flush of the rewrite rules, and record it.
+	 */
+	private function expect_one_soft_flush( LifecycleRecorder $recorder ): void {
+		Functions\expect( 'flush_rewrite_rules' )
+			->once()
+			->with( false )
+			->andReturnUsing(
+				static function () use ( $recorder ): void {
+					$recorder->record( 'flush' );
+				}
+			);
+	}
+
+	/**
+	 * @return array<string,array{string}>
+	 */
+	public static function data_lifecycle_events(): array {
+		return [
+			'activation'   => [ 'activate' ],
+			'deactivation' => [ 'deactivate' ],
+		];
+	}
+
+	/**
+	 * Test that a service that is not Registerable, and therefore stored
+	 * lazily, receives the lifecycle call.
+	 *
+	 * @dataProvider data_lifecycle_events
+	 */
+	public function test_a_lazily_stored_service_receives_the_lifecycle_call( string $event ): void {
+		$recorder = new LifecycleRecorder();
+		$this->expect_one_soft_flush( $recorder );
+		$plugin = $this->make_lifecycle_plugin( [ 'lazy' => LazyLifecycleService::class ], $recorder );
+
+		$plugin->$event();
+
+		$this->assertSame( [ 'construct:lazy', "{$event}:lazy", 'flush' ], $recorder->events() );
+	}
+
+	/**
+	 * Test that a delayed service whose registration action has not fired
+	 * receives the lifecycle call, without being registered early, and is
+	 * registered once its action fires.
+	 *
+	 * @dataProvider data_lifecycle_events
+	 */
+	public function test_a_delayed_service_receives_the_lifecycle_call_before_its_action( string $event ): void {
+		$recorder = new LifecycleRecorder();
+		$this->expect_one_soft_flush( $recorder );
+		$plugin = $this->make_lifecycle_plugin( [ 'delayed' => DelayedLifecycleService::class ], $recorder );
+
+		$plugin->$event();
+
+		$this->assertSame( [ 'construct:delayed', "{$event}:delayed", 'flush' ], $recorder->events() );
+		$this->assertFalse( $plugin->get_container()->has( 'delayed' ) );
+
+		$this->fire( 'init' );
+
+		$this->assertTrue( $plugin->get_container()->has( 'delayed' ) );
+		$this->assertSame(
+			[ 'construct:delayed', "{$event}:delayed", 'flush', 'construct:delayed', 'register:delayed' ],
+			$recorder->events()
+		);
+	}
+
+	/**
+	 * Test that a Conditional service that is not needed is neither built nor
+	 * called, while needed and unconditional services receive the call.
+	 *
+	 * @dataProvider data_lifecycle_events
+	 */
+	public function test_only_needed_services_receive_the_lifecycle_call( string $event ): void {
+		$recorder = new LifecycleRecorder();
+		$this->expect_one_soft_flush( $recorder );
+		$plugin = $this->make_lifecycle_plugin(
+			[
+				'unneeded'         => UnneededLifecycleService::class,
+				'unneeded-delayed' => UnneededDelayedLifecycleService::class,
+				'needed'           => NeededLifecycleService::class,
+				'lazy'             => LazyLifecycleService::class,
+			],
+			$recorder
+		);
+
+		$plugin->$event();
+
+		$this->assertSame(
+			[ 'construct:needed', "{$event}:needed", 'construct:lazy', "{$event}:lazy", 'flush' ],
+			$recorder->events()
+		);
+	}
+
+	/**
+	 * Test that HasDependencies neither gates nor orders the lifecycle calls:
+	 * a service waiting for a delayed dependency is called in configuration
+	 * order, before that dependency, and neither is registered early. Its
+	 * constructor still receives its collaborator from the injector.
+	 *
+	 * @dataProvider data_lifecycle_events
+	 */
+	public function test_dependencies_do_not_gate_or_order_the_lifecycle_calls( string $event ): void {
+		$recorder = new LifecycleRecorder();
+		$this->expect_one_soft_flush( $recorder );
+		$plugin = $this->make_lifecycle_plugin(
+			[
+				'dependent' => DependentLifecycleService::class,
+				'delayed'   => DelayedLifecycleService::class,
+			],
+			$recorder
+		);
+
+		$plugin->$event();
+
+		$this->assertSame(
+			[ 'construct:dependent', "{$event}:dependent", 'construct:delayed', "{$event}:delayed", 'flush' ],
+			$recorder->events()
+		);
+		$this->assertFalse( $plugin->get_container()->has( 'dependent' ) );
+		$this->assertFalse( $plugin->get_container()->has( 'delayed' ) );
+
+		$this->fire( 'init' );
+
+		$this->assertTrue( $plugin->get_container()->has( 'delayed' ) );
+		$this->assertTrue( $plugin->get_container()->has( 'dependent' ) );
+	}
+
+	/**
+	 * Test that a service already registered in the request receives the call
+	 * on the instance in the container, rather than on a new one.
+	 */
+	public function test_a_registered_service_is_activated_on_its_registered_instance(): void {
+		$recorder = new LifecycleRecorder();
+		$this->expect_one_soft_flush( $recorder );
+		$plugin = $this->make_lifecycle_plugin( [ 'delayed' => DelayedLifecycleService::class ], $recorder );
+		$plugin->register_services();
+		$this->fire( 'init' );
+
+		$plugin->activate();
+
+		$this->assertSame(
+			[ 'construct:delayed', 'register:delayed', 'activate:delayed', 'flush' ],
+			$recorder->events()
+		);
+	}
+
+	/**
+	 * Test that a rewrite-producing service sets up its post type in
+	 * activate() and removes it in deactivate(), both before the plugin
+	 * requests the soft flush, without its register() running early.
+	 */
+	public function test_a_rewrite_service_sets_up_and_tears_down_before_the_flush(): void {
+		$recorder = new LifecycleRecorder();
+		Functions\expect( 'flush_rewrite_rules' )
+			->twice()
+			->with( false )
+			->andReturnUsing(
+				static function () use ( $recorder ): void {
+					$recorder->record( 'flush' );
+				}
+			);
+		Functions\expect( 'register_post_type' )
+			->once()
+			->with( RewriteLifecycleService::POST_TYPE, \Mockery::type( 'array' ) )
+			->andReturnUsing(
+				static function () use ( $recorder ): void {
+					$recorder->record( 'register_post_type' );
+				}
+			);
+		Functions\expect( 'unregister_post_type' )
+			->once()
+			->with( RewriteLifecycleService::POST_TYPE )
+			->andReturnUsing(
+				static function () use ( $recorder ): bool {
+					$recorder->record( 'unregister_post_type' );
+					return true;
+				}
+			);
+		$plugin = $this->make_lifecycle_plugin( [ 'rewrite' => RewriteLifecycleService::class ], $recorder );
+
+		$plugin->activate();
+		$plugin->deactivate();
+
+		$this->assertSame(
+			[ 'register_post_type', 'flush', 'unregister_post_type', 'flush' ],
+			$recorder->events()
+		);
+		$this->assertFalse( $plugin->get_container()->has( 'rewrite' ) );
 	}
 }
