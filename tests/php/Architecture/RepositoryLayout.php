@@ -263,12 +263,51 @@ final class RepositoryLayout {
 	}
 
 	/**
+	 * Get every root the quality gates must analyse, including missing roots.
+	 *
+	 * @return array<string> Absolute paths declared by the layout.
+	 */
+	public function get_analysis_paths(): array {
+		return array_map(
+			[ $this, 'absolute' ],
+			array_merge( [ $this->bootstrap ], $this->production, $this->production_views, [ $this->tests ] )
+		);
+	}
+
+	/**
+	 * Get the rule fixtures that gates may exclude because they break rules deliberately.
+	 *
+	 * @return array<string> Absolute fixture roots.
+	 */
+	public function get_rule_fixture_paths(): array {
+		return array_map( [ $this, 'absolute' ], $this->rule_fixtures );
+	}
+
+	/**
 	 * Get the absolute path of the PHPStan configuration.
 	 *
 	 * @return string Path of phpstan.neon.dist.
 	 */
 	public function get_phpstan_config(): string {
 		return $this->absolute( 'phpstan.neon.dist' );
+	}
+
+	/**
+	 * Read the gate configuration through one decoding boundary. Its PHPDoc
+	 * return type also keeps Nette's native PHP 8 mixed type behind a PHP 7.4
+	 * compatible contract for callers.
+	 *
+	 * @return mixed Decoded NEON, to be validated by the caller.
+	 * @throws \Nette\Neon\Exception When the configuration cannot be read or parsed.
+	 */
+	public function read_phpstan_config() {
+		/**
+		 * Neon::decodeFile() declares a native mixed return type, which Psalm
+		 * reads as a reserved word when it targets PHP 7.4.
+		 *
+		 * @psalm-suppress ReservedWord
+		 */
+		return Neon::decodeFile( $this->get_phpstan_config() );
 	}
 
 	/**
@@ -402,13 +441,7 @@ final class RepositoryLayout {
 	 * @return array<string> Fully qualified class, interface and trait names.
 	 */
 	public function get_subsystem_declarations(): array {
-		/**
-		 * Neon::decodeFile() declares a native mixed return type, which Psalm
-		 * reads as a reserved word when it targets PHP 7.4.
-		 *
-		 * @psalm-suppress ReservedWord
-		 */
-		$config = Neon::decodeFile( $this->get_phpstan_config() );
+		$config = $this->read_phpstan_config();
 		assert( is_array( $config ) && is_array( $config['parameters'] ?? null ) );
 		$settings = $config['parameters']['architecture'] ?? null;
 		assert( is_array( $settings ) );
