@@ -8,13 +8,15 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 
 final class IdempotentLifecyclePlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected function get_service_classes(): array {
 		return [
-			'GuardedActivation'     => GuardedActivation::class,
-			'SettingLifecycle'      => SettingLifecycle::class,
-			'IdenticalRegistration' => IdenticalRegistration::class,
-			'RemovingDeactivation'  => RemovingDeactivation::class,
-			'CleaningUninstall'     => CleaningUninstall::class,
+			'fixture.GuardedActivation'     => GuardedActivation::class,
+			'fixture.SettingLifecycle'      => SettingLifecycle::class,
+			'fixture.IdenticalRegistration' => IdenticalRegistration::class,
+			'fixture.RemovingDeactivation'  => RemovingDeactivation::class,
+			'fixture.CleaningUninstall'     => CleaningUninstall::class,
 		];
 	}
 }

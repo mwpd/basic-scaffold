@@ -8,11 +8,13 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 
 final class OverlappingCyclesPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected function get_service_classes(): array {
 		return [
-			'a' => DependsOnBAndC::class,
-			'b' => DependsOnC::class,
-			'c' => DependsOnA::class,
+			'fixture.a' => DependsOnBAndC::class,
+			'fixture.b' => DependsOnC::class,
+			'fixture.c' => DependsOnA::class,
 		];
 	}
 }

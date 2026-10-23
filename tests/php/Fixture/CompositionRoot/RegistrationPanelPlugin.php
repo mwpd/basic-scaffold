@@ -16,6 +16,8 @@ use ReflectionMethod;
  */
 final class RegistrationPanelPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'mwpd.basic_scaffold.';
+
 	protected function get_service_classes(): array {
 		/** @var array<string,class-string|callable> $services */
 		$services = $this->root( 'get_service_classes' );

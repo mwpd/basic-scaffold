@@ -12,19 +12,21 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
  */
 final class CallbackPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected function get_service_classes(): array {
 		return [
-			'hooking-callback' => function (): string {
+			'fixture.hooking-callback' => function (): string {
 				$this->injector->make( HookingCollaborator::class );
 
 				return GoodService::class;
 			},
-			'failing-callback' => function (): string {
+			'fixture.failing-callback' => function (): string {
 				$this->injector->make( NeedsContract::class );
 
 				return GoodService::class;
 			},
-			'good'             => GoodService::class,
+			'fixture.good'             => GoodService::class,
 		];
 	}
 }

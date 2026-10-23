@@ -130,7 +130,7 @@ final class CompositionRootContract {
 
 		$declared = self::call( $plugin, 'get_service_classes' );
 		$services = is_array( $declared ) ? $declared : [];
-		$problems = [];
+		$problems = $this->check_service_ids( array_keys( $services ) );
 		$resolved = [];
 
 		foreach ( $services as $id => $declaration ) {
@@ -179,6 +179,37 @@ final class CompositionRootContract {
 		}
 
 		return array_merge( $problems, $this->check_dependency_graph( $resolved ) );
+	}
+
+	/**
+	 * Check declared identifiers without resolving declarations or building services.
+	 *
+	 * @param array<int|string> $ids Keys of the recorded service declarations.
+	 * @return array<string> Problems found.
+	 */
+	private function check_service_ids( array $ids ): array {
+		// Follow the root's configuration when a generated plugin renames its prefix.
+		$prefix = ( new ReflectionClass( $this->plugin_class ) )->getConstant( 'SERVICE_PREFIX' );
+		assert( is_string( $prefix ) );
+
+		$problems = [];
+		foreach ( $ids as $id ) {
+			if ( $prefix !== '' && strpos( (string) $id, $prefix ) === 0 ) {
+				continue;
+			}
+			$problems[] = sprintf(
+				'[%1$s] The declared service ID "%2$s" of %3$s'
+				. ' is not prefixed with its configured SERVICE_PREFIX "%4$s".'
+				. ' Set a nonempty SERVICE_PREFIX and build the ID from it in get_service_classes(). %5$s.',
+				RuleManifest::SERVICE_IDS_PREFIXED,
+				$id,
+				$this->plugin_class,
+				$prefix,
+				RuleManifest::get_explanation( RuleManifest::SERVICE_IDS_PREFIXED )
+			);
+		}
+
+		return $problems;
 	}
 
 	/**

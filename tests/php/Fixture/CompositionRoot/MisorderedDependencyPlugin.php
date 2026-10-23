@@ -8,10 +8,12 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 
 final class MisorderedDependencyPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected function get_service_classes(): array {
 		return [
-			'a' => DependsOnB::class,
-			'b' => static fn(): string => WpService::class,
+			'fixture.a' => DependsOnB::class,
+			'fixture.b' => static fn(): string => WpService::class,
 		];
 	}
 }

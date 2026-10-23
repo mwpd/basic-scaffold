@@ -8,11 +8,13 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 
 final class TypoActionPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
 
 	protected function get_service_classes(): array {
 		return [
-			'delayed' => TypoActionService::class,
+			'fixture.delayed' => TypoActionService::class,
 		];
 	}
 }

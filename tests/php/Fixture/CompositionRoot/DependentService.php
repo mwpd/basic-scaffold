@@ -10,6 +10,6 @@ use MWPD\BasicScaffold\Infrastructure\Service;
 final class DependentService implements Service, HasDependencies {
 
 	public static function get_dependencies(): array {
-		return [ 'good', 'missing' ];
+		return [ 'fixture.good', 'fixture.missing' ];
 	}
 }

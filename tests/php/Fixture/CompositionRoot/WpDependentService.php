@@ -18,6 +18,6 @@ final class WpDependentService implements Service, Delayed, HasDependencies {
 	}
 
 	public static function get_dependencies(): array {
-		return [ 'b' ];
+		return [ 'fixture.b' ];
 	}
 }
