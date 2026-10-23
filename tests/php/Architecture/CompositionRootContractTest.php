@@ -151,6 +151,16 @@ final class CompositionRootContractTest extends TestCase {
 			[ 'ChangingDeactivation', 'deactivate', 'changes the option "fixture_runs" again' ],
 			[ 'ChangingTransient', 'activate', 'changes the transient "fixture_runs" again' ],
 			[ 'ChangingTransient', 'activate', 'changes the user meta "fixture_runs" for object 42 again' ],
+			[
+				'AppendingScopedLifecycle',
+				'activate_network',
+				'changes the user meta "fixture_runs" for object 42 again',
+			],
+			[
+				'AppendingScopedLifecycle',
+				'uninstall_site',
+				'changes the post meta "fixture_runs" for object 42 again',
+			],
 		];
 		$messages = [];
 

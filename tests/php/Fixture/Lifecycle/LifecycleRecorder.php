@@ -16,6 +16,14 @@ final class LifecycleRecorder {
 	 */
 	private array $events = [];
 
+	/**
+	 * Objects kept by label. Keeping them stops PHP from reusing their memory
+	 * for later objects, so they can be compared by identity afterwards.
+	 *
+	 * @var array<string,object>
+	 */
+	private array $objects = [];
+
 	public function record( string $event ): void {
 		$this->events[] = $event;
 	}
@@ -25,5 +33,13 @@ final class LifecycleRecorder {
 	 */
 	public function events(): array {
 		return $this->events;
+	}
+
+	public function keep( string $label, object $value ): void {
+		$this->objects[ $label ] = $value;
+	}
+
+	public function kept( string $label ): ?object {
+		return $this->objects[ $label ] ?? null;
 	}
 }

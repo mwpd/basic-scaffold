@@ -100,6 +100,10 @@ Infrastructure\Plugin::public abstract function activate(): void
 Infrastructure\Plugin::public abstract function deactivate(): void
 Infrastructure\Plugin::public abstract function get_container(): Infrastructure\ServiceContainer
 Infrastructure\Plugin::public abstract function register(): void
+Infrastructure\PluginLifecycle interface
+Infrastructure\PluginLifecycle::public abstract function activate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
+Infrastructure\PluginLifecycle::public abstract function deactivate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
+Infrastructure\PluginLifecycle::public abstract function uninstall(): void
 Infrastructure\Registerable interface
 Infrastructure\Registerable::public abstract function register(): void
 Infrastructure\Renderable interface
@@ -109,6 +113,7 @@ Infrastructure\ServiceBasedPlugin abstract class
 Infrastructure\ServiceBasedPlugin implements Infrastructure\Activateable
 Infrastructure\ServiceBasedPlugin implements Infrastructure\Deactivateable
 Infrastructure\ServiceBasedPlugin implements Infrastructure\Plugin
+Infrastructure\ServiceBasedPlugin implements Infrastructure\PluginLifecycle
 Infrastructure\ServiceBasedPlugin implements Infrastructure\Registerable
 Infrastructure\ServiceBasedPlugin::protected Infrastructure\Injector $injector
 Infrastructure\ServiceBasedPlugin::protected Infrastructure\ServiceContainer $service_container
@@ -122,8 +127,10 @@ Infrastructure\ServiceBasedPlugin::protected function dependencies_are_met( stri
 Infrastructure\ServiceBasedPlugin::protected function get_arguments(): array
 Infrastructure\ServiceBasedPlugin::protected function get_bindings(): array
 Infrastructure\ServiceBasedPlugin::protected function get_delegations(): array
+Infrastructure\ServiceBasedPlugin::protected function get_main_file(): string
 Infrastructure\ServiceBasedPlugin::protected function get_service_classes(): array
 Infrastructure\ServiceBasedPlugin::protected function get_shared_instances(): array
+Infrastructure\ServiceBasedPlugin::protected function get_uninstall_callback(): ?array
 Infrastructure\ServiceBasedPlugin::protected function instantiate_service( $class_name ): Infrastructure\Service
 Infrastructure\ServiceBasedPlugin::protected function maybe_register_service( string $id, string $class_name ): void
 Infrastructure\ServiceBasedPlugin::protected function maybe_resolve( $value )
@@ -138,12 +145,15 @@ Infrastructure\ServiceBasedPlugin::public const DELEGATIONS_FILTER = "delegation
 Infrastructure\ServiceBasedPlugin::public const INJECTOR_ID = "injector"
 Infrastructure\ServiceBasedPlugin::public const SERVICES_FILTER = "services"
 Infrastructure\ServiceBasedPlugin::public const SHARED_INSTANCES_FILTER = "shared_instances"
-Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null )
+Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null, ?Infrastructure\SiteRunner $site_runner = null, ?Infrastructure\InjectorFactory $injector_factory = null )
 Infrastructure\ServiceBasedPlugin::public function activate(): void
+Infrastructure\ServiceBasedPlugin::public function activate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\ServiceBasedPlugin::public function deactivate(): void
+Infrastructure\ServiceBasedPlugin::public function deactivate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\ServiceBasedPlugin::public function get_container(): Infrastructure\ServiceContainer
 Infrastructure\ServiceBasedPlugin::public function register(): void
 Infrastructure\ServiceBasedPlugin::public function register_services(): void
+Infrastructure\ServiceBasedPlugin::public function uninstall(): void
 Infrastructure\ServiceContainer interface
 Infrastructure\ServiceContainer::public abstract function get( string $id ): Infrastructure\Service
 Infrastructure\ServiceContainer::public abstract function has( string $id ): bool

@@ -240,7 +240,14 @@ parameters:
                     - blogname
                     - home
                     - siteurl
-                managed: []
+                    # Where WordPress records the plugins active on a site,
+                    # which a network deactivation reads.
+                    - active_plugins
+                # Options of WordPress the plugin also writes, and so may read.
+                # Uninstalling removes the plugin's own uninstall callback from
+                # the main site of each network (#34).
+                managed:
+                    - uninstall_plugins
             transients:
                 prefix: mwpd_basic_scaffold_
                 constants: []

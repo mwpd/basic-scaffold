@@ -21,9 +21,22 @@ use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\HasDependencies;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkContext;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkId;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteContext;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteId;
+use MWPD\BasicScaffold\Infrastructure\NetworkActivateable;
+use MWPD\BasicScaffold\Infrastructure\NetworkDeactivateable;
+use MWPD\BasicScaffold\Infrastructure\NetworkUninstallable;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
+use MWPD\BasicScaffold\Infrastructure\SiteActivateable;
+use MWPD\BasicScaffold\Infrastructure\SiteDeactivateable;
+use MWPD\BasicScaffold\Infrastructure\SiteInitializable;
+use MWPD\BasicScaffold\Infrastructure\SiteUninitializable;
+use MWPD\BasicScaffold\Infrastructure\SiteUninstallable;
 use MWPD\BasicScaffold\Tests\PHPStan\Rule\PluginNamespace;
 use ReflectionClass;
 use ReflectionMethod;
@@ -469,7 +482,68 @@ final class CompositionRootContract {
 	}
 
 	/**
+	 * Build the steps of the scoped lifecycle capabilities a service has.
+	 *
+	 * @param Service $service Service built by the injector.
+	 * @return array<string,callable():void> Steps, by method name.
+	 */
+	private static function scoped_lifecycle_steps( Service $service ): array {
+		$network = NetworkId::from_int( 1 );
+		$site    = SiteContext::for_site( SiteId::from_int( 1 ), $network, LifecycleScope::current_site() );
+		$network = NetworkContext::for_network( $network );
+		$steps   = [];
+
+		if ( $service instanceof SiteActivateable ) {
+			$steps['activate_site'] = static function () use ( $service, $site ): void {
+				$service->activate_site( $site );
+			};
+		}
+		if ( $service instanceof NetworkActivateable ) {
+			$steps['activate_network'] = static function () use ( $service, $network ): void {
+				$service->activate_network( $network );
+			};
+		}
+		if ( $service instanceof SiteDeactivateable ) {
+			$steps['deactivate_site'] = static function () use ( $service, $site ): void {
+				$service->deactivate_site( $site );
+			};
+		}
+		if ( $service instanceof NetworkDeactivateable ) {
+			$steps['deactivate_network'] = static function () use ( $service, $network ): void {
+				$service->deactivate_network( $network );
+			};
+		}
+		if ( $service instanceof SiteInitializable ) {
+			$steps['initialize_site'] = static function () use ( $service, $site ): void {
+				$service->initialize_site( $site );
+			};
+		}
+		if ( $service instanceof SiteUninitializable ) {
+			$steps['uninitialize_site'] = static function () use ( $service, $site ): void {
+				$service->uninitialize_site( $site );
+			};
+		}
+		if ( $service instanceof SiteUninstallable ) {
+			$steps['uninstall_site'] = static function () use ( $service, $site ): void {
+				$service->uninstall_site( $site );
+			};
+		}
+		if ( $service instanceof NetworkUninstallable ) {
+			$steps['uninstall_network'] = static function () use ( $service, $network ): void {
+				$service->uninstall_network( $network );
+			};
+		}
+
+		return $steps;
+	}
+
+	/**
 	 * Run each declared lifecycle capability twice on the same service.
+	 *
+	 * The scoped capabilities run with the context of site 1 on network 1, as
+	 * on a single site. Whether the plugin calls them in the right sites is
+	 * for the plugin's own tests; this checks that a service can be called
+	 * twice in the same one.
 	 *
 	 * @param string                $id         Service identifier.
 	 * @param class-string<Service> $class_name Declared service class.
@@ -493,6 +567,8 @@ final class CompositionRootContract {
 				$service->deactivate();
 			};
 		}
+
+		$steps += self::scoped_lifecycle_steps( $service );
 
 		$effects = new LifecycleEffects();
 		$effects->watch();
