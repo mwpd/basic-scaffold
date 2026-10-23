@@ -36,9 +36,10 @@ final class InjectionChain {
 	private array $chain = [];
 
 	/**
-	 * Resolutions.
+	 * Resolutions, keyed by name so lookups stay cheap. Insertion order is the
+	 * order the resolutions were made in.
 	 *
-	 * @var array<bool>
+	 * @var array<string, true>
 	 */
 	private array $resolutions = [];
 
