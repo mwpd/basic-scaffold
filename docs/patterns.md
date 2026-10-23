@@ -71,7 +71,7 @@ protected function get_service_classes(): array {
 }
 ```
 
-**Proven by:** `src/BasicScaffoldPlugin.php:59-66` declares the two sample
+**Proven by:** `src/BasicScaffoldPlugin.php:75-82` declares the two sample
 services; neither knows about the other.
 
 **Rules:** `architecture.compositionRootContracts` builds every declared
@@ -359,8 +359,8 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 ```
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
-`:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:32` and `:69-90`,
-bound at `src/BasicScaffoldPlugin.php:110`. The injector is made injectable at
+`:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
+bound at `src/BasicScaffoldPlugin.php:111`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:365-368`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
@@ -469,7 +469,7 @@ protected function get_shared_instances(): array {
 The one exception is the plugin itself, which WordPress needs to reach from
 outside the object graph: see the next section.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:136-146` is where shared instances
+**Proven by:** `src/BasicScaffoldPlugin.php:161-171` is where shared instances
 are declared; `Injector::share()` (`src/Infrastructure/Injector.php:78`) is
 what the plugin calls for each one.
 
@@ -571,8 +571,9 @@ own:
   ([principle 9](design-principles.md#9-never-trust-what-wordpress-hands-over)).
 
 A theme can also change the plugin's markup without any hook: the views
-look in the child theme, then the parent theme, before the plugin
-(`src/Infrastructure/View/TemplatedViewFactory.php:21-28`).
+look in the plugin's own override directory in the child theme, then in the
+parent theme, before the plugin
+(`src/Infrastructure/View/TemplatedViewFactory.php:24-38`).
 
 ```php
 // In another plugin, before plugins_loaded: add a service to this plugin.
@@ -655,7 +656,7 @@ Calling a WordPress function inside an implementation detail is still fine
 ([principle 4](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges)).
 The delegation is for values a service depends on.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:159-192` and
+**Proven by:** `src/BasicScaffoldPlugin.php:184-207` and
 `src/SampleSubsystem/SampleLoopService.php:86`.
 
 For request input, a boundary adapter reads the superglobals, sanitizes and
@@ -680,12 +681,18 @@ built-in implementation as the fallback. The fallback is the only place the
 default is named.
 
 ```php
-public function __construct( string $path, ViewFactory $view_factory, ?DebugMode $debug_mode = null ) {
+public function __construct(
+	string $path,
+	ViewFactory $view_factory,
+	?DebugMode $debug_mode = null,
+	?ViewConfiguration $configuration = null
+) {
+	// …
 	$this->debug_mode = $debug_mode ?? new WordPressDebugMode();
 }
 ```
 
-**Proven by:** `src/Infrastructure/View/SimpleView.php:73-76`, and the
+**Proven by:** `src/Infrastructure/View/SimpleView.php:86-97`, and the
 injector and container defaults of `ServiceBasedPlugin`
 (`src/Infrastructure/ServiceBasedPlugin.php:164-183`).
 
@@ -800,7 +807,7 @@ try {
 ```
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`,
-`src/Infrastructure/View/SimpleView.php:99-135` and
+`src/Infrastructure/View/SimpleView.php:119-155` and
 `src/Exception/FailedToLoadView.php:39`.
 
 **Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,
@@ -844,16 +851,30 @@ the plugin's prefix can clash with any of them.
 post type, taxonomy, shortcode, REST namespace, cron hook, admin page slug,
 setting group/name, AJAX action and service identifier with the plugin's
 prefix. Build hook names and service identifiers from the prefix constants.
+Theme overrides of the plugin's views live in a directory of their own,
+named by `VIEW_OVERRIDE_DIRECTORY`: a theme overrides `views/settings.php`
+with `<theme>/basic-scaffold/views/settings.php`, never with its own
+`views/settings.php`.
 
 ```php
 protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
 
+protected const VIEW_OVERRIDE_DIRECTORY = 'basic-scaffold';
+
 public const SAMPLE_LOOP_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
 ```
 
-**Proven by:** `src/BasicScaffoldPlugin.php:206-218`.
+Rename `VIEW_OVERRIDE_DIRECTORY` together with the prefixes when you generate
+a plugin, usually to its slug. Themes that already override the plugin's
+views move their files into that directory: a file directly in the theme's
+`views/` folder is no longer picked up.
+
+**Proven by:** `src/BasicScaffoldPlugin.php:245-275`, and
+`tests/php/Unit/TemplatedViewFactoryTest.php`, which shows that a bare theme
+`views/` file is not selected and that two override directories do not see
+each other's files.
 
 **Rules:** `architecture.prefixedNames` covers hooks, stored keys, asset
 handles, post types, taxonomies, shortcodes, REST namespaces, cron hooks,
-admin pages, settings and AJAX actions. Service identifiers and theme
-override paths remain tracked in #29.
+admin pages, settings and AJAX actions. Service identifiers and the value of
+`VIEW_OVERRIDE_DIRECTORY` are reviewed by hand.
