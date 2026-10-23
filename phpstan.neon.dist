@@ -49,6 +49,14 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\HasDependencies
                 - MWPD\BasicScaffold\Infrastructure\Activateable
                 - MWPD\BasicScaffold\Infrastructure\Deactivateable
+                - MWPD\BasicScaffold\Infrastructure\SiteActivateable
+                - MWPD\BasicScaffold\Infrastructure\NetworkActivateable
+                - MWPD\BasicScaffold\Infrastructure\SiteDeactivateable
+                - MWPD\BasicScaffold\Infrastructure\NetworkDeactivateable
+                - MWPD\BasicScaffold\Infrastructure\SiteInitializable
+                - MWPD\BasicScaffold\Infrastructure\SiteUninitializable
+                - MWPD\BasicScaffold\Infrastructure\SiteUninstallable
+                - MWPD\BasicScaffold\Infrastructure\NetworkUninstallable
             delayed: MWPD\BasicScaffold\Infrastructure\Delayed
             registerable: MWPD\BasicScaffold\Infrastructure\Registerable
         finalByDefault:
@@ -67,7 +75,9 @@ parameters:
             factories:
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory
             # Reviewed static callables that get the graph and delegate at once.
-            bridges: []
+            bridges:
+                # WordPress stores the uninstall callback and calls it statically.
+                - MWPD\BasicScaffold\BasicScaffoldUninstallHook::uninstall
         noGlobalState:
             # Classes that read request input and sanitize and normalize it
             # into internal types (design principles 7 and 9). This never
@@ -115,6 +125,9 @@ parameters:
             compositionRoot:
                 - MWPD\BasicScaffold\BasicScaffoldPlugin
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory
+                # The uninstall bridge is an edge like the bootstrap: it asks
+                # the factory for the plugin.
+                - MWPD\BasicScaffold\BasicScaffoldUninstallHook
                 # The bootstrap declares no class, so the rule names its code
                 # after the namespace and the file: it builds the fallback
                 # autoloader and asks the factory for the plugin.
@@ -141,6 +154,13 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
                 - MWPD\BasicScaffold\Infrastructure\View\ViewLocations
                 - MWPD\BasicScaffold\Infrastructure\View\ViewConfiguration
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteId
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkId
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteContext
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkContext
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkSelection
                 - DateTimeImmutable
                 - DateInterval
                 - ArrayIterator
@@ -156,6 +176,14 @@ parameters:
                 register: MWPD\BasicScaffold\Infrastructure\Registerable
                 activate: MWPD\BasicScaffold\Infrastructure\Activateable
                 deactivate: MWPD\BasicScaffold\Infrastructure\Deactivateable
+                activate_site: MWPD\BasicScaffold\Infrastructure\SiteActivateable
+                activate_network: MWPD\BasicScaffold\Infrastructure\NetworkActivateable
+                deactivate_site: MWPD\BasicScaffold\Infrastructure\SiteDeactivateable
+                deactivate_network: MWPD\BasicScaffold\Infrastructure\NetworkDeactivateable
+                initialize_site: MWPD\BasicScaffold\Infrastructure\SiteInitializable
+                uninitialize_site: MWPD\BasicScaffold\Infrastructure\SiteUninitializable
+                uninstall_site: MWPD\BasicScaffold\Infrastructure\SiteUninstallable
+                uninstall_network: MWPD\BasicScaffold\Infrastructure\NetworkUninstallable
             # Functions that tell what kind of request this is. register()
             # leaves them to Conditional::is_needed().
             contextFunctions:
@@ -204,6 +232,7 @@ parameters:
                     - HOOK_PREFIX
                 # Hooks of WordPress the plugin fires itself.
                 allowed: []
+                managed: []
             options:
                 prefix: mwpd_basic_scaffold_
                 constants: []
@@ -216,14 +245,24 @@ parameters:
                     - blogname
                     - home
                     - siteurl
+                    # Where WordPress records the plugins active on a site,
+                    # which a network deactivation reads.
+                    - active_plugins
+                # Options of WordPress the plugin also writes, and so may read.
+                # Uninstalling removes the plugin's own uninstall callback from
+                # the main site of each network (#34).
+                managed:
+                    - uninstall_plugins
             transients:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             meta:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             assets:
                 prefix: mwpd-basic-scaffold-
                 constants: []
@@ -234,36 +273,45 @@ parameters:
                     - wp-components
                     - wp-element
                     - wp-i18n
+                managed: []
 
             postTypes:
                 prefix: mwpd_bs_
                 constants: []
                 allowed: []
+                managed: []
             taxonomies:
                 prefix: mwpd_bs_
                 constants: []
                 allowed: []
+                managed: []
             shortcodes:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             restRoutes:
                 prefix: mwpd/basic-scaffold
                 constants: []
                 allowed: []
+                managed: []
             cron:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             adminPages:
                 prefix: mwpd-basic-scaffold-
                 constants: []
                 allowed: []
+                managed: []
             settings:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             ajax:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []

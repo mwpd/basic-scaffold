@@ -234,7 +234,42 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 
 	/*
 	 * --------------------------------------------------------------------------
-	 * -- 3. Define prefixes and identifiers for hooks and services.           --
+	 * -- 3. Tell WordPress which plugin this is and how to uninstall it.      --
+	 * --------------------------------------------------------------------------
+	 */
+
+	/**
+	 * Get the main plugin file.
+	 *
+	 * WordPress records whether the plugin is active, and its uninstall
+	 * callback, under this file. Services that implement SiteDeactivateable or
+	 * SiteInitializable, and the uninstall callback, need it.
+	 *
+	 * @return string Absolute path of the main plugin file.
+	 */
+	protected function get_main_file(): string {
+		return \dirname( __DIR__ ) . '/basic-scaffold.php';
+	}
+
+	/**
+	 * Get the callback WordPress calls to uninstall the plugin.
+	 *
+	 * WordPress stores the callback in the database and can only call a static
+	 * method, so this names the listed bridge, which gets the plugin through
+	 * the plugin factory and asks it to uninstall. The plugin registers the
+	 * callback when it is activated, never while its main file is included.
+	 * Services take part in the uninstall by implementing SiteUninstallable or
+	 * NetworkUninstallable.
+	 *
+	 * @return array{0: class-string, 1: non-empty-string} Uninstall callback.
+	 */
+	protected function get_uninstall_callback(): array {
+		return [ BasicScaffoldUninstallHook::class, 'uninstall' ];
+	}
+
+	/*
+	 * --------------------------------------------------------------------------
+	 * -- 4. Define prefixes and identifiers for hooks and services.           --
 	 * --------------------------------------------------------------------------
 	 */
 

@@ -42,8 +42,11 @@ use PHPStan\Type\Type;
  * built from one of the class's own prefix constants, such as
  * `static::HOOK_PREFIX . 'services'`. Names that only read what WordPress
  * itself owns, such as `get_option( 'date_format' )`, can be allowed per kind.
+ * Names WordPress owns that the plugin also has to write, such as the
+ * `uninstall_plugins` option it removes its uninstall callback from, are
+ * listed separately per kind, so every such write stays reviewed.
  *
- * @phpstan-type Kind array{prefix: string, constants: array<string>, allowed: array<string>}
+ * @phpstan-type Kind array{prefix: string, constants: array<string>, allowed: array<string>, managed: array<string>}
  * @implements Rule<FuncCall>
  */
 final class PrefixedNamesRule implements Rule {
@@ -439,7 +442,8 @@ final class PrefixedNamesRule implements Rule {
 			}
 
 			if ( strpos( $value, $settings['prefix'] ) === 0
-				|| ( $reads && in_array( $value, $settings['allowed'], true ) ) ) {
+				|| ( $reads && in_array( $value, $settings['allowed'], true ) )
+				|| in_array( $value, $settings['managed'], true ) ) {
 				continue;
 			}
 

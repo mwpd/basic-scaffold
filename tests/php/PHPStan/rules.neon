@@ -80,6 +80,7 @@ parametersSchema:
                 prefix: string()
                 constants: listOf(string())
                 allowed: listOf(string())
+                managed: listOf(string())
             ]),
             string()
         )

@@ -14,18 +14,29 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Infrastructure;
 
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
+use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjectorFactory;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkContext;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkId;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkSelection;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteContext;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteId;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection;
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\SynchronousSiteRunner;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
 use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService;
+use Throwable;
+use WP_Site;
 
 /**
  * This abstract base plugin provides all the boilerplate code for working with
  * the dependency injector and the service container.
  */
-abstract class ServiceBasedPlugin implements Plugin {
+abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 
 	// Main filters to control the flow of the plugin from outside code.
 
@@ -97,6 +108,60 @@ abstract class ServiceBasedPlugin implements Plugin {
 	protected const SERVICE_PREFIX = '';
 
 	/**
+	 * Scoped lifecycle interfaces that replace the parameterless one of the
+	 * same event. A service implementing any of them no longer receives the
+	 * parameterless call for that event, in any scope.
+	 */
+	private const SCOPED_LIFECYCLE_INTERFACES = [
+		Activateable::class   => [ SiteActivateable::class, NetworkActivateable::class ],
+		Deactivateable::class => [ SiteDeactivateable::class, NetworkDeactivateable::class ],
+	];
+
+	/**
+	 * Every scoped lifecycle interface.
+	 */
+	private const SCOPED_INTERFACES = [
+		SiteActivateable::class,
+		NetworkActivateable::class,
+		SiteDeactivateable::class,
+		NetworkDeactivateable::class,
+		SiteInitializable::class,
+		SiteUninitializable::class,
+		SiteUninstallable::class,
+		NetworkUninstallable::class,
+	];
+
+	/**
+	 * Scoped lifecycle interfaces whose dispatch needs to know the plugin's
+	 * main file: whether the plugin is network-active, or still active on a
+	 * site, is recorded under it.
+	 */
+	private const INTERFACES_NEEDING_MAIN_FILE = [
+		SiteDeactivateable::class,
+		SiteInitializable::class,
+	];
+
+	/**
+	 * Scoped lifecycle interfaces that WordPress only reaches through the
+	 * uninstall callback.
+	 */
+	private const UNINSTALL_INTERFACES = [
+		SiteUninstallable::class,
+		NetworkUninstallable::class,
+	];
+
+	/**
+	 * Priority on wp_initialize_site: after core sets the new site up at 10.
+	 */
+	private const SITE_INITIALIZATION_PRIORITY = 11;
+
+	/**
+	 * Priority on wp_uninitialize_site: before core drops the site's tables
+	 * at 10.
+	 */
+	private const SITE_REMOVAL_PRIORITY = 5;
+
+	/**
 	 * Whether to enable filtering of the injector configuration.
 	 */
 	protected bool $enable_filters;
@@ -150,6 +215,35 @@ abstract class ServiceBasedPlugin implements Plugin {
 	private bool $services_registered = false;
 
 	/**
+	 * Runner that visits the sites and networks of a scoped lifecycle event.
+	 */
+	private SiteRunner $site_runner;
+
+	/**
+	 * Factory for the fresh injector of each scoped lifecycle graph.
+	 */
+	private InjectorFactory $injector_factory;
+
+	/**
+	 * Whether the injector factory creates the kind of injector the plugin
+	 * uses. It does unless a custom injector was passed in without a factory.
+	 */
+	private bool $injector_factory_matches;
+
+	/**
+	 * Whether this plugin instance only runs lifecycle work, as it does in
+	 * the request that uninstalls it. Normal service registration is then
+	 * skipped, even if plugins_loaded fires afterwards.
+	 */
+	private bool $lifecycle_only = false;
+
+	/**
+	 * Injector that callable declarations receive while a scoped lifecycle
+	 * graph is built, or null outside of that.
+	 */
+	private ?Injector $resolving_injector = null;
+
+	/**
 	 * Instantiate a Plugin object.
 	 *
 	 * @param bool                  $enable_filters    Optional. Whether to
@@ -160,11 +254,25 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @param ServiceContainer|null $service_container Optional. Service
 	 *                                                 container instance to
 	 *                                                 use.
+	 * @param SiteRunner|null       $site_runner       Optional. Runner that
+	 *                                                 visits the sites of a
+	 *                                                 multisite lifecycle
+	 *                                                 event.
+	 * @param InjectorFactory|null  $injector_factory  Optional. Factory for
+	 *                                                 the fresh injector of
+	 *                                                 each scoped lifecycle
+	 *                                                 call. Required with a
+	 *                                                 custom injector once a
+	 *                                                 service implements a
+	 *                                                 scoped lifecycle
+	 *                                                 interface.
 	 */
 	public function __construct(
 		bool $enable_filters = true,
 		?Injector $injector = null,
-		?ServiceContainer $service_container = null
+		?ServiceContainer $service_container = null,
+		?SiteRunner $site_runner = null,
+		?InjectorFactory $injector_factory = null
 	) {
 		/*
 		 * We use what is commonly referred to as a "poka-yoke" here.
@@ -172,27 +280,76 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 * We need an injector and a container. We make them injectable so that
 		 * we can easily provide overrides for testing, but we also make them
 		 * optional and provide default implementations for easy regular usage.
+		 * The same goes for the runner that visits the sites of a multisite
+		 * lifecycle event, and for the factory that creates a fresh injector
+		 * for each of them.
+		 *
+		 * The default factory creates SimpleInjector instances, so it only
+		 * matches the default injector. A custom injector without a factory is
+		 * remembered rather than rejected here: it only matters once a service
+		 * implements a scoped lifecycle interface.
 		 *
 		 * The constructor only stores them. The injector is configured when the
 		 * services are registered, see register_services().
 		 */
 
-		$this->enable_filters    = $enable_filters;
-		$this->injector          = $injector ?? new SimpleInjector();
-		$this->service_container = $service_container ?? new SimpleServiceContainer();
+		$this->enable_filters           = $enable_filters;
+		$this->injector                 = $injector ?? new SimpleInjector();
+		$this->service_container        = $service_container ?? new SimpleServiceContainer();
+		$this->site_runner              = $site_runner ?? new SynchronousSiteRunner();
+		$this->injector_factory         = $injector_factory ?? new SimpleInjectorFactory();
+		$this->injector_factory_matches = null === $injector || null !== $injector_factory;
 	}
 
 	/**
-	 * Activate the plugin.
+	 * Activate the plugin in the current site.
 	 *
-	 * Every service implementing Activateable is activated, see
-	 * get_lifecycle_services() for which ones and how. The rewrite rules are
-	 * flushed once afterwards, so a service that adds rewrite rules registers
-	 * them in activate() itself.
-	 *
+	 * @throws InvalidConfiguration If the lifecycle configuration is invalid.
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function activate(): void {
+		$this->activate_in( LifecycleScope::current_site() );
+	}
+
+	/**
+	 * Deactivate the plugin in the current site.
+	 *
+	 * @throws InvalidConfiguration If the lifecycle configuration is invalid.
+	 * @throws InvalidService If a service is not valid.
+	 */
+	public function deactivate(): void {
+		$this->deactivate_in( LifecycleScope::current_site() );
+	}
+
+	/**
+	 * Activate the plugin in the current site, or in the whole current network.
+	 *
+	 * The uninstall callback is registered first, before the services are
+	 * registered or set anything up, so that an activation that fails
+	 * part-way can still be uninstalled. Then the services are called in
+	 * three phases:
+	 *
+	 * 1. Every service implementing Activateable, and none of the scoped
+	 *    activation interfaces, is activated once, in the current site, as
+	 *    get_lifecycle_services() describes.
+	 * 2. On a network activation, every NetworkActivateable service is called
+	 *    once, for the current network.
+	 * 3. Every SiteActivateable service is called in the current site, or on a
+	 *    network activation in every site of the network.
+	 *
+	 * Phases 2 and 3 build a fresh object graph in each site and network, see
+	 * dispatch_in_fresh_graph(). The first exception stops the activation and
+	 * propagates; what already ran is not undone. The rewrite rules are flushed
+	 * once afterwards, in the current site, so a service that adds rewrite
+	 * rules registers them in its activation method itself.
+	 *
+	 * @param LifecycleScope $scope The current site, or the current network.
+	 *
+	 * @throws InvalidConfiguration If the lifecycle configuration is invalid.
+	 * @throws InvalidService If a service is not valid.
+	 */
+	public function activate_in( LifecycleScope $scope ): void {
+		$this->register_uninstall_callback();
 		$this->register_services();
 
 		foreach ( $this->get_lifecycle_services( Activateable::class ) as $service ) {
@@ -201,21 +358,110 @@ abstract class ServiceBasedPlugin implements Plugin {
 			}
 		}
 
+		if ( $scope->is_network_wide() && $this->declares( NetworkActivateable::class ) ) {
+			$this->site_runner->run_on_networks(
+				NetworkSelection::current(),
+				function ( NetworkId $network_id ): void {
+					$context = NetworkContext::for_network( $network_id );
+
+					$this->dispatch_in_fresh_graph(
+						NetworkActivateable::class,
+						static function ( NetworkActivateable $service ) use ( $context ): void {
+							$service->activate_network( $context );
+						}
+					);
+				}
+			);
+		}
+
+		if ( $this->declares( SiteActivateable::class ) ) {
+			$this->site_runner->run_on_sites(
+				$this->select_sites( $scope ),
+				function ( SiteId $site_id, NetworkId $network_id ) use ( $scope ): void {
+					$context = SiteContext::for_site( $site_id, $network_id, $scope );
+
+					$this->dispatch_in_fresh_graph(
+						SiteActivateable::class,
+						static function ( SiteActivateable $service ) use ( $context ): void {
+							$service->activate_site( $context );
+						}
+					);
+				}
+			);
+		}
+
 		$this->request_soft_rewrite_flush();
 	}
 
 	/**
-	 * Deactivate the plugin.
+	 * Deactivate the plugin in the current site, or in the whole current
+	 * network.
 	 *
-	 * Every service implementing Deactivateable is deactivated, see
-	 * get_lifecycle_services() for which ones and how. The rewrite rules are
-	 * flushed once afterwards, so a service that adds rewrite rules removes
-	 * them in deactivate() itself.
+	 * The services are called in the reverse order of activation:
 	 *
+	 * 1. Every SiteDeactivateable service is called in the current site, or on
+	 *    a network deactivation in every site of the network. A network
+	 *    deactivation skips a site that still has the plugin activated on its
+	 *    own, and a deactivation on one site tears nothing down while the
+	 *    plugin stays network-active.
+	 * 2. On a network deactivation, every NetworkDeactivateable service is
+	 *    called once, for the current network.
+	 * 3. Every service implementing Deactivateable, and none of the scoped
+	 *    deactivation interfaces, is deactivated once, in the current site.
+	 *
+	 * The first exception stops the deactivation and propagates. The rewrite
+	 * rules are flushed once afterwards, in the current site.
+	 *
+	 * @param LifecycleScope $scope The current site, or the current network.
+	 *
+	 * @throws InvalidConfiguration If the lifecycle configuration is invalid.
 	 * @throws InvalidService If a service is not valid.
 	 */
-	public function deactivate(): void {
+	public function deactivate_in( LifecycleScope $scope ): void {
 		$this->register_services();
+
+		if ( $this->declares( SiteDeactivateable::class ) ) {
+			$this->site_runner->run_on_sites(
+				$this->select_sites( $scope ),
+				function ( SiteId $site_id, NetworkId $network_id ) use ( $scope ): void {
+					// The plugin stays active where it was activated on its own
+					// (network deactivation) or for the whole network (a
+					// deactivation on one site), so nothing is torn down there.
+					$stays_active = $scope->is_network_wide()
+						? $this->is_active_on_current_site()
+						: $this->is_network_active( $network_id );
+
+					if ( $stays_active ) {
+						return;
+					}
+
+					$context = SiteContext::for_site( $site_id, $network_id, $scope );
+
+					$this->dispatch_in_fresh_graph(
+						SiteDeactivateable::class,
+						static function ( SiteDeactivateable $service ) use ( $context ): void {
+							$service->deactivate_site( $context );
+						}
+					);
+				}
+			);
+		}
+
+		if ( $scope->is_network_wide() && $this->declares( NetworkDeactivateable::class ) ) {
+			$this->site_runner->run_on_networks(
+				NetworkSelection::current(),
+				function ( NetworkId $network_id ): void {
+					$context = NetworkContext::for_network( $network_id );
+
+					$this->dispatch_in_fresh_graph(
+						NetworkDeactivateable::class,
+						static function ( NetworkDeactivateable $service ) use ( $context ): void {
+							$service->deactivate_network( $context );
+						}
+					);
+				}
+			);
+		}
 
 		foreach ( $this->get_lifecycle_services( Deactivateable::class ) as $service ) {
 			if ( $service instanceof Deactivateable ) {
@@ -224,6 +470,544 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		$this->request_soft_rewrite_flush();
+	}
+
+	/**
+	 * Uninstall the plugin.
+	 *
+	 * WordPress calls this through the static uninstall bridge, in a request
+	 * where the plugin is not active, after including the main plugin file.
+	 * This instance then only runs lifecycle work: normal service registration
+	 * is skipped, even if plugins_loaded fires afterwards, and no service is
+	 * built that does not take part in the uninstall.
+	 *
+	 * On a single site, every SiteUninstallable service is called in the
+	 * current site. On multisite, every site of every network is visited,
+	 * whether the plugin was ever active there or not, and then every
+	 * NetworkUninstallable service is called once for each network. Each call
+	 * gets a fresh object graph, built in the site it runs in, so a Conditional
+	 * service is asked there whether it is needed. Once a network is done, the
+	 * copy of the uninstall callback that activation registered on its main
+	 * site is removed.
+	 *
+	 * The first exception stops the uninstall. Before it propagates, the
+	 * uninstall callback is registered again on the current site, where
+	 * WordPress removed it before calling it, so that deleting the plugin again
+	 * retries the cleanup. Cleanup that already ran is not undone; it must be
+	 * safe to run again. If registering the callback again fails as well, the
+	 * original exception still propagates, with that failure at the end of its
+	 * chain of previous exceptions.
+	 *
+	 * @throws Throwable The first failure of the uninstall, unchanged.
+	 */
+	public function uninstall(): void {
+		$this->lifecycle_only = true;
+
+		try {
+			if ( \is_multisite() ) {
+				$this->site_runner->run_on_networks(
+					NetworkSelection::all(),
+					function ( NetworkId $network_id ): void {
+						$this->uninstall_sites( SiteSelection::network( $network_id ), LifecycleScope::network_wide() );
+
+						$context = NetworkContext::for_network( $network_id );
+
+						$this->dispatch_in_fresh_graph(
+							NetworkUninstallable::class,
+							static function ( NetworkUninstallable $service ) use ( $context ): void {
+								$service->uninstall_network( $context );
+							}
+						);
+
+						$this->remove_uninstall_callback();
+					}
+				);
+			} else {
+				$this->uninstall_sites( SiteSelection::current(), LifecycleScope::current_site() );
+			}
+		} catch ( Throwable $failure ) {
+			try {
+				$this->register_uninstall_callback_in_current_site();
+			} finally {
+				// Throwing here keeps the original failure in front, even when
+				// registering the callback again failed too.
+				throw $failure;
+			}
+		}
+	}
+
+	/**
+	 * Call every SiteUninstallable service in each selected site.
+	 *
+	 * @param SiteSelection  $sites Sites to clean up.
+	 * @param LifecycleScope $scope Scope of the uninstall.
+	 */
+	private function uninstall_sites( SiteSelection $sites, LifecycleScope $scope ): void {
+		$this->site_runner->run_on_sites(
+			$sites,
+			function ( SiteId $site_id, NetworkId $network_id ) use ( $scope ): void {
+				$context = SiteContext::for_site( $site_id, $network_id, $scope );
+
+				$this->dispatch_in_fresh_graph(
+					SiteUninstallable::class,
+					static function ( SiteUninstallable $service ) use ( $context ): void {
+						$service->uninstall_site( $context );
+					}
+				);
+			}
+		);
+	}
+
+	/**
+	 * Select the sites an activation or deactivation reaches.
+	 *
+	 * @param LifecycleScope $scope The current site, or the current network.
+	 */
+	private function select_sites( LifecycleScope $scope ): SiteSelection {
+		if ( ! $scope->is_network_wide() ) {
+			return SiteSelection::current();
+		}
+
+		return SiteSelection::network( NetworkId::from_wordpress( \get_current_network_id() ) );
+	}
+
+	/**
+	 * Check whether a configured service implements a lifecycle interface.
+	 *
+	 * The decision is made by class, without building anything, from the
+	 * services resolved in the current site. It decides whether a scoped
+	 * event visits the other sites at all, so a plugin without scoped services
+	 * never traverses a network. Which services take part in each site is
+	 * then decided again in that site.
+	 *
+	 * @param class-string ...$interfaces Lifecycle interfaces to look for.
+	 */
+	private function declares( string ...$interfaces ): bool {
+		return null !== $this->find_declaring_interface( $this->services, $interfaces );
+	}
+
+	/**
+	 * Find the first of some interfaces that a service implements.
+	 *
+	 * @param array<string,class-string> $services   Services to look through.
+	 * @param array<class-string>        $interfaces Interfaces to look for.
+	 *
+	 * @return class-string|null An interface that is implemented, or null.
+	 */
+	private function find_declaring_interface( array $services, array $interfaces ): ?string {
+		foreach ( $interfaces as $interface ) {
+			foreach ( $services as $class_name ) {
+				if ( is_a( $class_name, $interface, true ) ) {
+					return $interface;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Build a fresh object graph in the current site and call every eligible
+	 * service implementing a scoped lifecycle interface.
+	 *
+	 * The graph starts from an empty injector from the injector factory. The
+	 * composition root's injector configuration and services are applied to
+	 * it here, with their filters, so they see the site that is switched to.
+	 * Each declared service is decided by class: one that does not implement
+	 * the interface is skipped, and a Conditional one that is not needed in
+	 * this site is skipped without being built. The others are made through
+	 * the graph's injector and called, in the order they are configured.
+	 *
+	 * Nothing of the graph goes into the plugin's container, no service is
+	 * registered, and the graph is dropped afterwards, so neither the services
+	 * nor their shared collaborators carry anything from one site into the
+	 * next. Callable declarations in the configuration run for each graph and
+	 * receive its injector; they should only compute class names.
+	 *
+	 * @template T of object
+	 *
+	 * @param string   $capability Scoped lifecycle interface.
+	 * @param callable $call       Lifecycle call to make on each service.
+	 *
+	 * @phpstan-param class-string<T>  $capability
+	 * @phpstan-param callable(T):void $call
+	 *
+	 * @throws InvalidConfiguration If the configuration is invalid, or a custom
+	 *                              injector has no matching factory.
+	 * @throws InvalidService If a service is not valid.
+	 */
+	private function dispatch_in_fresh_graph( string $capability, callable $call ): void {
+		if ( ! $this->injector_factory_matches ) {
+			throw InvalidConfiguration::from_missing_injector_factory( \get_class( $this->injector ) );
+		}
+
+		$outer_resolving_injector = $this->resolving_injector;
+
+		try {
+			/*
+			 * Callable declarations in the configuration receive the injector
+			 * of the graph they are resolved for: the fresh one while it is
+			 * configured, as during registration, and the configured one when
+			 * the services are resolved. The plugin's own injector property
+			 * is left alone, so its lazily built services and its Injector
+			 * delegation keep using the plugin's graph, even if they are
+			 * reached while this graph is built.
+			 */
+			$graph_injector           = $this->injector_factory->create();
+			$this->resolving_injector = $graph_injector;
+			$graph_injector           = $this->configure_injector( $graph_injector );
+			$graph_injector           = $graph_injector->delegate(
+				Injector::class,
+				static function () use ( &$graph_injector ): Injector {
+					return $graph_injector;
+				}
+			);
+
+			$this->resolving_injector = $graph_injector;
+
+			foreach ( $this->resolve_services() as $class_name ) {
+				if ( ! is_a( $class_name, $capability, true ) ) {
+					continue;
+				}
+
+				if ( ! $this->is_needed( $class_name ) ) {
+					continue;
+				}
+
+				$service = $graph_injector->make( $class_name );
+
+				if ( ! $service instanceof Service || ! $service instanceof $capability ) {
+					throw InvalidService::from_service( $service );
+				}
+
+				$call( $service );
+			}
+		} finally {
+			$this->resolving_injector = $outer_resolving_injector;
+		}
+	}
+
+	/**
+	 * Check whether a service is needed in the current site.
+	 *
+	 * @param class-string $class_name Service class.
+	 */
+	private function is_needed( string $class_name ): bool {
+		return ! is_a( $class_name, Conditional::class, true ) || $class_name::is_needed();
+	}
+
+	/**
+	 * Register the uninstall callback where WordPress looks for it.
+	 *
+	 * WordPress reads the callback from the site the plugin is deleted in,
+	 * which for a network admin is the main site of its network. So it is
+	 * registered on the current site and, on multisite, on the main site of
+	 * every network. register_uninstall_hook() only writes when the stored
+	 * callback differs, so registering again changes nothing.
+	 *
+	 * Networks added later, or a network whose main site changes, get the
+	 * callback at the next activation.
+	 *
+	 * @throws InvalidConfiguration If the uninstall configuration is invalid.
+	 */
+	private function register_uninstall_callback(): void {
+		if ( null === $this->get_valid_uninstall_callback() ) {
+			return;
+		}
+
+		$this->register_uninstall_callback_in_current_site();
+
+		if ( ! \is_multisite() ) {
+			return;
+		}
+
+		$activating_site = \get_current_blog_id();
+
+		$this->site_runner->run_on_networks(
+			NetworkSelection::all(),
+			function () use ( $activating_site ): void {
+				if ( \get_current_blog_id() !== $activating_site ) {
+					$this->register_uninstall_callback_in_current_site();
+				}
+			}
+		);
+	}
+
+	/**
+	 * Register the uninstall callback in the current site.
+	 *
+	 * @throws InvalidConfiguration If the uninstall configuration is invalid.
+	 */
+	private function register_uninstall_callback_in_current_site(): void {
+		$callback = $this->get_valid_uninstall_callback();
+
+		if ( null === $callback ) {
+			return;
+		}
+
+		\register_uninstall_hook( $this->get_valid_main_file( 'The uninstall callback' ), $callback );
+	}
+
+	/**
+	 * Remove the copy of the uninstall callback that activation registered in
+	 * the current site, if there is one.
+	 *
+	 * @throws InvalidConfiguration If the main file is not configured.
+	 */
+	private function remove_uninstall_callback(): void {
+		$basename  = \plugin_basename( $this->get_valid_main_file( 'The uninstall callback' ) );
+		$callbacks = \get_option( 'uninstall_plugins' );
+
+		if ( ! is_array( $callbacks ) || ! array_key_exists( $basename, $callbacks ) ) {
+			return;
+		}
+
+		unset( $callbacks[ $basename ] );
+		\update_option( 'uninstall_plugins', $callbacks );
+	}
+
+	/**
+	 * Check whether the plugin is network-active on a network.
+	 *
+	 * The option is read by network ID, because switching sites does not
+	 * switch networks.
+	 *
+	 * @param NetworkId $network_id Network to check.
+	 *
+	 * @throws InvalidConfiguration If the main file is not configured.
+	 */
+	private function is_network_active( NetworkId $network_id ): bool {
+		if ( ! \is_multisite() ) {
+			return false;
+		}
+
+		$basename = \plugin_basename( $this->get_valid_main_file( SiteInitializable::class ) );
+		$active   = \get_network_option( $network_id->to_int(), 'active_sitewide_plugins', [] );
+
+		return is_array( $active ) && array_key_exists( $basename, $active );
+	}
+
+	/**
+	 * Check whether the plugin is activated on the current site on its own.
+	 *
+	 * @throws InvalidConfiguration If the main file is not configured.
+	 */
+	private function is_active_on_current_site(): bool {
+		$basename = \plugin_basename( $this->get_valid_main_file( SiteDeactivateable::class ) );
+		$active   = \get_option( 'active_plugins', [] );
+
+		return is_array( $active ) && in_array( $basename, $active, true );
+	}
+
+	/**
+	 * Get the configured main plugin file, which a scoped lifecycle dispatch
+	 * needs.
+	 *
+	 * @param string $needed_by What needs the main file, for the message.
+	 *
+	 * @throws InvalidConfiguration If the main file is not configured.
+	 *
+	 * @return non-empty-string Main plugin file.
+	 */
+	private function get_valid_main_file( string $needed_by ): string {
+		$main_file = $this->get_main_file();
+
+		if ( '' === $main_file ) {
+			throw InvalidConfiguration::from_missing_main_file( $needed_by );
+		}
+
+		return $main_file;
+	}
+
+	/**
+	 * Get the configured uninstall callback, after checking that WordPress
+	 * can store and call it.
+	 *
+	 * @throws InvalidConfiguration If the callback is not a public static
+	 *                              method named by two strings.
+	 *
+	 * @return callable|null Uninstall callback, or null if none is configured.
+	 */
+	private function get_valid_uninstall_callback(): ?callable {
+		$callback = $this->get_uninstall_callback();
+
+		return null === $callback ? null : $this->validate_uninstall_callback( $callback );
+	}
+
+	/**
+	 * Check that an uninstall callback is a public static method named by two
+	 * strings.
+	 *
+	 * The configuration comes from an overridable method, so its shape is
+	 * checked rather than trusted. Called from here, is_callable() rejects a
+	 * method that is not public, and on PHP 8 one that is not static.
+	 *
+	 * @param mixed $callback Configured uninstall callback.
+	 *
+	 * @throws InvalidConfiguration If the callback has another shape.
+	 *
+	 * @return callable Uninstall callback.
+	 */
+	private function validate_uninstall_callback( $callback ): callable {
+		if ( ! is_array( $callback ) || 2 !== count( $callback ) || ! isset( $callback[0], $callback[1] )
+			|| ! is_string( $callback[0] ) || ! is_string( $callback[1] )
+			|| ! is_callable( $callback ) ) {
+			throw InvalidConfiguration::from_invalid_uninstall_callback( $callback );
+		}
+
+		return $callback;
+	}
+
+	/**
+	 * Check, by class, that the scoped lifecycle services have what they need.
+	 *
+	 * This runs while the services are registered, in every request, so a
+	 * missing setting is reported during development rather than when a site
+	 * is created or the plugin is deleted. It only compares classes and
+	 * settings and loads nothing; the shape of the uninstall callback is
+	 * checked when activation registers it.
+	 *
+	 * @param array<string,class-string> $services Validated services.
+	 *
+	 * @throws InvalidConfiguration If a setting a scoped service needs is missing.
+	 */
+	private function check_lifecycle_configuration( array $services ): void {
+		$scoped = $this->find_declaring_interface( $services, self::SCOPED_INTERFACES );
+
+		if ( null !== $scoped && ! $this->injector_factory_matches ) {
+			throw InvalidConfiguration::from_missing_injector_factory( \get_class( $this->injector ) );
+		}
+
+		$needing_main_file = $this->find_declaring_interface( $services, self::INTERFACES_NEEDING_MAIN_FILE );
+
+		if ( null !== $needing_main_file ) {
+			$this->get_valid_main_file( $needing_main_file );
+		}
+
+		$uninstall = $this->find_declaring_interface( $services, self::UNINSTALL_INTERFACES );
+
+		if ( null !== $uninstall && null === $this->get_uninstall_callback() ) {
+			throw InvalidConfiguration::from_missing_uninstall_callback( $uninstall );
+		}
+	}
+
+	/**
+	 * Hook the site initialization and removal dispatch into WordPress.
+	 *
+	 * Only on multisite, and only when a service needs it. These callbacks
+	 * only run in a request where the plugin is loaded: a site created from
+	 * another network, or deleted from the network admin while the plugin is
+	 * only active on that site, is not reached.
+	 *
+	 * @param array<string,class-string> $services Validated services.
+	 */
+	private function hook_site_lifecycle( array $services ): void {
+		$initializes   = null !== $this->find_declaring_interface( $services, [ SiteInitializable::class ] );
+		$uninitializes = null !== $this->find_declaring_interface( $services, [ SiteUninitializable::class ] );
+
+		if ( ( ! $initializes && ! $uninitializes ) || ! \is_multisite() ) {
+			return;
+		}
+
+		if ( $initializes ) {
+			\add_action(
+				'wp_initialize_site',
+				function ( $site ): void {
+					$this->initialize_site( $site );
+				},
+				self::SITE_INITIALIZATION_PRIORITY,
+				1
+			);
+		}
+
+		if ( $uninitializes ) {
+			\add_action(
+				'wp_uninitialize_site',
+				function ( $site ): void {
+					$this->uninitialize_site( $site );
+				},
+				self::SITE_REMOVAL_PRIORITY,
+				1
+			);
+		}
+	}
+
+	/**
+	 * Set up a site that was just created, if the plugin is network-active on
+	 * its network and core set the site up successfully.
+	 *
+	 * @param mixed $site Site WordPress handed over.
+	 *
+	 * @throws InvalidArgument If WordPress handed over something other than a site.
+	 * @throws InvalidConfiguration If the configuration is invalid.
+	 * @throws InvalidService If a service is not valid.
+	 */
+	private function initialize_site( $site ): void {
+		[ $site_id, $network_id ] = $this->normalize_site( $site );
+
+		if ( ! \wp_is_site_initialized( $site_id->to_int() ) || ! $this->is_network_active( $network_id ) ) {
+			return;
+		}
+
+		$this->site_runner->run_on_sites(
+			SiteSelection::site( $site_id, $network_id ),
+			function ( SiteId $site_id, NetworkId $network_id ): void {
+				$context = SiteContext::for_site( $site_id, $network_id, LifecycleScope::network_wide() );
+
+				$this->dispatch_in_fresh_graph(
+					SiteInitializable::class,
+					static function ( SiteInitializable $service ) use ( $context ): void {
+						$service->initialize_site( $context );
+					}
+				);
+			}
+		);
+	}
+
+	/**
+	 * Clean up a site that is about to be deleted, whether or not the plugin
+	 * is still active on it: data from an earlier activation may be left.
+	 *
+	 * @param mixed $site Site WordPress handed over.
+	 *
+	 * @throws InvalidArgument If WordPress handed over something other than a site.
+	 * @throws InvalidConfiguration If the configuration is invalid.
+	 * @throws InvalidService If a service is not valid.
+	 */
+	private function uninitialize_site( $site ): void {
+		[ $site_id, $network_id ] = $this->normalize_site( $site );
+
+		$this->site_runner->run_on_sites(
+			SiteSelection::site( $site_id, $network_id ),
+			function ( SiteId $site_id, NetworkId $network_id ): void {
+				$context = SiteContext::for_site( $site_id, $network_id, LifecycleScope::current_site() );
+
+				$this->dispatch_in_fresh_graph(
+					SiteUninitializable::class,
+					static function ( SiteUninitializable $service ) use ( $context ): void {
+						$service->uninitialize_site( $context );
+					}
+				);
+			}
+		);
+	}
+
+	/**
+	 * Turn the site WordPress hands over into the IDs of the site and its
+	 * network (principle 9).
+	 *
+	 * @param mixed $site Site WordPress handed over.
+	 *
+	 * @throws InvalidArgument If it is not a site.
+	 *
+	 * @return array{SiteId, NetworkId} Site and network.
+	 */
+	private function normalize_site( $site ): array {
+		if ( ! $site instanceof WP_Site ) {
+			throw InvalidArgument::from_site( $site );
+		}
+
+		return [ SiteId::from_wordpress( $site->blog_id ), NetworkId::from_wordpress( $site->site_id ) ];
 	}
 
 	/**
@@ -239,7 +1023,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * So the decision is made by class, before anything is built:
 	 *
 	 * 1. A service that does not implement the lifecycle interface is skipped,
-	 *    and a lazy one stays unbuilt.
+	 *    and a lazy one stays unbuilt. So is a service that implements one of
+	 *    the scoped interfaces of the same event, such as SiteActivateable or
+	 *    NetworkActivateable for activation: those receive the scoped calls
+	 *    instead, in every scope, so setup and cleanup never run twice.
 	 * 2. A Conditional service that is not needed in this request is skipped
 	 *    without being built. Lifecycle work that has to run regardless of the
 	 *    condition belongs in a separate service without it.
@@ -256,17 +1043,20 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *
 	 * A container passed in already filled can hold services that are not
 	 * configured here. Those take part afterwards if the instance stored for
-	 * them implements the lifecycle interface.
+	 * them implements the lifecycle interface and none of its scoped ones.
 	 *
-	 * @param class-string $lifecycle_interface Activateable or Deactivateable.
+	 * @param class-string<Activateable|Deactivateable> $lifecycle_interface Activateable or Deactivateable.
 	 *
 	 * @throws InvalidService If a service is not valid.
 	 *
 	 * @return iterable<Service> Services taking part in the lifecycle event.
 	 */
 	private function get_lifecycle_services( string $lifecycle_interface ): iterable {
+		$scoped_interfaces = self::SCOPED_LIFECYCLE_INTERFACES[ $lifecycle_interface ];
+
 		foreach ( $this->services as $id => $class_name ) {
-			if ( ! is_a( $class_name, $lifecycle_interface, true ) ) {
+			if ( ! is_a( $class_name, $lifecycle_interface, true )
+				|| null !== $this->find_declaring_interface( [ $id => $class_name ], $scoped_interfaces ) ) {
 				continue;
 			}
 
@@ -274,13 +1064,26 @@ abstract class ServiceBasedPlugin implements Plugin {
 				continue;
 			}
 
-			yield $this->service_container->has( $id )
-				? $this->service_container->get( $id )
-				: $this->make_service( $class_name );
+			if ( ! $this->service_container->has( $id ) ) {
+				yield $this->make_service( $class_name );
+				continue;
+			}
+
+			// A container passed in already filled can hold an instance of
+			// another class under a configured ID.
+			$service = $this->service_container->get( $id );
+
+			if ( null === $this->find_declaring_interface( [ $id => get_class( $service ) ], $scoped_interfaces ) ) {
+				yield $service;
+			}
 		}
 
 		foreach ( $this->service_container as $id => $service ) {
-			if ( ! isset( $this->services[ $id ] ) && $service instanceof $lifecycle_interface ) {
+			if ( isset( $this->services[ $id ] ) || ! $service instanceof $lifecycle_interface ) {
+				continue;
+			}
+
+			if ( null === $this->find_declaring_interface( [ $id => get_class( $service ) ], $scoped_interfaces ) ) {
 				yield $service;
 			}
 		}
@@ -338,7 +1141,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 * the report, and running the steps again on a half-configured
 		 * injector would not make the plugin whole.
 		 */
-		if ( $this->services_registered ) {
+		if ( $this->services_registered || $this->lifecycle_only ) {
 			return;
 		}
 
@@ -373,28 +1176,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$this->injector
 		);
 
-		$services = $this->get_service_classes();
+		$services = $this->resolve_services();
 
-		if ( $this->enable_filters ) {
-			/**
-			 * Filter the default services that make up this plugin.
-			 *
-			 * This can be used to add services to the service container for
-			 * this plugin.
-			 *
-			 * @param array<string,class-string|callable> $services Associative array of
-			 *                                                      identifiers mapped to
-			 *                                                      fully qualified class
-			 *                                                      names or callables.
-			 * @psalm-suppress InvalidArgument
-			 */
-			$services = \apply_filters(
-				static::HOOK_PREFIX . static::SERVICES_FILTER,
-				$services
-			);
-		}
-
-		$services = $this->normalize_services( $services );
+		$this->check_lifecycle_configuration( $services );
+		$this->hook_site_lifecycle( $services );
 
 		$this->services         = [];
 		$this->pending_services = [];
@@ -416,6 +1201,39 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		$this->register_pending_services();
+	}
+
+	/**
+	 * Get the services of the plugin, filtered, resolved and validated.
+	 *
+	 * @throws InvalidConfiguration If the services configuration is invalid.
+	 * @throws InvalidService If an identifier or resolved service is not valid.
+	 *
+	 * @return array<string,class-string> Validated services in declaration order.
+	 */
+	private function resolve_services(): array {
+		$services = $this->get_service_classes();
+
+		if ( $this->enable_filters ) {
+			/**
+			 * Filter the default services that make up this plugin.
+			 *
+			 * This can be used to add services to the service container for
+			 * this plugin.
+			 *
+			 * @param array<string,class-string|callable> $services Associative array of
+			 *                                                      identifiers mapped to
+			 *                                                      fully qualified class
+			 *                                                      names or callables.
+			 * @psalm-suppress InvalidArgument
+			 */
+			$services = \apply_filters(
+				static::HOOK_PREFIX . static::SERVICES_FILTER,
+				$services
+			);
+		}
+
+		return $this->normalize_services( $services );
 	}
 
 	/**
@@ -1147,6 +1965,37 @@ abstract class ServiceBasedPlugin implements Plugin {
 	}
 
 	/**
+	 * Get the main plugin file.
+	 *
+	 * WordPress records whether a plugin is active, and its uninstall
+	 * callback, under the main file's basename. The scoped lifecycle dispatch
+	 * needs it for SiteDeactivateable and SiteInitializable services and for
+	 * the uninstall callback. An empty string, the default, is only accepted
+	 * while nothing needs it.
+	 *
+	 * @return string Absolute path of the main plugin file, or an empty string.
+	 */
+	protected function get_main_file(): string {
+		return '';
+	}
+
+	/**
+	 * Get the callback WordPress calls to uninstall the plugin.
+	 *
+	 * WordPress stores the callback in the database and calls it statically,
+	 * outside the object graph, so it has to be a public static method given
+	 * as a pair of strings: a listed bridge that gets the plugin through the
+	 * plugin factory and calls its uninstall() method. It is registered when
+	 * the plugin is activated. Null, the default, is only accepted while no
+	 * service implements SiteUninstallable or NetworkUninstallable.
+	 *
+	 * @return array{0: class-string, 1: non-empty-string}|null Uninstall callback, or null.
+	 */
+	protected function get_uninstall_callback(): ?array {
+		return null;
+	}
+
+	/**
 	 * Get the bindings for the dependency injector.
 	 *
 	 * The bindings let you map interfaces (or classes) to the classes that
@@ -1223,7 +2072,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		if ( is_callable( $value ) ) {
-			return $value( $this->injector, $this->service_container );
+			return $value( $this->resolving_injector ?? $this->injector, $this->service_container );
 		}
 
 		return $value;

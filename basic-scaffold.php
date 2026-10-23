@@ -30,6 +30,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 
+use MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope;
+
 /*
  * This is the plugin's bootstrap file. It serves three main purposes:
  *  1. Provide the plugin meta information that WordPress needs;
@@ -115,18 +117,36 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
 /*
  * We register activation and deactivation hooks by using closures, as these
  * need static access to work correctly.
+ *
+ * On multisite, WordPress tells them whether the plugin is activated or
+ * deactivated for the whole network. The flag is turned into a LifecycleScope
+ * right here, at the boundary, so the plugin never handles the raw value.
+ *
+ * The uninstall hook is not registered here: WordPress stores it in the
+ * database, so the plugin registers it once, when it is activated. The
+ * callback it stores is the static BasicScaffoldUninstallHook::uninstall().
  */
 \register_activation_hook(
 	__FILE__,
-	static function () {
-		BasicScaffoldPluginFactory::create()->activate();
+	/**
+	 * Activate the plugin, for the whole network if WordPress says so.
+	 *
+	 * @param mixed $network_wide Whether the plugin is network-activated.
+	 */
+	static function ( $network_wide = false ): void {
+		BasicScaffoldPluginFactory::create()->activate_in( LifecycleScope::from_wordpress_flag( $network_wide ) );
 	}
 );
 
 \register_deactivation_hook(
 	__FILE__,
-	static function () {
-		BasicScaffoldPluginFactory::create()->deactivate();
+	/**
+	 * Deactivate the plugin, for the whole network if WordPress says so.
+	 *
+	 * @param mixed $network_wide Whether the plugin is network-deactivated.
+	 */
+	static function ( $network_wide = false ): void {
+		BasicScaffoldPluginFactory::create()->deactivate_in( LifecycleScope::from_wordpress_flag( $network_wide ) );
 	}
 );
 

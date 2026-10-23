@@ -38,7 +38,7 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 			new PluginNamespace( 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Names' ),
 			$this->without_kinds ? [] : [
 				'hooks'      => self::kind( 'acme.plugin.', [ 'HOOK_PREFIX' ] ),
-				'options'    => self::kind( 'acme_plugin_', [], [ 'date_format' ] ),
+				'options'    => self::kind( 'acme_plugin_', [], [ 'date_format' ], [ 'uninstall_plugins' ] ),
 				'transients' => self::kind( 'acme_plugin_' ),
 				'meta'       => self::kind( 'acme_plugin_' ),
 				'assets'     => self::kind( 'acme-plugin-', [], [ 'jquery' ] ),
@@ -61,13 +61,21 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 	 * @param string        $prefix    Prefix the names must start with.
 	 * @param array<string> $constants Constants that hold the prefix.
 	 * @param array<string> $allowed   Names allowed without the prefix.
-	 * @return array{prefix: string, constants: array<string>, allowed: array<string>}
+	 * @param array<string> $managed   Names WordPress owns that the plugin
+	 *                                 may also write.
+	 * @return array{prefix: string, constants: array<string>, allowed: array<string>, managed: array<string>}
 	 */
-	private static function kind( string $prefix, array $constants = [], array $allowed = [] ): array {
+	private static function kind(
+		string $prefix,
+		array $constants = [],
+		array $allowed = [],
+		array $managed = []
+	): array {
 		return [
 			'prefix'    => $prefix,
 			'constants' => $constants,
 			'allowed'   => $allowed,
+			'managed'   => $managed,
 		];
 	}
 
@@ -500,6 +508,29 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 						. ' the WordPress limit of 20 characters. Shorten the full name, including the plugin prefix,'
 						. ' to at most 20 characters.',
 					44,
+					self::TIP,
+				],
+			]
+		);
+	}
+
+	/**
+	 * A managed name WordPress owns can be read and written without the
+	 * prefix; an allowed one can only be read.
+	 */
+	public function test_it_accepts_reviewed_writes_to_managed_names(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'Managed.php' ],
+			[
+				[
+					$this->unprefixed(
+						'update_option',
+						'option',
+						'active_plugins',
+						$this->how( 'acme_plugin_' ),
+						'options'
+					),
+					13,
 					self::TIP,
 				],
 			]
