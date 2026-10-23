@@ -26,7 +26,9 @@ final class NoGlobalStateRuleTest extends RuleTestCase {
 	private const FIXTURE_NAMESPACE = 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\NoGlobalState';
 
 	private const FIX = ' Receive the value through the constructor; for collaborators such as $wpdb or WP_Query,'
-		. ' configure a delegation in the composition root, as for WP_Post in src/BasicScaffoldPlugin.php.'
+		. ' configure a delegation in the composition root. For state that changes while the request runs,'
+		. ' such as the post being rendered, inject an interface and ask it at call time, as SampleLoopService'
+		. ' asks MainLoop in src/SampleSubsystem/.'
 		. ' Read request input only in a class listed in parameters.architecture.noGlobalState.inputAdapters'
 		. ' that sanitizes and normalizes it into an internal type.';
 

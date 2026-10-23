@@ -73,7 +73,7 @@ protected function get_service_classes(): array {
 }
 ```
 
-**Proven by:** `src/BasicScaffoldPlugin.php:75-82` declares the two sample
+**Proven by:** `src/BasicScaffoldPlugin.php:80-98` declares the two sample
 services; neither knows about the other.
 
 **Rules:** `architecture.compositionRootContracts` builds every declared
@@ -205,7 +205,7 @@ as soon as they are, at the end of the action they arrive on. The plugin does
 not reject that combination, and does not run an action again to make up for a
 priority that has passed.
 
-**Proven by:** `src/SampleSubsystem/SampleLoopService.php:29-77`, and the
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-75`, and the
 priority and dependency cases in
 `tests/php/Unit/ServiceBasedPluginTest.php:533-660`.
 
@@ -532,7 +532,7 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
-bound at `src/BasicScaffoldPlugin.php:111`. The injector is made injectable at
+bound at `src/BasicScaffoldPlugin.php:128`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:1168-1171`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
@@ -641,7 +641,7 @@ protected function get_shared_instances(): array {
 The one exception is the plugin itself, which WordPress needs to reach from
 outside the object graph: see the next section.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:161-171` is where shared instances
+**Proven by:** `src/BasicScaffoldPlugin.php:203-213` is where shared instances
 are declared; `Injector::share()` (`src/Infrastructure/Injector.php:78`) is
 what the plugin calls for each one.
 
@@ -799,42 +799,90 @@ plugin's prefix.
 ## I need WordPress state, such as the current post
 
 **What people reach for:** `global $post;`, `global $wpdb;`, or `get_post()`
-deep inside a service.
+deep inside a service. Or a `WP_Post` in the constructor, produced by a
+delegation that calls `get_post()`.
 
 **Why not here:** [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns)
 (collaborators pulled from globals) and
 [principle 9](design-principles.md#9-never-trust-what-wordpress-hands-over):
-what WordPress hands over is checked once, at the boundary.
+what WordPress hands over is checked once, at the boundary. A `WP_Post` in
+the constructor keeps both, but it is the wrong post most of the time. The
+service is built once, at `wp`, and `the_content` runs many times after
+that, and not only for the queried post: for every post in a related-posts
+block or a secondary loop, for every post in a feed, and whenever WordPress
+builds an excerpt from the content, for example for a meta description. A
+post fixed at build time gives each of them the queried post's data.
 
-**Instead:** declare what you need in the constructor, and let a delegation in
-the composition root produce it. The delegation is the boundary: it fetches
-the value, checks it, and fails with a dedicated exception when it is not
-what the service needs.
+**Instead:** when the state changes while the request runs, put a small
+interface in front of it, and ask that interface each time the callback runs.
+Its WordPress implementation is the boundary: it reads WordPress's query
+functions when it is asked, checks what they return, and fails with a
+dedicated exception when it is not what the service needs. The composition
+root binds the interface to that implementation.
 
 ```php
-// src/BasicScaffoldPlugin.php
-WP_Post::class => static function (): WP_Post {
-	$post = \get_post();
+// src/SampleSubsystem/MainLoop.php: what the service needs to know.
+interface MainLoop {
+	public function is_rendering_queried_post(): bool;
+	public function queried_post(): WP_Post; // Throws FailedToFindPost.
+}
+```
+
+```php
+// src/SampleSubsystem/WordPressMainLoop.php: the boundary.
+public function is_rendering_queried_post(): bool {
+	return \in_the_loop()
+		&& \is_main_query()
+		&& ! \is_feed()
+		&& ! \doing_filter( 'get_the_excerpt' )
+		&& \get_the_ID() === \get_queried_object_id();
+}
+
+public function queried_post(): WP_Post {
+	$post = \get_queried_object();
 
 	if ( ! $post instanceof WP_Post ) {
-		throw FailedToFindPost::for_current_request();
+		throw FailedToFindPost::for_main_query();
 	}
 
 	return $post;
-},
+}
 ```
 
 ```php
-// The service only says what it needs.
-public function __construct( ViewFactory $view_factory, WP_Post $post ) { … }
+// The service only says what it needs, and asks when the filter runs.
+public function __construct( ViewFactory $view_factory, MainLoop $main_loop ) { … }
+
+public function prepend_post_header( string $content ): string {
+	if ( ! $this->main_loop->is_rendering_queried_post() ) {
+		return $content;
+	}
+
+	$post = $this->main_loop->queried_post();
+	// …
+}
 ```
+
+A test then passes a double of the interface, and needs no WordPress
+functions to tell the service which post is being rendered.
+
+A delegation in the composition root still builds a value the injector
+cannot, but it runs once, when the service is built. Use it for values that
+are fixed for the request, such as where the plugin is
+(`ViewConfiguration` in `src/BasicScaffoldPlugin.php`), never for the
+current post.
 
 Calling a WordPress function inside an implementation detail is still fine
 ([principle 4](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges)).
-The delegation is for values a service depends on.
+The interface is for state a service depends on.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:184-207` and
-`src/SampleSubsystem/SampleLoopService.php:86`.
+**Proven by:** `src/SampleSubsystem/MainLoop.php:19-49` and
+`src/SampleSubsystem/WordPressMainLoop.php:27-62`, bound at
+`src/BasicScaffoldPlugin.php:153`, and asked at call time in
+`src/SampleSubsystem/SampleLoopService.php:123-141`.
+`tests/php/Unit/WordPressMainLoopTest.php` covers each state of the loop, and
+`tests/php/Integration/SampleLoopServiceTest.php:52-113` shows the header on
+the queried post only.
 
 For request input, a boundary adapter reads the superglobals, sanitizes and
 normalizes them into an internal type, and supplies that value to the service.
@@ -961,10 +1009,11 @@ it reaches WordPress whether debug mode is on or off. That boundary is open in
 ```php
 final class FailedToFindPost extends RuntimeException implements BasicScaffoldException {
 
-	public static function for_current_request(): self {
+	public static function for_main_query(): self {
 		return new self(
-			'There is no current post. A service that needs the current post has to wait for the main query, for'
-			. ' example by implementing Delayed with the "wp" action, and only be needed on singular views.'
+			'The main query did not ask for a post. A service that needs the queried post has to wait for the main'
+			. ' query, for example by implementing Delayed with the "wp" action, be needed only on singular views,'
+			. ' and ask for the post only while the main loop renders it.'
 		);
 	}
 }
@@ -983,7 +1032,8 @@ try {
 }
 ```
 
-**Proven by:** `src/Exception/FailedToFindPost.php:27`,
+**Proven by:** `src/Exception/FailedToFindPost.php:27`, thrown at
+`src/SampleSubsystem/WordPressMainLoop.php:57`,
 `src/Infrastructure/View/SimpleView.php:119-155` and
 `src/Exception/FailedToLoadView.php:39`.
 
@@ -1047,7 +1097,7 @@ a plugin, usually to its slug. Themes that already override the plugin's
 views move their files into that directory: a file directly in the theme's
 `views/` folder is no longer picked up.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:280-310`, and
+**Proven by:** `src/BasicScaffoldPlugin.php:317-328`, and
 `tests/php/Unit/TemplatedViewFactoryTest.php`, which shows that a bare theme
 `views/` file is not selected and that two override directories do not see
 each other's files.

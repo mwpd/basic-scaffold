@@ -393,8 +393,10 @@ and closures in templates without a class are not adapters.
 `dependencyDirection.views` supplies the production view directories.
 
 **Fix:** receive the value through the constructor. Configure a delegation in
-the composition root for collaborators such as `$wpdb` or `WP_Query`, as for
-`WP_Post` in `src/BasicScaffoldPlugin.php`. Read request input in a listed
+the composition root for collaborators such as `$wpdb` or `WP_Query`. For
+state that changes while the request runs, such as the post being rendered,
+inject an interface and ask it at call time, as `SampleLoopService` asks
+`MainLoop` (`src/SampleSubsystem/MainLoop.php`). Read request input in a listed
 adapter and pass its normalized internal type to the service. Sanitization
 itself remains with WordPress Coding Standards' `ValidatedSanitizedInput`
 sniff and review. See [I need WordPress state, such as the current post](patterns.md#i-need-wordpress-state-such-as-the-current-post).
@@ -1318,8 +1320,8 @@ through the plugin's own injector configuration:
   exceptions in either call are reported as problems.
 
 **Allows:** the tests stub the WordPress functions the wiring calls, such as
-`get_post()`, and use stand-ins for WordPress classes such as `WP_Post`. They
-never add a binding the composition root does not have. WordPress writes are
+`get_stylesheet_directory()`, and use stand-ins for WordPress classes such as
+`WP_Post`. They never add a binding the composition root does not have. WordPress writes are
 modelled in memory: adding an existing option or unique meta row is a no-op,
 setting a value replaces it, and non-unique meta additions append. Hooks are
 keyed by hook name, priority and callback identity, as in WordPress. Re-adding
