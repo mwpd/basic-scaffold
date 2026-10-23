@@ -361,7 +361,7 @@ treatment after their filters, raising `InvalidConfiguration`, `InvalidService`
 or `InvalidArgument`. A binding must point to a subtype of what it binds,
 whenever both can be loaded (`:930-936`), and the injector checks that a
 delegation returns an instance of the class it was registered for
-(`src/Infrastructure/Injector/SimpleInjector.php:498-507`).
+(`src/Infrastructure/Injector/SimpleInjector.php:518-527`).
 
 **Output is escaped for the context it lands in.** The reverse direction gets
 the same care. Values a view reads as properties are escaped by default

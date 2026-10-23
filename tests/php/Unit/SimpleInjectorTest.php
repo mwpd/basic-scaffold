@@ -13,6 +13,7 @@ use MWPD\BasicScaffold\Tests\Fixture\Injector\CycleEnd;
 use MWPD\BasicScaffold\Tests\Fixture\Injector\CycleStart;
 use MWPD\BasicScaffold\Tests\Fixture\Injector\DiamondTop;
 use MWPD\BasicScaffold\Tests\Fixture\Injector\SharedLeaf;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\TwoOfTheSameBoundDependency;
 use MWPD\BasicScaffold\Tests\Fixture\Injector\TwoOfTheSameDependency;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Infrastructure\Injector;
@@ -77,6 +78,87 @@ final class SimpleInjectorTest extends TestCase {
 		$object_b = $injector->make( DummyClass::class );
 
 		$this->assertSame( $object_a, $object_b );
+	}
+
+	public function test_it_shares_a_bound_interface(): void {
+		$injector = ( new SimpleInjector() )
+			->bind( DummyInterface::class, DummyClassWithDependency::class )
+			->share( DummyInterface::class );
+		$object_a = $injector->make( DummyInterface::class );
+		$object_b = $injector->make( DummyInterface::class );
+
+		$this->assertInstanceOf( DummyClassWithDependency::class, $object_a );
+		$this->assertSame( $object_a, $object_b );
+	}
+
+	public function test_it_shares_a_bound_interface_as_a_dependency(): void {
+		$injector = ( new SimpleInjector() )
+			->bind( DummyInterface::class, DummyClassWithDependency::class )
+			->share( DummyInterface::class );
+		$object   = $injector->make( TwoOfTheSameBoundDependency::class );
+
+		$this->assertInstanceOf( TwoOfTheSameBoundDependency::class, $object );
+		$this->assertSame( $object->first, $object->second );
+		$this->assertSame( $object->first, $injector->make( DummyInterface::class ) );
+	}
+
+	public function test_sharing_a_bound_interface_leaves_its_implementation_unshared(): void {
+		$injector = ( new SimpleInjector() )
+			->bind( DummyInterface::class, DummyClassWithDependency::class )
+			->share( DummyInterface::class );
+		$shared   = $injector->make( DummyInterface::class );
+
+		$this->assertNotSame( $shared, $injector->make( DummyClassWithDependency::class ) );
+		$this->assertNotSame(
+			$injector->make( DummyClassWithDependency::class ),
+			$injector->make( DummyClassWithDependency::class )
+		);
+	}
+
+	public function test_it_reuses_a_shared_implementation_for_a_bound_interface(): void {
+		$injector       = ( new SimpleInjector() )
+			->bind( DummyInterface::class, DummyClassWithDependency::class )
+			->share( DummyClassWithDependency::class );
+		$implementation = $injector->make( DummyClassWithDependency::class );
+
+		$this->assertSame( $implementation, $injector->make( DummyInterface::class ) );
+	}
+
+	public function test_it_shares_an_instance_made_by_a_delegate(): void {
+		$calls    = 0;
+		$injector = ( new SimpleInjector() )
+			->share( SharedLeaf::class )
+			->delegate(
+				SharedLeaf::class,
+				static function () use ( &$calls ): SharedLeaf {
+					++$calls;
+					return new SharedLeaf();
+				}
+			);
+		$object_a = $injector->make( SharedLeaf::class );
+		$object_b = $injector->make( SharedLeaf::class );
+
+		$this->assertSame( $object_a, $object_b );
+		$this->assertSame( 1, $calls );
+	}
+
+	public function test_it_shares_an_instance_made_by_a_delegate_as_a_dependency(): void {
+		$calls    = 0;
+		$injector = ( new SimpleInjector() )
+			->share( SharedLeaf::class )
+			->delegate(
+				SharedLeaf::class,
+				static function () use ( &$calls ): SharedLeaf {
+					++$calls;
+					return new SharedLeaf();
+				}
+			);
+		$object   = $injector->make( TwoOfTheSameDependency::class );
+
+		$this->assertInstanceOf( TwoOfTheSameDependency::class, $object );
+		$this->assertSame( $object->first, $object->second );
+		$this->assertSame( $object->first, $injector->make( SharedLeaf::class ) );
+		$this->assertSame( 1, $calls );
 	}
 
 	public function test_it_can_instantiate_a_class_with_named_arguments(): void {
