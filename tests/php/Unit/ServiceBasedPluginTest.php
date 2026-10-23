@@ -5,8 +5,16 @@ declare(strict_types=1);
 namespace MWPD\BasicScaffold\Tests\Unit;
 
 use Brain\Monkey\Actions;
+use Brain\Monkey\Filters;
+use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
 use MWPD\BasicScaffold\Exception\InvalidService;
+use MWPD\BasicScaffold\Infrastructure\Injector;
+use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
+use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
+use MWPD\BasicScaffold\Tests\Fixture\TestInjectorConfigurationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServiceBasedPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServicesPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedDependentService;
@@ -38,6 +46,16 @@ class ServiceBasedPluginTest extends TestCase {
 	 * capture them here and run them in fire().
 	 */
 	private const FIRED_ACTIONS = [ 'init', 'wp_loaded', 'wp' ];
+
+	/**
+	 * Filters that configure the injector.
+	 */
+	private const INJECTOR_FILTERS = [
+		ServiceBasedPlugin::BINDINGS_FILTER,
+		ServiceBasedPlugin::ARGUMENTS_FILTER,
+		ServiceBasedPlugin::SHARED_INSTANCES_FILTER,
+		ServiceBasedPlugin::DELEGATIONS_FILTER,
+	];
 
 	/**
 	 * @var array<string,array<int,list<callable>>>
@@ -297,5 +315,135 @@ class ServiceBasedPluginTest extends TestCase {
 		$this->fire( 'wp_loaded' );
 		$this->assertTrue( $plugin->get_container()->has( 'delayed_service_2' ) );
 		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
+	}
+
+	/**
+	 * Get the injector that a plugin registered as its first service.
+	 */
+	private function get_registered_injector( ServiceBasedPlugin $plugin ): Injector {
+		$injector = $plugin->get_container()->get( ServiceBasedPlugin::INJECTOR_ID );
+		$this->assertInstanceOf( Injector::class, $injector );
+
+		return $injector;
+	}
+
+	/**
+	 * Test that a binding target may be a callable, which receives the
+	 * injector and the service container.
+	 */
+	public function test_a_binding_target_may_be_a_callable(): void {
+		$plugin = new TestInjectorConfigurationPlugin(
+			[ DummyInterface::class => static fn(): string => DummyClassWithDependency::class ]
+		);
+		$plugin->register_services();
+
+		$this->assertInstanceOf(
+			DummyClassWithDependency::class,
+			$this->get_registered_injector( $plugin )->make( DummyInterface::class )
+		);
+	}
+
+	/**
+	 * Test that a shared-instance entry may be a callable, which receives the
+	 * injector and the service container.
+	 */
+	public function test_a_shared_instance_entry_may_be_a_callable(): void {
+		$plugin = new TestInjectorConfigurationPlugin(
+			[],
+			[ static fn(): string => DummyClass::class ]
+		);
+		$plugin->register_services();
+
+		$injector = $this->get_registered_injector( $plugin );
+
+		$this->assertSame( $injector->make( DummyClass::class ), $injector->make( DummyClass::class ) );
+	}
+
+	/**
+	 * Test that constructing the plugin applies none of the injector filters,
+	 * and that registering the services applies each of them once.
+	 */
+	public function test_the_injector_filters_are_applied_during_registration(): void {
+		$plugin = new TestInjectorConfigurationPlugin();
+
+		foreach ( self::INJECTOR_FILTERS as $filter ) {
+			$this->assertSame( 0, Filters\applied( $filter ), "The \"{$filter}\" filter ran during construction." );
+		}
+
+		$plugin->register_services();
+
+		foreach ( self::INJECTOR_FILTERS as $filter ) {
+			$this->assertSame(
+				1,
+				Filters\applied( $filter ),
+				"The \"{$filter}\" filter did not run once during registration."
+			);
+		}
+	}
+
+	/**
+	 * Test that a filter callback added after the plugin was constructed, but
+	 * before the services are registered at plugins_loaded, takes effect.
+	 */
+	public function test_an_injector_filter_added_after_construction_takes_effect(): void {
+		$plugin = new TestInjectorConfigurationPlugin();
+		$plugin->register();
+
+		// A plugin loaded later hooks in. Brain Monkey stands in for the
+		// callback by returning what it would.
+		Filters\expectApplied( ServiceBasedPlugin::BINDINGS_FILTER )
+			->once()
+			->andReturnUsing(
+				static fn( array $bindings ): array => $bindings
+					+ [ DummyInterface::class => DummyClassWithDependency::class ]
+			);
+
+		// What WordPress does at plugins_loaded.
+		$this->assertNotFalse( has_action( 'plugins_loaded', [ $plugin, 'register_services' ] ) );
+		do_action( 'plugins_loaded' );
+		$plugin->register_services();
+
+		$this->assertInstanceOf(
+			DummyClassWithDependency::class,
+			$this->get_registered_injector( $plugin )->make( DummyInterface::class )
+		);
+	}
+
+	/**
+	 * Test that activation configures the injector when plugins_loaded has
+	 * already fired, as it has in the request that activates a plugin.
+	 */
+	public function test_activation_configures_the_injector_after_plugins_loaded(): void {
+		Functions\expect( 'flush_rewrite_rules' )->once();
+
+		$plugin = new TestInjectorConfigurationPlugin(
+			[ DummyInterface::class => static fn(): string => DummyClassWithDependency::class ]
+		);
+		do_action( 'plugins_loaded' );
+
+		$plugin->activate();
+
+		$this->assertInstanceOf(
+			DummyClassWithDependency::class,
+			$this->get_registered_injector( $plugin )->make( DummyInterface::class )
+		);
+
+		foreach ( self::INJECTOR_FILTERS as $filter ) {
+			$this->assertSame( 1, Filters\applied( $filter ) );
+		}
+	}
+
+	/**
+	 * Test that registering the services a second time does not configure the
+	 * injector again.
+	 */
+	public function test_registering_twice_configures_the_injector_once(): void {
+		$plugin = new TestInjectorConfigurationPlugin();
+		$plugin->register_services();
+		$plugin->register_services();
+
+		foreach ( self::INJECTOR_FILTERS as $filter ) {
+			$this->assertSame( 1, Filters\applied( $filter ) );
+		}
 	}
 }

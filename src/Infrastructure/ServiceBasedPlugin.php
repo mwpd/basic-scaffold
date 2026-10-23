@@ -155,12 +155,13 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 * We need an injector and a container. We make them injectable so that
 		 * we can easily provide overrides for testing, but we also make them
 		 * optional and provide default implementations for easy regular usage.
+		 *
+		 * The constructor only stores them. The injector is configured when the
+		 * services are registered, see register_services().
 		 */
 
-		$this->enable_filters = $enable_filters;
-		$this->injector       = $injector ?? new SimpleInjector();
-		$this->injector       = $this->configure_injector( $this->injector );
-
+		$this->enable_filters    = $enable_filters;
+		$this->injector          = $injector ?? new SimpleInjector();
 		$this->service_container = $service_container ?? new SimpleServiceContainer();
 	}
 
@@ -218,6 +219,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 		if ( count( $this->service_container ) > 0 ) {
 			return;
 		}
+
+		/*
+		 * The injector is configured here rather than in the constructor. The
+		 * plugin is constructed while its main file is being included, when
+		 * plugins loaded after it have had no chance yet to hook into the
+		 * injector filters (principle 12). Here, they have. Callables in the
+		 * configuration also receive the service container, which is fully set
+		 * up by now. The bail-out above keeps this from running twice.
+		 */
+		$this->injector = $this->configure_injector( $this->injector );
 
 		// Add the injector as the very first service.
 		$this->service_container->put(

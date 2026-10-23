@@ -79,7 +79,11 @@ final class CompositionRootContract {
 		$injector = new SimpleInjector();
 		// Composition roots keep the constructor of ServiceBasedPlugin, so the
 		// injector it takes is the one the plugin configures.
-		$plugin   = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, $injector );
+		$plugin = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, $injector );
+		// The plugin configures its injector when it registers its services.
+		// The check configures it the same way, without registering anything.
+		// The simple injector is configured in place.
+		self::call( $plugin, 'configure_injector', $injector );
 		$declared = self::call( $plugin, 'get_service_classes' );
 		$services = is_array( $declared ) ? $declared : [];
 		$problems = [];
