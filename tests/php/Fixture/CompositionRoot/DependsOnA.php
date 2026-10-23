@@ -10,6 +10,6 @@ use MWPD\BasicScaffold\Infrastructure\Service;
 final class DependsOnA implements Service, HasDependencies {
 
 	public static function get_dependencies(): array {
-		return [ 'a' ];
+		return [ 'fixture.a' ];
 	}
 }

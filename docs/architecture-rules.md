@@ -133,7 +133,7 @@ says which rules enforce each principle, and what stays with review.
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary: views (#27, #30), other callbacks and lifecycle steps (#143); the scoped lifecycle events propagate by ruling (#34) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor`, `bootstrapContract` | |
-| [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and the value of `VIEW_OVERRIDE_DIRECTORY` |
+| [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames`, `serviceIdsPrefixed` | The value of `VIEW_OVERRIDE_DIRECTORY`; service IDs added by runtime filters |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve`, `infrastructureApiSnapshot` | Whether comments explain why and cited lines still support the prose |
 | [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `suppressionsAreNamed`, `testsAreDiscovered`, `gatesAtStrength`, `everyPathAnalysed`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
 
@@ -153,6 +153,9 @@ that names the fix. The fixtures and tests listed prove it.
 | A class that is not `final` | `finalByDefault` | `tests/php/PHPStan/Fixture/FinalByDefault/classes.php` |
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
 | A public WordPress name without the plugin's prefix, or an overlong post type/taxonomy name | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php`, `Registrations.php`, `NameLengths.php` |
+| A declared service ID without the composition root's configured prefix | `serviceIdsPrefixed` | `CompositionRootContractTest::test_it_reports_an_unprefixed_service_id_with_the_fix` |
+| Sample-plugin service IDs left in a root with a different prefix | `serviceIdsPrefixed` | `CompositionRootContractTest::test_it_rejects_sample_service_ids_in_a_root_with_a_different_prefix` |
+| An empty service prefix that leaves every declared ID unprefixed | `serviceIdsPrefixed` | `CompositionRootContractTest::test_it_reports_service_ids_when_the_service_prefix_is_empty` |
 | A sample class or production view without a test | `samplesAreTested` | `SamplesAreTestedTest::test_it_reports_an_untested_subsystem_class_with_the_fix`, `SamplesAreTestedTest::test_it_reports_an_untested_view_with_the_fix` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
 | A service calling the plugin factory as a static service locator | `pluginFactoryOnlyAtEdges` | `tests/php/PHPStan/Fixture/PluginFactoryOnlyAtEdges/Service.php` |
@@ -169,6 +172,32 @@ that names the fix. The fixtures and tests listed prove it.
 | A delayed service waiting for a misspelled action | `registrationActionKnown` | `tests/php/Fixture/CompositionRoot/TypoActionPlugin.php` |
 
 ## Rules
+
+### `architecture.serviceIdsPrefixed`
+
+**Principle:** [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity).
+
+**Checks:** every key of the composition root's `get_service_classes()` starts
+with that root's configured `SERVICE_PREFIX`. An empty `SERVICE_PREFIX` leaves
+every declared ID unprefixed, so each is reported. Failures name the ID, root
+and configured prefix, and explain how to fix the declaration.
+
+**Allows:** IDs beginning with the root's own nonempty prefix, including in
+generated plugins with different prefixes. Only the recorded declaration keys
+are inspected: this check does not resolve callable declarations, construct
+lazy services, reread configuration or rerun runtime callbacks. The existing
+composition-root contract still resolves and builds services for its other
+checks. Runtime filter output, such as IDs added via the `services` filter,
+is outside this check's scope.
+
+**Configuration:** `RepositoryLayout::COMPOSITION_ROOT` selects the root through
+the existing composition-root contract test. `SERVICE_PREFIX` is read from
+that root by reflection, including protected constants, rather than copied
+from the sample plugin.
+
+**Fix:** set a nonempty `SERVICE_PREFIX` in the composition root and build every
+declared ID from it in `get_service_classes()`. See
+[I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares).
 
 ### `architecture.infrastructureApiSnapshot`
 

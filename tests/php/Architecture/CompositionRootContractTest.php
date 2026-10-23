@@ -37,6 +37,10 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\TypoActionPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\PrefixedActionPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\AdminMenuPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\EmptyHookPrefixPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\UnprefixedServiceIdPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\SampleServiceIdPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\EmptyServicePrefixPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\PrefixedServiceIdPlugin;
 use stdClass;
 use WP_Post;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
@@ -89,14 +93,22 @@ final class CompositionRootContractTest extends TestCase {
 		$prefix   = '[architecture.compositionRootContracts] The service "%s" (%s) of ' . BrokenPlugin::class . ' ';
 		$fixtures = 'MWPD\\BasicScaffold\\Tests\\Fixture\\CompositionRoot\\';
 		$expected = [
-			[ 'hooking', 'HookingService', 'changes hooks while it is being built, directly or through' ],
-			[ 'unbound', 'NeedsContract', 'cannot be built from the composition root: ' ],
-			[ 'dependent', 'DependentService', 'depends on "missing", which the composition root does not declare.' ],
-			[ 'delayed', 'EmptyDelayedService', 'is Delayed, but get_registration_action() returns no action.' ],
-			[ 'not-a-service', 'NotAService', 'is not a class implementing Service.' ],
-			[ 'removing', 'RemovingService', 'changes hooks while it is being built, directly or through' ],
+			[ 'fixture.hooking', 'HookingService', 'changes hooks while it is being built, directly or through' ],
+			[ 'fixture.unbound', 'NeedsContract', 'cannot be built from the composition root: ' ],
 			[
-				'rebound',
+				'fixture.dependent',
+				'DependentService',
+				'depends on "fixture.missing", which the composition root does not declare.',
+			],
+			[
+				'fixture.delayed',
+				'EmptyDelayedService',
+				'is Delayed, but get_registration_action() returns no action.',
+			],
+			[ 'fixture.not-a-service', 'NotAService', 'is not a class implementing Service.' ],
+			[ 'fixture.removing', 'RemovingService', 'changes hooks while it is being built, directly or through' ],
+			[
+				'fixture.rebound',
 				'BoundToSomethingElse',
 				'cannot be built from the composition root: The delegate for "' . BoundToSomethingElse::class
 					. '" returned ' . NotAService::class . ', not an instance of that class.',
@@ -141,11 +153,12 @@ final class CompositionRootContractTest extends TestCase {
 
 		$this->assertCount( 2, $problems, implode( "\n\n", $problems ) );
 		$this->assertStringStartsWith(
-			sprintf( $prefix, 'hooking-callback', GoodService::class ) . 'changes hooks while it is being built',
+			sprintf( $prefix, 'fixture.hooking-callback', GoodService::class )
+				. 'changes hooks while it is being built',
 			$problems[0]
 		);
 		$this->assertStringStartsWith(
-			sprintf( $prefix, 'failing-callback', 'callable' ) . 'cannot be resolved: ',
+			sprintf( $prefix, 'fixture.failing-callback', 'callable' ) . 'cannot be resolved: ',
 			$problems[1]
 		);
 	}
@@ -213,8 +226,9 @@ final class CompositionRootContractTest extends TestCase {
 			[
 				$this->graph_problem(
 					CyclicDependencyPlugin::class,
-					'a',
-					'has a dependency cycle: a -> b -> a. Remove a dependency from the cycle so services can register.'
+					'fixture.a',
+					'has a dependency cycle: fixture.a -> fixture.b -> fixture.a.'
+					. ' Remove a dependency from the cycle so services can register.'
 				),
 			],
 			$problems
@@ -225,8 +239,8 @@ final class CompositionRootContractTest extends TestCase {
 		$problems = ( new CompositionRootContract( OverlappingCyclesPlugin::class ) )->check();
 
 		$this->assertCount( 2, $problems );
-		$this->assertStringContainsString( 'a -> b -> c -> a.', $problems[0] );
-		$this->assertStringContainsString( 'a -> c -> a.', $problems[1] );
+		$this->assertStringContainsString( 'fixture.a -> fixture.b -> fixture.c -> fixture.a.', $problems[0] );
+		$this->assertStringContainsString( 'fixture.a -> fixture.c -> fixture.a.', $problems[1] );
 	}
 
 	public function test_it_reports_a_self_dependency_once(): void {
@@ -236,8 +250,9 @@ final class CompositionRootContractTest extends TestCase {
 			[
 				$this->graph_problem(
 					SelfDependentPlugin::class,
-					'b',
-					'has a dependency cycle: b -> b. Remove a dependency from the cycle so services can register.'
+					'fixture.b',
+					'has a dependency cycle: fixture.b -> fixture.b.'
+					. ' Remove a dependency from the cycle so services can register.'
 				),
 			],
 			$problems
@@ -251,8 +266,8 @@ final class CompositionRootContractTest extends TestCase {
 			[
 				$this->graph_problem(
 					MisorderedDependencyPlugin::class,
-					'a',
-					'registers at "plugins_loaded" before its dependency "b" at "wp".'
+					'fixture.a',
+					'registers at "plugins_loaded" before its dependency "fixture.b" at "wp".'
 					. ' Delay this service until the dependency\'s action or later,'
 					. ' or register the dependency earlier.'
 				),
@@ -288,7 +303,7 @@ final class CompositionRootContractTest extends TestCase {
 	public function test_it_reports_an_unknown_registration_action_with_the_fix(): void {
 		$this->assertSame(
 			[
-				'[architecture.registrationActionKnown] The service "delayed" (' . TypoActionService::class
+				'[architecture.registrationActionKnown] The service "fixture.delayed" (' . TypoActionService::class
 				. ') of ' . TypoActionPlugin::class . ' is Delayed, but returns the unknown action "wp_laoded".'
 				. ' Use a core action or one starting with the plugin\'s hook prefix "mwpd.basic_scaffold.".'
 				. ' Principle 7: Show the alternative to WordPress anti-patterns, see '
@@ -359,6 +374,50 @@ final class CompositionRootContractTest extends TestCase {
 		$this->assertStringContainsString( 'hook prefix ""', $problems[0] );
 	}
 
+	public function test_it_reports_an_unprefixed_service_id_with_the_fix(): void {
+		$this->assertSame(
+			[ $this->service_id_problem( UnprefixedServiceIdPlugin::class, 'plain', 'fixture.' ) ],
+			( new CompositionRootContract( UnprefixedServiceIdPlugin::class ) )->check()
+		);
+	}
+
+	public function test_it_accepts_the_roots_service_prefix_without_repeating_runtime_work(): void {
+		$this->assertSame( [], ( new CompositionRootContract( PrefixedServiceIdPlugin::class ) )->check() );
+	}
+
+	public function test_it_rejects_sample_service_ids_in_a_root_with_a_different_prefix(): void {
+		$this->assertSame(
+			[
+				$this->service_id_problem(
+					SampleServiceIdPlugin::class,
+					'mwpd.basic_scaffold.service',
+					'generated.plugin.'
+				),
+			],
+			( new CompositionRootContract( SampleServiceIdPlugin::class ) )->check()
+		);
+	}
+
+	public function test_it_reports_service_ids_when_the_service_prefix_is_empty(): void {
+		$this->assertSame(
+			[ $this->service_id_problem( EmptyServicePrefixPlugin::class, 'fixture.service', '' ) ],
+			( new CompositionRootContract( EmptyServicePrefixPlugin::class ) )->check()
+		);
+	}
+
+	/**
+	 * @param class-string<\MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin> $plugin Fixture root.
+	 */
+	private function service_id_problem( string $plugin, string $id, string $prefix ): string {
+		return '[architecture.serviceIdsPrefixed] The declared service ID "' . $id . '" of ' . $plugin
+			. ' is not prefixed with its configured SERVICE_PREFIX "' . $prefix . '".'
+			. ' Set a nonempty SERVICE_PREFIX and build the ID from it in get_service_classes().'
+			. ' Principle 13: One plugin, to arbitrary complexity, see '
+			. 'docs/design-principles.md#13-one-plugin-to-arbitrary-complexity.'
+			. ' Pattern: docs/patterns.md#i-need-a-name-in-a-space-wordpress-shares.'
+			. ' Rule: docs/architecture-rules.md#architectureserviceidsprefixed.';
+	}
+
 	/**
 	 * @param class-string<\MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin> $plugin Fixture root.
 	 */
@@ -369,7 +428,7 @@ final class CompositionRootContractTest extends TestCase {
 	}
 
 	private function lifecycle_problem( string $service, string $problem ): string {
-		return '[architecture.compositionRootContracts] The service "' . $service . '" ('
+		return '[architecture.compositionRootContracts] The service "fixture.' . $service . '" ('
 			. 'MWPD\\BasicScaffold\\Tests\\Fixture\\CompositionRoot\\' . $service . ') of '
 			. BrokenLifecyclePlugin::class . ' ' . $problem . ' '
 			. RuleManifest::get_explanation( RuleManifest::COMPOSITION_ROOT_CONTRACTS ) . '.';

@@ -11,18 +11,20 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
  */
 final class BrokenPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected function get_service_classes(): array {
 		return [
-			'good'          => GoodService::class,
-			'resolved'      => static fn(): string => GoodService::class,
-			'from-factory'  => ServiceFactory::class . '::service_class',
-			'hooking'       => HookingService::class,
-			'unbound'       => NeedsContract::class,
-			'dependent'     => DependentService::class,
-			'delayed'       => EmptyDelayedService::class,
-			'not-a-service' => NotAService::class,
-			'removing'      => RemovingService::class,
-			'rebound'       => BoundToSomethingElse::class,
+			'fixture.good'          => GoodService::class,
+			'fixture.resolved'      => static fn(): string => GoodService::class,
+			'fixture.from-factory'  => ServiceFactory::class . '::service_class',
+			'fixture.hooking'       => HookingService::class,
+			'fixture.unbound'       => NeedsContract::class,
+			'fixture.dependent'     => DependentService::class,
+			'fixture.delayed'       => EmptyDelayedService::class,
+			'fixture.not-a-service' => NotAService::class,
+			'fixture.removing'      => RemovingService::class,
+			'fixture.rebound'       => BoundToSomethingElse::class,
 		];
 	}
 

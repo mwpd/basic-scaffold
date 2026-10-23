@@ -10,6 +10,6 @@ use MWPD\BasicScaffold\Infrastructure\Service;
 final class DependsOnBAndC implements Service, HasDependencies {
 
 	public static function get_dependencies(): array {
-		return [ 'b', 'c', 'b' ];
+		return [ 'fixture.b', 'fixture.c', 'fixture.b' ];
 	}
 }

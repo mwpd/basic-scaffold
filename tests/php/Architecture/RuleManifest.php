@@ -117,6 +117,8 @@ final class RuleManifest {
 
 	public const PREFIXED_NAMES = 'architecture.prefixedNames';
 
+	public const SERVICE_IDS_PREFIXED = 'architecture.serviceIdsPrefixed';
+
 	public const STRICT_TYPES = 'architecture.strictTypes';
 
 	public const EXPLICIT_NULLABLE_PARAMETERS = 'architecture.explicitNullableParameters';
@@ -467,6 +469,17 @@ final class RuleManifest {
 				CompositionRootContractTest::class . '::test_it_reports_an_unknown_registration_action_with_the_fix',
 			],
 			'signatures'       => [ 'returns the unknown action' ],
+		],
+		self::SERVICE_IDS_PREFIXED                  => [
+			'principle'        => 'Principle 13: One plugin, to arbitrary complexity',
+			'principle_anchor' => '13-one-plugin-to-arbitrary-complexity',
+			'pattern'          => 'i-need-a-name-in-a-space-wordpress-shares',
+			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT, composition root SERVICE_PREFIX',
+			'checked_by'       => [
+				CompositionRootContractTest::class . '::test_the_plugin_keeps_the_promises_of_its_composition_root',
+				CompositionRootContractTest::class . '::test_it_reports_an_unprefixed_service_id_with_the_fix',
+			],
+			'signatures'       => [ 'is not prefixed with its configured SERVICE_PREFIX' ],
 		],
 		self::PREFIXED_NAMES                        => [
 			'principle'        => 'Principle 13: One plugin, to arbitrary complexity',

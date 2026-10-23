@@ -8,9 +8,11 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 
 final class SelfDependentPlugin extends ServiceBasedPlugin {
 
+	protected const SERVICE_PREFIX = 'fixture.';
+
 	protected function get_service_classes(): array {
 		return [
-			'b' => DependsOnB::class,
+			'fixture.b' => DependsOnB::class,
 		];
 	}
 }
