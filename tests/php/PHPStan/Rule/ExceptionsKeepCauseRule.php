@@ -24,7 +24,6 @@ use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Stmt\Catch_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\Nop;
-use PhpParser\Node\Stmt\Throw_ as ThrowStatement;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
@@ -134,17 +133,15 @@ final class ExceptionsKeepCauseRule implements Rule {
 	/**
 	 * Find throws in this catch, without entering a different catch or function.
 	 *
-	 * Both throw node forms are needed for PHPStan 1 and 2's PHP-Parser versions.
-	 *
 	 * @param Node $node Node within the catch body.
-	 * @return list<ThrowStatement|ThrowExpression> Throws within this catch.
+	 * @return list<ThrowExpression> Throws within this catch.
 	 */
 	private function find_throws( Node $node ): array {
 		if ( $node instanceof Catch_ || $node instanceof FunctionLike || $node instanceof ClassLike ) {
 			return [];
 		}
 
-		$throws = $node instanceof ThrowStatement || $node instanceof ThrowExpression ? [ $node ] : [];
+		$throws = $node instanceof ThrowExpression ? [ $node ] : [];
 		foreach ( $node->getSubNodeNames() as $name ) {
 			$children = $node->$name;
 			foreach ( is_array( $children ) ? $children : [ $children ] as $child ) {
