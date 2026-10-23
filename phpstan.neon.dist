@@ -49,6 +49,9 @@ parameters:
             # Classes designed to be extended (design principle 6).
             baseClasses:
                 - MWPD\BasicScaffold\Infrastructure\View\SimpleView
+        namesWithoutTypeKind:
+            # Reviewed type names that encode their kind (design principle 8).
+            allowed: []
         noStaticState:
             # Methods allowed to keep static state (design principle 5).
             allowed:

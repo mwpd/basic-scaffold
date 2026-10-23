@@ -18,6 +18,9 @@ parametersSchema:
         finalByDefault: structure([
             baseClasses: listOf(string())
         ])
+        namesWithoutTypeKind: structure([
+            allowed: listOf(string())
+        ])
         noStaticState: structure([
             allowed: listOf(string())
         ])
@@ -103,6 +106,15 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             base_classes: %architecture.finalByDefault.baseClasses%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NamesWithoutTypeKindRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            marker: %architecture.exceptions.marker%
+            allowed: %architecture.namesWithoutTypeKind.allowed%
         tags:
             - phpstan.rules.rule
 

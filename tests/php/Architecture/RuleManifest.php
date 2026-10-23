@@ -70,6 +70,8 @@ final class RuleManifest {
 
 	public const FINAL_BY_DEFAULT = 'architecture.finalByDefault';
 
+	public const NAMES_WITHOUT_TYPE_KIND = 'architecture.namesWithoutTypeKind';
+
 	public const NO_STATIC_STATE = 'architecture.noStaticState';
 
 	public const PLUGIN_FACTORY_ONLY_AT_EDGES = 'architecture.pluginFactoryOnlyAtEdges';
@@ -159,6 +161,18 @@ final class RuleManifest {
 			],
 			'signatures'       => [
 				'is not final. Declare it final',
+			],
+		],
+		self::NAMES_WITHOUT_TYPE_KIND               => [
+			'principle'        => 'Principle 8: Types name concepts, not just data',
+			'principle_anchor' => '8-types-name-concepts-not-just-data',
+			'pattern'          => 'i-need-to-start-simple-and-add-implementations-later',
+			'configuration'    => 'parameters.architecture.namesWithoutTypeKind',
+			'checked_by'       => [
+				Rule\NamesWithoutTypeKindRule::class,
+			],
+			'signatures'       => [
+				'encodes its kind in its name',
 			],
 		],
 		self::NO_STATIC_STATE                       => [
