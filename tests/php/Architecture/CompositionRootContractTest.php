@@ -23,6 +23,7 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\GoodService;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\IncompatibleBindingPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BoundToSomethingElse;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\NotAService;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\RegistrationPanelPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\CyclicDependencyPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\MisorderedDependencyPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\ValidDependencyGraphPlugin;
@@ -68,6 +69,17 @@ final class CompositionRootContractTest extends TestCase {
 		 */
 		$plugin   = RepositoryLayout::COMPOSITION_ROOT;
 		$problems = ( new CompositionRootContract( $plugin ) )->check();
+
+		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
+	}
+
+	/**
+	 * Declaring the optional Query Monitor panel, as its documentation says,
+	 * keeps every promise too: the root can build it, and registering it
+	 * twice changes nothing, without Query Monitor installed.
+	 */
+	public function test_the_plugin_keeps_its_promises_with_the_query_monitor_panel_declared(): void {
+		$problems = ( new CompositionRootContract( RegistrationPanelPlugin::class ) )->check();
 
 		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
 	}

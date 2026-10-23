@@ -37,6 +37,8 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 
 	public const INVALID_REFLECTION = 700;
 
+	public const UNEXPECTED_INSTANCE = 800;
+
 	/**
 	 * Create a new instance of the exception for an interface or class that
 	 * created a circular reference.
@@ -183,5 +185,22 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 		);
 
 		return new self( $message, self::INVALID_REFLECTION );
+	}
+
+	/**
+	 * Create a new instance of the exception for an injector that made
+	 * something other than an instance of the class it was asked for.
+	 *
+	 * @param string $class_name Class the injector was asked to make.
+	 * @param object $instance   What the injector made instead.
+	 */
+	public static function for_unexpected_instance( string $class_name, object $instance ): self {
+		$message = \sprintf(
+			'The injector made %s when asked for "%s", not an instance of that class.',
+			\get_class( $instance ),
+			$class_name
+		);
+
+		return new self( $message, self::UNEXPECTED_INSTANCE );
 	}
 }

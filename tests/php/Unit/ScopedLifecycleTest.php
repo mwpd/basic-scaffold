@@ -37,6 +37,10 @@ use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\FailedToRestoreSite;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
+use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationLog;
+use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationReport;
+use MWPD\BasicScaffold\Tests\Fixture\Registration\ObservingService;
+use MWPD\BasicScaffold\Tests\Fixture\Registration\ReportReadingSiteService;
 use RuntimeException;
 
 /**
@@ -132,6 +136,26 @@ final class ScopedLifecycleTest extends TestCase {
 			'activation'   => [ 'activate' ],
 			'deactivation' => [ 'deactivate' ],
 		];
+	}
+
+	/**
+	 * A scoped service built in a fresh graph receives the plugin's
+	 * registration report, as a service of the plugin's own graph does.
+	 */
+	public function test_a_scoped_service_receives_the_registration_report(): void {
+		Multisite::single_site()->install();
+		ReportReadingSiteService::$read = null;
+
+		$this->plugin(
+			[
+				'observer' => ObservingService::class,
+				'reader'   => ReportReadingSiteService::class,
+			]
+		)->activate();
+
+		$this->assertInstanceOf( RegistrationReport::class, ReportReadingSiteService::$read );
+		$this->assertNotInstanceOf( RegistrationLog::class, ReportReadingSiteService::$read );
+		$this->assertNotSame( [], ReportReadingSiteService::$read->get_records() );
 	}
 
 	/**

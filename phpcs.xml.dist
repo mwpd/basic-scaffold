@@ -17,6 +17,8 @@
     <exclude-pattern>/tests/php/Fixture/BootstrapContract/*</exclude-pattern>
     <!-- Stand-ins for WordPress classes follow WordPress's naming, not ours. -->
     <exclude-pattern>/tests/php/Fixture/WordPress/*</exclude-pattern>
+    <!-- Stand-ins for Query Monitor classes follow Query Monitor's naming. -->
+    <exclude-pattern>/tests/php/Fixture/QueryMonitor/*</exclude-pattern>
 
     <!-- How to scan -->
     <arg value="sp"/> <!-- Show sniff and progress -->

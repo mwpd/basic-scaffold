@@ -53,6 +53,13 @@
 	</issueHandlers>
 	<plugins>
 		<pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
-		<pluginClass class="PsalmWordPress\Plugin"/>
+		<pluginClass class="PsalmWordPress\Plugin">
+			<!-- The plugin knows WordPress core's hooks. The optional Query
+			     Monitor panel also adds callbacks to two filters of Query
+			     Monitor, described here as Query Monitor 4.0.7 applies them. -->
+			<hooks>
+				<file name="tests/php/Fixture/QueryMonitor/filters.json"/>
+			</hooks>
+		</pluginClass>
 	</plugins>
 </psalm>

@@ -43,6 +43,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need to report a failure](#i-need-to-report-a-failure)
 - [I need to run code when the plugin file loads](#i-need-to-run-code-when-the-plugin-file-loads)
 - [I need a name in a space WordPress shares](#i-need-a-name-in-a-space-wordpress-shares)
+- [I need to see why a service did not run](#i-need-to-see-why-a-service-did-not-run)
 
 ## I need to add a feature
 
@@ -1055,3 +1056,90 @@ each other's files.
 handles, post types, taxonomies, shortcodes, REST namespaces, cron hooks,
 admin pages, settings and AJAX actions. Service identifiers and the value of
 `VIEW_OVERRIDE_DIRECTORY` are reviewed by hand.
+
+## I need to see why a service did not run
+
+**What people reach for:** `error_log()` calls in `is_needed()` and
+`register()`, or a debug panel that reads the service container through a
+static accessor and lists what it finds there.
+
+**Why not here:** [principle 10](design-principles.md#10-errors-are-exceptions)
+keeps `error_log()` out of `src/`, and
+[principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
+rules out the static accessor. The container would not answer the question
+anyway: it holds lazily built services as a wrapper that hides their class,
+and it knows nothing about a service that was skipped, or that still waits for
+its action or its dependencies. Asking each condition again to find out would
+run application code a second time, at another point in the request, and
+could get another answer.
+
+**Instead:** declare the optional Query Monitor panel. It is one more entry in
+the composition root's services, which ships commented out:
+
+```php
+// src/BasicScaffoldPlugin.php, in get_service_classes()
+self::REGISTRATION_PANEL_ID => RegistrationPanel::class,
+```
+
+The bindings and arguments it needs are already in the composition root, so
+nothing else changes. In a request where [Query Monitor](https://wordpress.org/plugins/query-monitor/)
+runs, its menu then has a panel named after the plugin. It lists every service
+with the class its declaration resolved to and its current state: registered,
+skipped, waiting for an action, waiting for dependencies, or failed, with the
+action or the dependency identifiers as evidence. Below that is the full
+history of the request, one row for each decision, in the order the plugin
+made them, so a service that waited for `init` and was then registered shows
+both.
+
+How it works, and what it costs:
+
+- **Nothing happens without both the entry and a running Query Monitor.**
+  Without the entry, no class of the panel is loaded. With it, the plugin asks
+  the panel once, before it schedules any service, whether it observes the
+  registration (`ObservesRegistration`). The panel says yes only while Query
+  Monitor runs and supports the request, which it checks without loading
+  anything of Query Monitor
+  (`src/Infrastructure/QueryMonitor/RegistrationPanel.php:240-245`). Otherwise
+  the plugin records nothing and creates no log, and the panel is skipped like
+  any other `Conditional` service. Query Monitor only tells a Customizer
+  preview apart later in the request, so the panel stays off in every request
+  that loads the Customizer, its own screen included.
+- **The history is recorded as it happens.** While the panel observes, the
+  plugin writes each decision into a `RegistrationLog`, request by request and
+  in memory only. It costs one small record per decision and nothing is
+  stored. Nothing asks a condition or a resolver again, and no lazy service is
+  built to be shown. The panel receives the history through the read-only
+  `RegistrationReport`; no service can receive the writer.
+- **Query Monitor's classes stay behind factories.** The collector and the
+  output of the panel extend Query Monitor's classes, so their factories
+  declare them as anonymous classes and only create them once Query Monitor
+  asks for the panel. The panel is a view,
+  `views/query-monitor-registration.php`, escaped like any other; Query
+  Monitor prints it on the server and shows it when the panel is opened.
+- **Supported release:** Query Monitor 4.0.7. The panel relies on its
+  `QueryMonitor` class only being loaded when it runs, on `QM_Collectors::add()`
+  and on the `qm/outputter/html` and `qm/output/menus` filters.
+- **A custom log** can be passed to the plugin constructor as the last
+  optional argument, as in `new BasicScaffoldPlugin( true, null, null, null, null, $log )`.
+  It is only written to while a service observes the registration.
+- **An override can bypass the record.** `schedule_potential_service_registration()`
+  and `maybe_register_service()` are protected and record their decisions; an
+  override in a generated plugin that does not call the parent method records
+  nothing for the services it handles.
+
+Another service can show the same history: implement `ObservesRegistration`,
+return whether it shows it in this request, and ask for a `RegistrationReport`
+in its constructor.
+
+**Proven by:** the panel is declared in
+`tests/php/Fixture/CompositionRoot/RegistrationPanelPlugin.php` and checked
+with the real configuration by `tests/php/Architecture/CompositionRootContractTest.php`;
+the recording by `tests/php/Unit/RegistrationRecordingTest.php`; the panel, its
+quiet path and both plugin load orders by `tests/php/Unit/RegistrationPanelTest.php`
+and `tests/php/Integration/QueryMonitorPanelTest.php`, against stand-ins in
+`tests/php/Fixture/QueryMonitor/`.
+
+**Rules:** `architecture.capabilitiesOnServices` keeps `ObservesRegistration`
+on services, `architecture.outputOnlyThroughViews` puts the panel's markup in a
+view, and the bundled autoloader check loads every class of the panel without
+Query Monitor.

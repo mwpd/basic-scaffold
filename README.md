@@ -53,6 +53,9 @@ into this scaffold.
 - **Dependency injection** through a single composition root,
   [`src/BasicScaffoldPlugin.php`](src/BasicScaffoldPlugin.php), with a simple
   built-in injector and service container that you can swap for your own.
+- **An optional Query Monitor panel** that shows, per request, which services
+  were registered, skipped, or still wait for an action or their
+  dependencies, and why. It is one service entry away, and off otherwise.
 - **Views** with escaping by default and child-theme and parent-theme overrides,
   scoped to a directory of the plugin's own inside the theme.
 - **No runtime dependencies.** The plugin needs only PHP and WordPress on the

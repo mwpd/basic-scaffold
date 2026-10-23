@@ -104,8 +104,62 @@ Infrastructure\PluginLifecycle interface
 Infrastructure\PluginLifecycle::public abstract function activate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\PluginLifecycle::public abstract function deactivate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\PluginLifecycle::public abstract function uninstall(): void
+Infrastructure\QueryMonitor\CollectorFactory interface
+Infrastructure\QueryMonitor\CollectorFactory::public abstract function create(): \QM_Collector
+Infrastructure\QueryMonitor\OutputFactory interface
+Infrastructure\QueryMonitor\OutputFactory::public abstract function create( \QM_Collector $collector, Infrastructure\Registration\RegistrationReport $report ): \QM_Output_Html
+Infrastructure\QueryMonitor\RegistrationCollectorFactory final class
+Infrastructure\QueryMonitor\RegistrationCollectorFactory implements Infrastructure\QueryMonitor\CollectorFactory
+Infrastructure\QueryMonitor\RegistrationCollectorFactory::public function __construct( string $panel_id )
+Infrastructure\QueryMonitor\RegistrationCollectorFactory::public function create(): \QM_Collector
+Infrastructure\QueryMonitor\RegistrationOutputFactory final class
+Infrastructure\QueryMonitor\RegistrationOutputFactory implements Infrastructure\QueryMonitor\OutputFactory
+Infrastructure\QueryMonitor\RegistrationOutputFactory::public function __construct( Infrastructure\ViewFactory $view_factory, string $panel_title )
+Infrastructure\QueryMonitor\RegistrationOutputFactory::public function create( \QM_Collector $collector, Infrastructure\Registration\RegistrationReport $report ): \QM_Output_Html
+Infrastructure\QueryMonitor\RegistrationPanel final class
+Infrastructure\QueryMonitor\RegistrationPanel implements Infrastructure\Conditional
+Infrastructure\QueryMonitor\RegistrationPanel implements Infrastructure\Registerable
+Infrastructure\QueryMonitor\RegistrationPanel implements Infrastructure\Registration\ObservesRegistration
+Infrastructure\QueryMonitor\RegistrationPanel implements Infrastructure\Service
+Infrastructure\QueryMonitor\RegistrationPanel::public function __construct( Infrastructure\Registration\RegistrationReport $report, Infrastructure\QueryMonitor\CollectorFactory $collector_factory, Infrastructure\QueryMonitor\OutputFactory $output_factory )
+Infrastructure\QueryMonitor\RegistrationPanel::public function add_collector(): void
+Infrastructure\QueryMonitor\RegistrationPanel::public function add_menu( $menus )
+Infrastructure\QueryMonitor\RegistrationPanel::public function add_output( $outputters )
+Infrastructure\QueryMonitor\RegistrationPanel::public function register(): void
+Infrastructure\QueryMonitor\RegistrationPanel::public static function is_needed(): bool
+Infrastructure\QueryMonitor\RegistrationPanel::public static function observes_registration(): bool
 Infrastructure\Registerable interface
 Infrastructure\Registerable::public abstract function register(): void
+Infrastructure\Registration\ObservesRegistration interface
+Infrastructure\Registration\ObservesRegistration::public abstract static function observes_registration(): bool
+Infrastructure\Registration\ReadOnlyRegistrationReport final class
+Infrastructure\Registration\ReadOnlyRegistrationReport implements Infrastructure\Registration\RegistrationReport
+Infrastructure\Registration\ReadOnlyRegistrationReport::public function __construct( Infrastructure\Registration\RegistrationReport $report )
+Infrastructure\Registration\ReadOnlyRegistrationReport::public function get_records(): array
+Infrastructure\Registration\RegistrationLog extends Infrastructure\Registration\RegistrationReport
+Infrastructure\Registration\RegistrationLog interface
+Infrastructure\Registration\RegistrationLog::public abstract function get_records(): array
+Infrastructure\Registration\RegistrationLog::public abstract function record( Infrastructure\Registration\RegistrationRecord $record ): void
+Infrastructure\Registration\RegistrationRecord final class
+Infrastructure\Registration\RegistrationRecord::public function equals( Infrastructure\Registration\RegistrationRecord $other ): bool
+Infrastructure\Registration\RegistrationRecord::public function get_awaited_actions(): array
+Infrastructure\Registration\RegistrationRecord::public function get_class_name(): string
+Infrastructure\Registration\RegistrationRecord::public function get_missing_dependencies(): array
+Infrastructure\Registration\RegistrationRecord::public function get_service_id(): string
+Infrastructure\Registration\RegistrationRecord::public function get_state(): string
+Infrastructure\Registration\RegistrationRecord::public static function dropped( string $service_id, string $class_name, string $dependency_id ): self
+Infrastructure\Registration\RegistrationRecord::public static function failed( string $service_id, string $class_name, string $dependency_id ): self
+Infrastructure\Registration\RegistrationRecord::public static function not_needed( string $service_id, string $class_name ): self
+Infrastructure\Registration\RegistrationRecord::public static function registered( string $service_id, string $class_name ): self
+Infrastructure\Registration\RegistrationRecord::public static function waiting_for_action( string $service_id, string $class_name, string $action ): self
+Infrastructure\Registration\RegistrationRecord::public static function waiting_for_dependencies( string $service_id, string $class_name, array $missing_dependencies, array $awaited_actions = [] ): self
+Infrastructure\Registration\RegistrationReport interface
+Infrastructure\Registration\RegistrationReport::public abstract function get_records(): array
+Infrastructure\Registration\SimpleRegistrationLog final class
+Infrastructure\Registration\SimpleRegistrationLog implements Infrastructure\Registration\RegistrationLog
+Infrastructure\Registration\SimpleRegistrationLog implements Infrastructure\Registration\RegistrationReport
+Infrastructure\Registration\SimpleRegistrationLog::public function get_records(): array
+Infrastructure\Registration\SimpleRegistrationLog::public function record( Infrastructure\Registration\RegistrationRecord $record ): void
 Infrastructure\Renderable interface
 Infrastructure\Renderable::public abstract function render( array $context = [] ): string
 Infrastructure\Service interface
@@ -145,7 +199,7 @@ Infrastructure\ServiceBasedPlugin::public const DELEGATIONS_FILTER = "delegation
 Infrastructure\ServiceBasedPlugin::public const INJECTOR_ID = "injector"
 Infrastructure\ServiceBasedPlugin::public const SERVICES_FILTER = "services"
 Infrastructure\ServiceBasedPlugin::public const SHARED_INSTANCES_FILTER = "shared_instances"
-Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null, ?Infrastructure\SiteRunner $site_runner = null, ?Infrastructure\InjectorFactory $injector_factory = null )
+Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null, ?Infrastructure\SiteRunner $site_runner = null, ?Infrastructure\InjectorFactory $injector_factory = null, ?Infrastructure\Registration\RegistrationLog $registration_log = null )
 Infrastructure\ServiceBasedPlugin::public function activate(): void
 Infrastructure\ServiceBasedPlugin::public function activate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\ServiceBasedPlugin::public function deactivate(): void

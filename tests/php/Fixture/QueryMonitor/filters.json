@@ -1,0 +1,49 @@
+{
+    "$schema": "https://raw.githubusercontent.com/wp-hooks/wordpress-core/1.10.0/hooks/schema.json",
+    "hooks": [
+        {
+            "name": "qm/outputter/html",
+            "file": "classes/Dispatcher.php",
+            "type": "filter",
+            "args": 2,
+            "doc": {
+                "description": "Allows users to filter what outputs.",
+                "long_description": "Query Monitor 4.0.7 applies qm/outputter/{$outputter_id} in QM_Dispatcher::get_outputters(); the HTML dispatcher asks for the html outputters. Stand-in for Psalm's WordPress plugin, which only knows WordPress core's hooks.",
+                "long_description_html": "",
+                "tags": [
+                    {
+                        "name": "param",
+                        "content": "Array of outputters.",
+                        "types": [ "array<string, QM_Output>" ],
+                        "variable": "$outputters"
+                    },
+                    {
+                        "name": "param",
+                        "content": "List of collectors.",
+                        "types": [ "QM_Collectors" ],
+                        "variable": "$collectors"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "qm/output/menus",
+            "file": "dispatchers/Html.php",
+            "type": "filter",
+            "args": 1,
+            "doc": {
+                "description": "Filters the menu items shown in Query Monitor's admin toolbar menu.",
+                "long_description": "Query Monitor 4.0.7 applies it in QM_Dispatcher_Html::before_output(). Stand-in for Psalm's WordPress plugin, which only knows WordPress core's hooks.",
+                "long_description_html": "",
+                "tags": [
+                    {
+                        "name": "param",
+                        "content": "Array of menus.",
+                        "types": [ "array<string, mixed[]>" ],
+                        "variable": "$menus"
+                    }
+                ]
+            }
+        }
+    ]
+}

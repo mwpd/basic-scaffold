@@ -190,4 +190,24 @@ final class InvalidConfiguration extends InvalidArgumentException implements Bas
 			)
 		);
 	}
+
+	/**
+	 * Create a new instance of the exception for a registration report that
+	 * is asked for while no service observes the registration.
+	 *
+	 * @param string $report    Name of the report interface.
+	 * @param string $observing Name of the interface that observes the
+	 *                          registration.
+	 */
+	public static function from_unobserved_registration( string $report, string $observing ): self {
+		return new self(
+			\sprintf(
+				'"%1$s" is only available while a configured service implementing "%2$s" observes the'
+				. ' registration in this request, because the plugin records nothing otherwise. Implement "%2$s"'
+				. ' on the service that needs the report.',
+				$report,
+				$observing
+			)
+		);
+	}
 }
