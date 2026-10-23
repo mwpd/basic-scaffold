@@ -431,7 +431,7 @@ then only works for code that happens to load earlier. So the plugin applies
 its filters during registration at `plugins_loaded`: the `services` filter
 (`src/Infrastructure/ServiceBasedPlugin.php:372-375`), and the injector
 filters, because the injector is configured there and not in the constructor
-(`src/Infrastructure/ServiceBasedPlugin.php:319`).
+(`src/Infrastructure/ServiceBasedPlugin.php:336`).
 
 ## 13. One plugin, to arbitrary complexity
 
