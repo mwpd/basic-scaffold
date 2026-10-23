@@ -17,6 +17,7 @@ use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
+use MWPD\BasicScaffold\Exception\InvalidViewConfiguration;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
@@ -63,17 +64,36 @@ class SimpleView extends stdClass implements View {
 	private DebugMode $debug_mode;
 
 	/**
+	 * Configuration that says where the plugin root is, if one was passed.
+	 */
+	private ?ViewConfiguration $configuration;
+
+	/**
 	 * Instantiate a SimpleView object.
 	 *
-	 * @param string      $path         Path to the view file to render.
-	 * @param ViewFactory $view_factory View factory instance to use.
-	 * @param ?DebugMode  $debug_mode   Debug mode instance to use. Optional, defaults to WordPressDebugMode.
+	 * @param string             $path          Path to the view file to render,
+	 *                                          relative to the plugin root.
+	 * @param ViewFactory        $view_factory  View factory instance to use.
+	 * @param ?DebugMode         $debug_mode    Debug mode instance to use. Optional, defaults to WordPressDebugMode.
+	 * @param ?ViewConfiguration $configuration Configuration that names the plugin root. Optional for
+	 *                                          subclasses that resolve paths without it; a SimpleView
+	 *                                          itself always needs it. The view factories the
+	 *                                          injector builds pass the composition root's.
 	 * @throws InvalidPath If an invalid Path was passed into the View.
+	 * @throws InvalidViewConfiguration If the path needs a plugin root and no
+	 *                                  configuration was passed.
 	 */
-	public function __construct( string $path, ViewFactory $view_factory, ?DebugMode $debug_mode = null ) {
-		$this->path         = $this->validate( $path );
-		$this->view_factory = $view_factory;
-		$this->debug_mode   = $debug_mode ?? new WordPressDebugMode();
+	public function __construct(
+		string $path,
+		ViewFactory $view_factory,
+		?DebugMode $debug_mode = null,
+		?ViewConfiguration $configuration = null
+	) {
+		// Validation reads the configuration, so it is stored first.
+		$this->configuration = $configuration;
+		$this->path          = $this->validate( $path );
+		$this->view_factory  = $view_factory;
+		$this->debug_mode    = $debug_mode ?? new WordPressDebugMode();
 	}
 
 	/**
@@ -243,15 +263,23 @@ class SimpleView extends stdClass implements View {
 	 * Validate a path.
 	 *
 	 * The path is relative to the plugin root, and the file it resolves to
-	 * must stay inside it (see ViewLocations).
+	 * must stay inside it (see ViewLocations). The plugin root comes from the
+	 * view configuration: the view does not guess it from where its own file
+	 * happens to live, which would break as soon as a plugin moved the
+	 * infrastructure to another directory.
 	 *
 	 * @param string $path Path to validate.
 	 *
 	 * @return string Validated path, in its canonical form.
 	 * @throws InvalidPath If an invalid path was passed into the View.
+	 * @throws InvalidViewConfiguration If no configuration names the plugin root.
 	 */
 	protected function validate( string $path ): string {
-		$plugin_root = \dirname( __DIR__, 3 );
+		if ( null === $this->configuration ) {
+			throw InvalidViewConfiguration::for_missing_configuration( $path );
+		}
+
+		$plugin_root = $this->configuration->get_plugin_root();
 		$path        = $this->check_extension( $path, static::VIEW_EXTENSION );
 		$path        = $this->ensure_trailing_slash( $plugin_root ) . $path;
 

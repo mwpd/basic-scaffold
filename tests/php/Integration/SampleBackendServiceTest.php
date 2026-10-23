@@ -9,6 +9,7 @@ use MWPD\BasicScaffold\BasicScaffoldPlugin;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View\TemplatedViewFactory;
+use MWPD\BasicScaffold\Infrastructure\View\ViewConfiguration;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\Tests\ViewHelper;
 use Throwable;
@@ -69,7 +70,11 @@ final class SampleBackendServiceTest extends TestCase {
 	}
 
 	public function test_the_backend_template_escapes_the_raw_plugin_name_for_html_text(): void {
-		$factory = new TemplatedViewFactory();
+		$factory = new TemplatedViewFactory(
+			[],
+			null,
+			new ViewConfiguration( ViewHelper::PLUGIN_ROOT, ViewHelper::OVERRIDE_DIRECTORY )
+		);
 		$output  = $factory->create( 'views/test-backend-service' )->render( [ 'plugin' => '<em>Plugin</em>' ] );
 
 		$this->assertStringContainsString( 'Raw value: <b>&lt;em&gt;Plugin&lt;/em&gt;</b>', $output );

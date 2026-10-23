@@ -1,0 +1,1 @@
+<p>Precedence comes from child theme.</p>

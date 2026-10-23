@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
+use MWPD\BasicScaffold\Exception\InvalidViewConfiguration;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\Service\WordPressDebugMode;
@@ -25,9 +26,15 @@ use Throwable;
  *
  * When no locations are provided, the first create() call resolves and keeps
  * the defaults in this exact order:
- *  1. child theme folder
- *  2. parent theme folder
- *  3. plugin folder
+ *  1. the plugin's override directory in the child theme
+ *  2. the plugin's override directory in the parent theme
+ *  3. the plugin root
+ *
+ * The override directory and the plugin root come from the view
+ * configuration. With the scaffold's configuration, a theme overrides
+ * `views/settings.php` with `<theme>/basic-scaffold/views/settings.php`. A
+ * file in the theme's own `views/` folder is not an override, so that two
+ * plugins, or a plugin and a theme, cannot replace each other's views.
  */
 final class TemplatedViewFactory implements Service, ViewFactory {
 
@@ -44,15 +51,29 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	private DebugMode $debug_mode;
 
 	/**
+	 * Configuration for the default locations, if one was passed.
+	 */
+	private ?ViewConfiguration $configuration;
+
+	/**
 	 * Instantiate a TemplatedViewFactory object.
 	 *
-	 * @param array<string> $locations  Locations to use unchanged, or empty for defaults on first use.
-	 * @param ?DebugMode    $debug_mode Debug mode instance to use, for the factory and the views it
-	 *                                  creates. Optional, defaults to WordPressDebugMode.
+	 * @param array<string>      $locations     Locations to use unchanged, or empty for defaults on first use.
+	 * @param ?DebugMode         $debug_mode    Debug mode instance to use, for the factory and the views it
+	 *                                          creates. Optional, defaults to WordPressDebugMode.
+	 * @param ?ViewConfiguration $configuration Configuration that names the plugin root and the theme
+	 *                                          override directory. Only the default locations need it;
+	 *                                          the composition root passes it to the factory the
+	 *                                          injector builds.
 	 */
-	public function __construct( array $locations = [], ?DebugMode $debug_mode = null ) {
-		$this->locations  = $locations;
-		$this->debug_mode = $debug_mode ?? new WordPressDebugMode();
+	public function __construct(
+		array $locations = [],
+		?DebugMode $debug_mode = null,
+		?ViewConfiguration $configuration = null
+	) {
+		$this->locations     = $locations;
+		$this->debug_mode    = $debug_mode ?? new WordPressDebugMode();
+		$this->configuration = $configuration;
 	}
 
 	/**
@@ -69,7 +90,7 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	public function create( string $relative_path ): View {
 		try {
 			if ( $this->locations === [] ) {
-				$this->locations = $this->get_default_locations();
+				$this->locations = $this->get_default_locations( $relative_path );
 			}
 
 			return new TemplatedView( $relative_path, $this, $this->locations, $this->debug_mode );
@@ -96,19 +117,29 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	 * the instance. They are not cached across instances, so every factory
 	 * reflects the theme that is active when it first creates a view.
 	 *
+	 * @param string $relative_path Relative path of the view that needs them.
+	 *
 	 * @return array<string> Array of default locations.
+	 * @throws InvalidViewConfiguration If no configuration names the plugin
+	 *                                  root and the override directory.
 	 */
-	private function get_default_locations(): array {
+	private function get_default_locations( string $relative_path ): array {
+		if ( null === $this->configuration ) {
+			throw InvalidViewConfiguration::for_missing_configuration( $relative_path );
+		}
+
+		$plugin_root = $this->configuration->get_plugin_root();
+
 		// We wrap the WP functions here to not make the code directly rely
 		// on WordPress being loaded here.
 		// This makes the code more flexible and testing easier.
 		return ( function_exists( 'get_stylesheet_directory' )
 				&& function_exists( 'get_template_directory' ) )
 			? [
-				\get_stylesheet_directory(),
-				\get_template_directory(),
-				\dirname( __DIR__, 3 ),
+				$this->configuration->get_theme_override_location( \get_stylesheet_directory() ),
+				$this->configuration->get_theme_override_location( \get_template_directory() ),
+				$plugin_root,
 			]
-			: [ \dirname( __DIR__, 3 ) ];
+			: [ $plugin_root ];
 	}
 }

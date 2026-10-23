@@ -1,0 +1,1 @@
+<p>Collision comes from plugin.</p>

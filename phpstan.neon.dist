@@ -140,6 +140,7 @@ parameters:
             valueObjects:
                 - MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
                 - MWPD\BasicScaffold\Infrastructure\View\ViewLocations
+                - MWPD\BasicScaffold\Infrastructure\View\ViewConfiguration
                 - DateTimeImmutable
                 - DateInterval
                 - ArrayIterator

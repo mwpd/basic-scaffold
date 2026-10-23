@@ -21,6 +21,7 @@ use MWPD\BasicScaffold\Infrastructure\{
 	Service\WordPressDebugMode,
 	ServiceBasedPlugin,
 	View\TemplatedViewFactory,
+	View\ViewConfiguration,
 	ViewFactory
 };
 use WP_Post;
@@ -191,7 +192,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 			 * get_post() returns null when there is no current post. Rather than
 			 * passing that on, the delegation fails with a dedicated exception.
 			 */
-			WP_Post::class => static function (): WP_Post {
+			WP_Post::class           => static function (): WP_Post {
 				$post = \get_post();
 
 				if ( ! $post instanceof WP_Post ) {
@@ -200,6 +201,22 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 
 				return $post;
 			},
+
+			/*
+			 * The view factories need to know where the plugin's views are.
+			 * The infrastructure cannot tell where the plugin root is from
+			 * its own location, so the composition root says so: it is the
+			 * parent of src/, the directory that holds this file. This is
+			 * the one place the plugin root is computed.
+			 *
+			 * The injector hands this configuration to the bound view
+			 * factory, which passes it on to its views. Themes override the
+			 * plugin's views in the VIEW_OVERRIDE_DIRECTORY defined below.
+			 */
+			ViewConfiguration::class => static fn(): ViewConfiguration => new ViewConfiguration(
+				\dirname( __DIR__ ),
+				self::VIEW_OVERRIDE_DIRECTORY
+			),
 
 			/*
 			 * The injector itself needs no delegation. The infrastructure
@@ -230,6 +247,19 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
 
 	protected const SERVICE_PREFIX = 'mwpd.basic_scaffold.';
+
+	/*
+	 * Directory inside a theme that holds the overrides for this plugin's
+	 * views. A theme overrides views/settings.php with
+	 * <child or parent theme>/basic-scaffold/views/settings.php.
+	 *
+	 * Rename it for your plugin, usually to its slug. It is a public path, so
+	 * it carries the plugin's prefix like the hooks do: two plugins built from
+	 * this scaffold, or a theme with a views/ folder of its own, then cannot
+	 * override each other's views. Existing theme overrides move along when
+	 * it changes.
+	 */
+	protected const VIEW_OVERRIDE_DIRECTORY = 'basic-scaffold';
 
 	/*
 	 * Service identifiers we know about.
