@@ -16,6 +16,8 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BrokenPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BrokenLifecyclePlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\IdempotentLifecyclePlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\CallbackPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\GoodService;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\NotAService;
@@ -99,5 +101,58 @@ final class CompositionRootContractTest extends TestCase {
 			sprintf( $prefix, 'failing-callback', 'callable' ) . 'cannot be resolved: ',
 			$problems[1]
 		);
+	}
+
+	public function test_it_reports_non_idempotent_lifecycle_steps(): void {
+		$problems = ( new CompositionRootContract( BrokenLifecyclePlugin::class ) )->check();
+		$expected = [
+			[ 'RepeatingRegistration', 'register', 'changes the callbacks on the action "init"' ],
+			[ 'RepeatingRegistration', 'register', 'changes the callbacks on the filter "the_content"' ],
+			[ 'ChangingPriorityRegistration', 'register', 'changes the callbacks on the action "init"' ],
+			[ 'AppendingActivation', 'activate', 'changes the post meta "fixture_runs" for object 42 again' ],
+			[ 'AppendingActivation', 'activate', 'changes the user meta "fixture_runs" for object 42 again' ],
+			[ 'AppendingActivation', 'activate', 'changes the term meta "fixture_runs" for object 42 again' ],
+			[ 'AppendingActivation', 'activate', 'changes the comment meta "fixture_runs" for object 42 again' ],
+			[ 'ChangingDeactivation', 'deactivate', 'changes the option "fixture_runs" again' ],
+			[ 'ChangingTransient', 'activate', 'changes the transient "fixture_runs" again' ],
+			[ 'ChangingTransient', 'activate', 'changes the user meta "fixture_runs" for object 42 again' ],
+		];
+		$messages = [];
+
+		foreach ( $expected as [ $service, $method, $effect ] ) {
+			$messages[] = $this->lifecycle_problem(
+				$service,
+				'changes the plugin on the second call of ' . $method . '(): it ' . $effect
+				. '. Guard the step so a second run does nothing, or make it set rather than add.'
+			);
+		}
+
+		$messages[] = $this->lifecycle_problem(
+			'ThrowingLifecycle',
+			'throws on the first call of register(): registration failed. Make the lifecycle step safe to run twice.'
+		);
+		$messages[] = $this->lifecycle_problem(
+			'ThrowingLifecycle',
+			'throws on the second call of activate(): activation failed. Make the lifecycle step safe to run twice.'
+		);
+		$messages[] = $this->lifecycle_problem(
+			'ThrowingLifecycle',
+			'throws on the first call of deactivate(): deactivation failed. Make the lifecycle step safe to run twice.'
+		);
+
+		$this->assertSame( $messages, $problems );
+	}
+
+	public function test_it_accepts_guarded_and_setting_lifecycle_steps(): void {
+		$problems = ( new CompositionRootContract( IdempotentLifecyclePlugin::class ) )->check();
+
+		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
+	}
+
+	private function lifecycle_problem( string $service, string $problem ): string {
+		return '[architecture.compositionRootContracts] The service "' . $service . '" ('
+			. 'MWPD\\BasicScaffold\\Tests\\Fixture\\CompositionRoot\\' . $service . ') of '
+			. BrokenLifecyclePlugin::class . ' ' . $problem . ' '
+			. RuleManifest::get_explanation( RuleManifest::COMPOSITION_ROOT_CONTRACTS ) . '.';
 	}
 }

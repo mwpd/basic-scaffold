@@ -370,6 +370,9 @@ final class RuleManifest {
 			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT',
 			'checked_by'       => [
 				CompositionRootContractTest::class . '::test_the_plugin_keeps_the_promises_of_its_composition_root',
+				// Principle 11 extends this contract; it uses the same identifier and explanation.
+				CompositionRootContractTest::class . '::test_it_reports_non_idempotent_lifecycle_steps',
+				CompositionRootContractTest::class . '::test_it_accepts_guarded_and_setting_lifecycle_steps',
 			],
 			'signatures'       => [],
 		],
