@@ -19,7 +19,6 @@ use MWPD\BasicScaffold\Infrastructure\Instantiator;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
-use ReflectionType;
 use Throwable;
 
 /**
@@ -391,26 +390,18 @@ final class SimpleInjector implements Injector {
 		ReflectionParameter $parameter,
 		array $arguments
 	) {
-		if ( ! $parameter->hasType() ) {
-			return $this->resolve_argument_by_name(
-				$class_name,
-				$parameter,
-				$arguments
-			);
-		}
-
-		/**
-		 * Type can vary based on PHP version.
-		 *
-		 * @var ReflectionType|ReflectionNamedType|null $type
-		 */
 		$type = $parameter->getType();
 
 		/*
-		 * @psalm-suppress UndefinedMethod,TypeDoesNotContainNull
-		 * @phpstan-ignore method.notFound (Method was moved to ReflectionNamedType in PHP 8.0)
+		 * Only a single class or interface name can be autowired. Anything
+		 * else is resolved by the parameter's name, through the arguments
+		 * passed to make(), the bound arguments and the default value: no
+		 * type, a builtin type, and a union or intersection type (PHP 8.0 and
+		 * 8.1), which names several types and so no single one to build.
+		 * Checking for ReflectionNamedType, the only type reflection PHP 7.4
+		 * returns, keeps the newer reflection classes out of the code.
 		 */
-		if ( null === $type || $type->isBuiltin() ) {
+		if ( ! $type instanceof ReflectionNamedType || $type->isBuiltin() ) {
 			return $this->resolve_argument_by_name(
 				$class_name,
 				$parameter,
@@ -419,17 +410,13 @@ final class SimpleInjector implements Injector {
 		}
 
 		/**
-		 * We need to deal with differences between PHP versions here.
+		 * A non-builtin named type is a class or interface name.
 		 *
-		 * @var class-string $type
-		 *
-		 * @disregard P1009 as this is a different type in PHP 8.
+		 * @var class-string $dependency
 		 */
-		$type = $type instanceof ReflectionNamedType
-			? $type->getName()
-			: (string) $type;
+		$dependency = $type->getName();
 
-		return $this->make_dependency( $injection_chain, $type );
+		return $this->make_dependency( $injection_chain, $dependency );
 	}
 
 	/**

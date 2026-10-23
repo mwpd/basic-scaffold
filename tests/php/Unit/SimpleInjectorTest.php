@@ -417,6 +417,75 @@ final class SimpleInjectorTest extends TestCase {
 		);
 	}
 
+	/**
+	 * @requires PHP >= 8.0
+	 */
+	public function test_it_builds_a_union_typed_parameter_from_a_bound_argument(): void {
+		$class    = $this->declare_fixture(
+			'UnionTypedParameter',
+			'DummyClass|DummyInterface $dependency'
+		);
+		$argument = new DummyClass();
+
+		$object = ( new SimpleInjector() )
+			->bind_argument( $class, 'dependency', $argument )
+			->make( $class );
+
+		$this->assertInstanceOf( $class, $object );
+		$this->assertSame( $argument, \get_object_vars( $object )['dependency'] );
+	}
+
+	/**
+	 * @requires PHP >= 8.0
+	 */
+	public function test_it_falls_back_to_the_default_of_a_union_typed_parameter(): void {
+		$class = $this->declare_fixture(
+			'UnionTypedParameterWithDefault',
+			'DummyClass|DummyInterface|null $dependency = null'
+		);
+
+		$object = ( new SimpleInjector() )->make( $class );
+
+		$this->assertInstanceOf( $class, $object );
+		$this->assertNull( \get_object_vars( $object )['dependency'] );
+	}
+
+	/**
+	 * @requires PHP >= 8.0
+	 */
+	public function test_it_throws_for_an_unbound_union_typed_parameter(): void {
+		$class = $this->declare_fixture(
+			'UnboundUnionTypedParameter',
+			'DummyClass|DummyInterface $dependency'
+		);
+
+		$this->expectException( FailedToMakeInstance::class );
+		$this->expectExceptionCode( FailedToMakeInstance::UNRESOLVED_ARGUMENT );
+		$this->expectExceptionMessage(
+			'Could not resolve the argument "dependency" while trying to instantiate the class "' . $class . '".'
+		);
+
+		( new SimpleInjector() )->make( $class );
+	}
+
+	/**
+	 * @requires PHP >= 8.1
+	 */
+	public function test_it_builds_an_intersection_typed_parameter_from_a_bound_argument(): void {
+		$class    = $this->declare_fixture(
+			'IntersectionTypedParameter',
+			'\Countable&\IteratorAggregate $dependency'
+		);
+		$argument = new \ArrayObject();
+
+		$object = ( new SimpleInjector() )
+			->bind_argument( $class, 'dependency', $argument )
+			->make( $class );
+
+		$this->assertInstanceOf( $class, $object );
+		$this->assertSame( $argument, \get_object_vars( $object )['dependency'] );
+	}
+
 	public function test_it_can_use_custom_instantiator(): void {
 		/** @var MockObject&Instantiator $mock_instantiator */
 		$mock_instantiator = $this->createMock( Instantiator::class );
@@ -429,5 +498,40 @@ final class SimpleInjectorTest extends TestCase {
 		$instance = $injector->make( DummyClass::class );
 
 		$this->assertInstanceOf( DummyClass::class, $instance );
+	}
+
+	/**
+	 * Declare a fixture class whose constructor takes one parameter.
+	 *
+	 * Union and intersection types are newer than PHP 7.4, the floor for
+	 * tests/ as well, so a fixture file using them would not even parse on
+	 * 7.4. The tests that need such a fixture require a newer PHP and declare
+	 * it at runtime instead.
+	 *
+	 * @param string $name      Short name of the fixture class.
+	 * @param string $parameter Constructor parameter, as written in PHP.
+	 * @return class-string Fully qualified name of the fixture class.
+	 */
+	private function declare_fixture( string $name, string $parameter ): string {
+		$namespace = 'MWPD\BasicScaffold\Tests\Fixture\Injector';
+		$class     = $namespace . '\\' . $name;
+
+		if ( ! \class_exists( $class, false ) ) {
+			// phpcs:ignore Squiz.PHP.Eval.Discouraged -- The code is a fixed string from this test, see above.
+			eval(
+				"namespace {$namespace};
+				use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
+				use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
+				final class {$name} {
+					public \$dependency;
+					public function __construct( {$parameter} ) {
+						\$this->dependency = \$dependency;
+					}
+				}"
+			);
+		}
+
+		/** @var class-string $class */
+		return $class;
 	}
 }
