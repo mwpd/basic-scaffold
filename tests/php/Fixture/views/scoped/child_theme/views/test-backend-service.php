@@ -1,0 +1,1 @@
+<p>Backend notice from an unscoped theme folder.</p>

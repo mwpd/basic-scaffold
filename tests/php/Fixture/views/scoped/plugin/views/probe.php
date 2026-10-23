@@ -1,0 +1,1 @@
+<p>Probe comes from plugin.</p>

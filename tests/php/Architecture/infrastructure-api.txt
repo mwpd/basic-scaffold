@@ -140,7 +140,7 @@ Infrastructure\View\SimpleView::protected function is_debug_mode(): bool
 Infrastructure\View\SimpleView::protected function is_stringable( $value ): bool
 Infrastructure\View\SimpleView::protected function validate( string $path ): string
 Infrastructure\View\SimpleView::protected string $path
-Infrastructure\View\SimpleView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, ?Infrastructure\Service\DebugMode $debug_mode = null )
+Infrastructure\View\SimpleView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, ?Infrastructure\Service\DebugMode $debug_mode = null, ?Infrastructure\View\ViewConfiguration $configuration = null )
 Infrastructure\View\SimpleView::public function __get( string $property )
 Infrastructure\View\SimpleView::public function __isset( string $property ): bool
 Infrastructure\View\SimpleView::public function raw( $property )
@@ -149,7 +149,7 @@ Infrastructure\View\SimpleView::public function render_partial( string $path, ?a
 Infrastructure\View\SimpleViewFactory final class
 Infrastructure\View\SimpleViewFactory implements Infrastructure\Service
 Infrastructure\View\SimpleViewFactory implements Infrastructure\ViewFactory
-Infrastructure\View\SimpleViewFactory::public function __construct( ?Infrastructure\Service\DebugMode $debug_mode = null )
+Infrastructure\View\SimpleViewFactory::public function __construct( ?Infrastructure\Service\DebugMode $debug_mode = null, ?Infrastructure\View\ViewConfiguration $configuration = null )
 Infrastructure\View\SimpleViewFactory::public function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\TemplatedView final class
 Infrastructure\View\TemplatedView implements Infrastructure\Renderable
@@ -164,8 +164,13 @@ Infrastructure\View\TemplatedView::public function render_partial( string $path,
 Infrastructure\View\TemplatedViewFactory final class
 Infrastructure\View\TemplatedViewFactory implements Infrastructure\Service
 Infrastructure\View\TemplatedViewFactory implements Infrastructure\ViewFactory
-Infrastructure\View\TemplatedViewFactory::public function __construct( array $locations = [], ?Infrastructure\Service\DebugMode $debug_mode = null )
+Infrastructure\View\TemplatedViewFactory::public function __construct( array $locations = [], ?Infrastructure\Service\DebugMode $debug_mode = null, ?Infrastructure\View\ViewConfiguration $configuration = null )
 Infrastructure\View\TemplatedViewFactory::public function create( string $relative_path ): Infrastructure\View
+Infrastructure\View\ViewConfiguration final class
+Infrastructure\View\ViewConfiguration::public function __construct( string $plugin_root, string $override_directory )
+Infrastructure\View\ViewConfiguration::public function get_override_directory(): string
+Infrastructure\View\ViewConfiguration::public function get_plugin_root(): string
+Infrastructure\View\ViewConfiguration::public function get_theme_override_location( string $theme_directory ): string
 Infrastructure\View\ViewLocations final class
 Infrastructure\View\ViewLocations::public function __construct( array $locations )
 Infrastructure\View\ViewLocations::public function confine( string $path ): string

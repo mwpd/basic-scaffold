@@ -133,7 +133,7 @@ says which rules enforce each principle, and what stays with review.
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary: views (#27, #30), other callbacks and lifecycle steps (#143) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor`, `bootstrapContract` | |
-| [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
+| [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and the value of `VIEW_OVERRIDE_DIRECTORY` |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve`, `infrastructureApiSnapshot` | Whether comments explain why and cited lines still support the prose |
 | [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `suppressionsAreNamed`, `testsAreDiscovered`, `gatesAtStrength`, `everyPathAnalysed`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
 
@@ -906,7 +906,7 @@ is a value object or throwable.
 **Configuration:** `newOnlyWhereAllowed.factories` lists the factory
 interfaces: the scaffold lists `Injector` and `Instantiator`.
 `newOnlyWhereAllowed.valueObjects` lists the value objects: the scaffold lists
-`LazilyInstantiatedService`, `ViewLocations` and PHP's `DateTimeImmutable`,
+`LazilyInstantiatedService`, `ViewLocations`, `ViewConfiguration` and PHP's `DateTimeImmutable`,
 `DateInterval`, `ArrayIterator` and `SplObjectStorage`.
 
 **Fix:** receive the object through the constructor, typed to its interface,

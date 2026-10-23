@@ -28,4 +28,27 @@ interface ViewHelper {
 		self::PARENT_THEME_FOLDER,
 		self::PLUGIN_FOLDER,
 	];
+
+	/*
+	 * The repository root, which is the plugin root of the scaffold itself.
+	 * Views created through a SimpleView resolve relative to it.
+	 */
+	public const PLUGIN_ROOT = __DIR__ . '/../..';
+
+	/*
+	 * Override directory the composition root configures for theme overrides.
+	 */
+	public const OVERRIDE_DIRECTORY = 'basic-scaffold';
+
+	/*
+	 * A plugin with a child and a parent theme that hold scoped overrides for
+	 * it, overrides for another plugin, and bare `views/` folders of their own.
+	 */
+	public const SCOPED_FOLDER = self::VIEWS_FOLDER . 'scoped/';
+
+	public const SCOPED_CHILD_THEME_FOLDER = self::SCOPED_FOLDER . 'child_theme';
+
+	public const SCOPED_PARENT_THEME_FOLDER = self::SCOPED_FOLDER . 'parent_theme';
+
+	public const SCOPED_PLUGIN_FOLDER = self::SCOPED_FOLDER . 'plugin';
 }

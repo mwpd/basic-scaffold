@@ -1,0 +1,1 @@
+<p>Parent wins comes from plugin.</p>

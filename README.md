@@ -51,7 +51,8 @@ into this scaffold.
 - **Dependency injection** through a single composition root,
   [`src/BasicScaffoldPlugin.php`](src/BasicScaffoldPlugin.php), with a simple
   built-in injector and service container that you can swap for your own.
-- **Views** with escaping by default and child-theme and parent-theme overrides.
+- **Views** with escaping by default and child-theme and parent-theme overrides,
+  scoped to a directory of the plugin's own inside the theme.
 - **No runtime dependencies.** The plugin needs only PHP and WordPress on the
   server. Composer is used for development tooling, and a bundled autoloader takes
   over when `vendor/` is absent.
@@ -81,7 +82,10 @@ The reasoning behind all of this is written down in the
      `BasicScaffoldException`;
    - the `HOOK_PREFIX` and `SERVICE_PREFIX` constants in
      `src/BasicScaffoldPlugin.php`, so your hooks and service identifiers don't
-     clash with other plugins built on this scaffold.
+     clash with other plugins built on this scaffold;
+   - the `VIEW_OVERRIDE_DIRECTORY` constant in the same file, usually to your
+     plugin's slug. Themes override your views in that directory, for example
+     `<theme>/my-plugin/views/settings.php`.
 3. Replace the sample services in `src/SampleSubsystem/` and the views in
    `views/` with your own, and list your services in
    `BasicScaffoldPlugin::get_service_classes()`.

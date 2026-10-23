@@ -1,0 +1,1 @@
+<p>Plugin only comes from the other plugin's override.</p>

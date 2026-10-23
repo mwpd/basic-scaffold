@@ -122,7 +122,7 @@ In the code:
   (`src/Infrastructure/ServiceBasedPlugin.php:164-183`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
-  (`src/BasicScaffoldPlugin.php:110`) and can be rebound the same way.
+  (`src/BasicScaffoldPlugin.php:111`) and can be rebound the same way.
 
 When improving infrastructure, keep the simple implementation simple. Add
 capability only when the scaffold's own use needs it, and keep the interface
@@ -143,15 +143,26 @@ the built-in implementation as the fallback:
   (`src/Infrastructure/ServiceBasedPlugin.php:164-183`). The code calls this a
   poka-yoke: a design that makes the easy path also the correct one.
 - `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
-  (`src/Infrastructure/View/SimpleView.php:76`), and so do the view factories,
+  (`src/Infrastructure/View/SimpleView.php:96`), and so do the view factories,
   which hand theirs on to the views they create.
 
 The fallback is the only place the default is named. Callers never have to
 repeat it, and swapping it never requires touching the class.
 
+A collaborator only has a default when there is an obvious one. Where the
+plugin root is has none the infrastructure could know: it is computed once
+in the composition root, next to the theme override directory, and handed to
+the view factories as a `ViewConfiguration`
+(`src/BasicScaffoldPlugin.php:216-219`). A `SimpleView` or a view factory
+built by hand, outside the composition root, is passed one explicitly;
+without it, resolving a plugin-relative view or the default locations fails
+with `InvalidViewConfiguration` rather than guessing. A `TemplatedView` built
+with explicit locations needs none.
+
 Not every implementation is a replacement point. `TemplatedView` layers
 WordPress core's theme-override behaviour (child theme, then parent theme,
-then plugin) on top of `SimpleView`. That behaviour is fixed on the WordPress
+then plugin) on top of `SimpleView`, with the theme overrides scoped to the
+plugin's own override directory (principle 13). That behaviour is fixed on the WordPress
 side, so `TemplatedView` is meant to be used or not used, not replaced or
 reconfigured. Changes to rendering itself belong in `SimpleView`, and
 `TemplatedView` picks them up.
@@ -224,7 +235,7 @@ There are exactly two ways to defer part of that tree:
   same category.
 - **Factories**: a factory's whole job is instantiation, and its internals are
   encapsulated, so it may create what it produces with `new`
-  (`src/Infrastructure/View/TemplatedViewFactory.php:75`). Going through the
+  (`src/Infrastructure/View/TemplatedViewFactory.php:96`). Going through the
   injector instead is allowed but not required: the factory is assumed to
   know best how to build its product. The same goes for managing instances:
   `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
@@ -278,7 +289,7 @@ injected collaborators, not through inheritance. Only classes deliberately
 designed as a base are open: `ServiceBasedPlugin` is abstract so the
 composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:28`),
 and `SimpleView` is the base that `TemplatedView` builds on
-(`src/Infrastructure/View/SimpleView.php:34`). Every other class in `src/` is
+(`src/Infrastructure/View/SimpleView.php:35`). Every other class in `src/` is
 `final`, and new classes follow suit unless they are designed for extension
 from the start.
 
@@ -380,7 +391,7 @@ delegation returns an instance of the class it was registered for
 
 **Output is escaped for the context it lands in.** The reverse direction gets
 the same care. Values a view reads as properties are escaped by default
-(`src/Infrastructure/View/SimpleView.php:303-334`). A value fetched with
+(`src/Infrastructure/View/SimpleView.php:334-365`). A value fetched with
 `raw()` is the explicit exception, and the template must then escape it for
 where it is printed: HTML text, an attribute, a URL or JavaScript each need
 their own escaping, using WordPress's matching `esc_*` function.
@@ -445,8 +456,8 @@ debug mode, the view factories rethrow the original exception, and
 `SimpleView::render()` throws `FailedToLoadView` with the template's
 exception as its cause. In production, a factory returns an `EmptyView` and a
 failing template renders an empty string, after the view has discarded the
-output buffers the template opened (`src/Infrastructure/View/SimpleView.php:115-135`,
-`src/Infrastructure/View/TemplatedViewFactory.php:69-90`). The samples need no
+output buffers the template opened (`src/Infrastructure/View/SimpleView.php:135-155`,
+`src/Infrastructure/View/TemplatedViewFactory.php:90-111`). The samples need no
 `try`/`catch` around rendering for that reason.
 
 Outside the view system, nothing stops an exception before it reaches
@@ -503,7 +514,7 @@ collaboration or synchronization between plugins.
 
 **Everything public carries the plugin's prefix**, so that several plugins
 built from this scaffold can run side by side without clashing. That covers
-hook names and service identifiers (`src/BasicScaffoldPlugin.php:206-208`), as
+hook names and service identifiers (`src/BasicScaffoldPlugin.php:247-249`, `:273-275`), as
 well as option, meta and transient names, script and style handles, and the
 paths a theme uses to override the plugin's views. The prefixes prevent
 collisions; they are not a coordination protocol.

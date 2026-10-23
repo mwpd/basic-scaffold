@@ -8,10 +8,13 @@ use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
+use MWPD\BasicScaffold\Exception\InvalidViewConfiguration;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleView;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleViewFactory;
+use MWPD\BasicScaffold\Infrastructure\View\ViewConfiguration;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use MWPD\BasicScaffold\Tests\ViewHelper;
 use Error;
 use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -31,9 +34,16 @@ final class SimpleViewTest extends TestCase {
 	 */
 	private ?string $outside_view = null;
 
+	/**
+	 * Configuration naming the repository as the plugin root, as the
+	 * composition root does for the scaffold itself.
+	 */
+	private ViewConfiguration $configuration;
+
 	protected function setUp(): void {
-		$this->view_factory = $this->createMock( ViewFactory::class );
-		$this->debug_mode   = $this->createMock( DebugMode::class );
+		$this->view_factory  = $this->createMock( ViewFactory::class );
+		$this->debug_mode    = $this->createMock( DebugMode::class );
+		$this->configuration = new ViewConfiguration( ViewHelper::PLUGIN_ROOT, ViewHelper::OVERRIDE_DIRECTORY );
 	}
 
 	protected function tearDown(): void {
@@ -44,13 +54,13 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	public function test_it_can_render_static_view(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/static-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/static-view.php' );
 
 		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
 	}
 
 	public function test_it_can_render_with_context(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/dynamic-view.php' );
 
 		$result = $view->render( [ 'some_value' => 'perfectly' ] );
 
@@ -61,7 +71,7 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	public function test_it_escapes_context_values_by_default(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/dynamic-view.php' );
 
 		$result = $view->render( [ 'some_value' => '<script>alert("XSS")</script>' ] );
 
@@ -72,14 +82,14 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	public function test_it_can_access_raw_context_values(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/dynamic-view.php' );
 		$view->render( [ 'some_value' => '<strong>raw</strong>' ] );
 
 		$this->assertEquals( '<strong>raw</strong>', $view->raw( 'some_value' ) );
 	}
 
 	public function test_it_supports_isset_and_empty_on_context_values(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/isset-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/isset-view.php' );
 
 		$cases = [
 			'isset: yes, empty: no'  => 'present',
@@ -99,18 +109,19 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/isset-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		$this->assertEquals( 'isset: no, empty: yes', $this->normalize( $view->render() ) );
 	}
 
 	public function test_it_can_render_partial_views(): void {
-		$partial_view = new SimpleView( 'tests/php/Fixture/views/plugin/partial.php', $this->view_factory );
+		$partial_view = $this->make_view( 'tests/php/Fixture/views/plugin/partial.php' );
 		$this->view_factory->method( 'create' )
 			->willReturn( $partial_view );
 
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/view-with-partial.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/view-with-partial.php' );
 
 		$result = $view->render( [ 'some_value' => 'nicely' ] );
 
@@ -120,11 +131,29 @@ final class SimpleViewTest extends TestCase {
 	public function test_it_throws_on_invalid_path(): void {
 		$this->expectException( InvalidPath::class );
 
-		new SimpleView( 'non/existent/path', $this->view_factory );
+		$this->make_view( 'non/existent/path' );
+	}
+
+	public function test_it_throws_a_named_exception_without_a_configuration(): void {
+		$this->expectException( InvalidViewConfiguration::class );
+		$this->expectExceptionMessage( '"tests/php/Fixture/views/plugin/static-view" is resolved relative to' );
+
+		new SimpleView( 'tests/php/Fixture/views/plugin/static-view', $this->view_factory );
+	}
+
+	public function test_it_resolves_relative_to_the_configured_plugin_root(): void {
+		$view = new SimpleView(
+			'views/probe',
+			$this->view_factory,
+			null,
+			new ViewConfiguration( ViewHelper::SCOPED_PLUGIN_FOLDER, ViewHelper::OVERRIDE_DIRECTORY )
+		);
+
+		$this->assertStringStartsWith( '<p>Probe comes from plugin.</p>', $view->render() );
 	}
 
 	public function test_it_escapes_single_quotes_in_context_values(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/dynamic-view.php' );
 
 		$result = $view->render( [ 'some_value' => "It's a 'quote'" ] );
 
@@ -133,7 +162,7 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	public function test_it_substitutes_invalid_code_units_in_context_values(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/dynamic-view.php' );
 
 		$result = $view->render( [ 'some_value' => "broken \xC3\x28 byte" ] );
 
@@ -148,14 +177,18 @@ final class SimpleViewTest extends TestCase {
 
 		new SimpleView(
 			\str_repeat( '../', \substr_count( $plugin_root, '/' ) ) . \ltrim( $outside, '/' ),
-			$this->view_factory
+			$this->view_factory,
+			null,
+			$this->configuration
 		);
 	}
 
 	public function test_it_accepts_parent_segments_that_stay_inside_the_plugin_root(): void {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/child_theme/../plugin/static-view',
-			$this->view_factory
+			$this->view_factory,
+			null,
+			$this->configuration
 		);
 
 		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
@@ -168,7 +201,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/throwing-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		$level = \ob_get_level();
@@ -195,7 +229,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/broken-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		try {
@@ -213,7 +248,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/throwing-cleanup-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		$level = \ob_get_level();
@@ -240,7 +276,7 @@ final class SimpleViewTest extends TestCase {
 		$this->debug_mode->method( 'is_debug_mode' )
 			->willReturn( false );
 
-		$view = new SimpleView( $path, $this->view_factory, $this->debug_mode );
+		$view = new SimpleView( $path, $this->view_factory, $this->debug_mode, $this->configuration );
 
 		// The caller's own buffer, which the failing view must leave alone.
 		$level = \ob_get_level();
@@ -278,7 +314,7 @@ final class SimpleViewTest extends TestCase {
 		$this->debug_mode->method( 'is_debug_mode' )
 			->willReturn( false );
 
-		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+		$view = ( new SimpleViewFactory( $this->debug_mode, $this->configuration ) )
 			->create( 'tests/php/Fixture/views/plugin/view-with-failing-partial' );
 
 		$level  = \ob_get_level();
@@ -294,7 +330,7 @@ final class SimpleViewTest extends TestCase {
 		$this->debug_mode->method( 'is_debug_mode' )
 			->willReturn( true );
 
-		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+		$view = ( new SimpleViewFactory( $this->debug_mode, $this->configuration ) )
 			->create( 'tests/php/Fixture/views/plugin/view-with-failing-partial' );
 
 		$level = \ob_get_level();
@@ -319,7 +355,7 @@ final class SimpleViewTest extends TestCase {
 		$this->debug_mode->method( 'is_debug_mode' )
 			->willReturn( false );
 
-		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+		$view = ( new SimpleViewFactory( $this->debug_mode, $this->configuration ) )
 			->create( 'tests/php/Fixture/views/plugin/view-with-missing-partial' );
 
 		$level  = \ob_get_level();
@@ -334,7 +370,7 @@ final class SimpleViewTest extends TestCase {
 		$this->debug_mode->method( 'is_debug_mode' )
 			->willReturn( true );
 
-		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+		$view = ( new SimpleViewFactory( $this->debug_mode, $this->configuration ) )
 			->create( 'tests/php/Fixture/views/plugin/view-with-missing-partial' );
 
 		$level = \ob_get_level();
@@ -361,7 +397,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/dynamic-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 		$view->render( [ 'some_value' => '42' ] );
 
@@ -375,7 +412,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/dynamic-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 		$view->render();
 
@@ -389,7 +427,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/dynamic-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 		$view->render();
 
@@ -397,7 +436,7 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	public function test_it_handles_non_string_context_values(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/dynamic-view.php' );
 
 		$object = new class() {
 			public function __toString(): string {
@@ -411,17 +450,17 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	public function test_it_adds_php_extension_if_missing(): void {
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/static-view', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/static-view' );
 
 		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
 	}
 
 	public function test_it_preserves_parent_context_in_partial_views(): void {
-		$partial_view = new SimpleView( 'tests/php/Fixture/views/plugin/partial.php', $this->view_factory );
+		$partial_view = $this->make_view( 'tests/php/Fixture/views/plugin/partial.php' );
 		$this->view_factory->method( 'create' )
 			->willReturn( $partial_view );
 
-		$view = new SimpleView( 'tests/php/Fixture/views/plugin/view-with-partial.php', $this->view_factory );
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/view-with-partial.php' );
 
 		$context = [ 'some_value' => 'shared context' ];
 		$result  = $view->render( $context );
@@ -436,7 +475,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/static-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 		$view->render( [ 'some_value' => [ 'not', 'stringable' ] ] );
 
@@ -452,7 +492,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/dynamic-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		try {
@@ -470,7 +511,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/dynamic-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		$this->assertEquals(
@@ -505,7 +547,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/unclosed-buffer-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		$level = \ob_get_level();
@@ -531,7 +574,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/closing-buffer-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		// The caller's own buffer, which the view must leave alone.
@@ -562,7 +606,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new SimpleView(
 			'tests/php/Fixture/views/plugin/throwing-buffer-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		);
 
 		$level     = \ob_get_level();
@@ -600,6 +645,15 @@ final class SimpleViewTest extends TestCase {
 	}
 
 	/**
+	 * Create a view relative to the repository root, with the default debug mode.
+	 *
+	 * @param string $path Path of the view, relative to the repository root.
+	 */
+	private function make_view( string $path ): SimpleView {
+		return new SimpleView( $path, $this->view_factory, null, $this->configuration );
+	}
+
+	/**
 	 * Escape a value through SimpleView::escape(), which templates and
 	 * subclasses call.
 	 *
@@ -610,7 +664,8 @@ final class SimpleViewTest extends TestCase {
 		$view = new class(
 			'tests/php/Fixture/views/plugin/static-view.php',
 			$this->view_factory,
-			$this->debug_mode
+			$this->debug_mode,
+			$this->configuration
 		) extends SimpleView {
 
 			/**
