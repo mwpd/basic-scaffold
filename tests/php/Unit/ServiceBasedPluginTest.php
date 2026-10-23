@@ -15,6 +15,7 @@ use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithCallback;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
@@ -927,6 +928,25 @@ class ServiceBasedPluginTest extends TestCase {
 			[ 'construct:delayed', 'register:delayed', 'activate:delayed', 'flush' ],
 			$recorder->events()
 		);
+	}
+
+	/**
+	 * Test that a service in a container passed in already filled still
+	 * receives the lifecycle call, as it did before the services were
+	 * selected by class.
+	 *
+	 * @dataProvider data_lifecycle_events
+	 */
+	public function test_a_service_in_a_prefilled_container_receives_the_lifecycle_call( string $event ): void {
+		$recorder = new LifecycleRecorder();
+		$this->expect_one_soft_flush( $recorder );
+		$container = new SimpleServiceContainer();
+		$container->put( 'lazy', new LazyLifecycleService( $recorder ) );
+		$plugin = new TestServicesPlugin( [], null, $container );
+
+		$plugin->$event();
+
+		$this->assertSame( [ 'construct:lazy', "{$event}:lazy", 'flush' ], $recorder->events() );
 	}
 
 	/**

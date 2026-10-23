@@ -223,10 +223,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *
 	 * 1. A service that does not implement the lifecycle interface is skipped,
 	 *    and a lazy one stays unbuilt.
-	 * 2. A service already in the container takes part with that instance.
-	 * 3. A Conditional service that is not needed in this request is skipped
+	 * 2. A Conditional service that is not needed in this request is skipped
 	 *    without being built. Lifecycle work that has to run regardless of the
 	 *    condition belongs in a separate service without it.
+	 * 3. A service already in the container takes part with that instance.
 	 * 4. Any other service is made by the injector just for the lifecycle
 	 *    call, with its usual constructor collaborators. It is not put into the
 	 *    container and not registered: its register() still runs at its own
@@ -236,6 +236,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * only governs registration: it neither holds back nor reorders lifecycle
 	 * calls, and no dependency is registered early for them. Lifecycle steps
 	 * that must run in sequence belong in one service that orchestrates them.
+	 *
+	 * A container passed in already filled can hold services that are not
+	 * configured here. Those take part afterwards if the instance stored for
+	 * them implements the lifecycle interface.
 	 *
 	 * @param class-string $lifecycle_interface Activateable or Deactivateable.
 	 *
@@ -249,16 +253,19 @@ abstract class ServiceBasedPlugin implements Plugin {
 				continue;
 			}
 
-			if ( $this->service_container->has( $id ) ) {
-				yield $this->service_container->get( $id );
-				continue;
-			}
-
 			if ( is_a( $class_name, Conditional::class, true ) && ! $class_name::is_needed() ) {
 				continue;
 			}
 
-			yield $this->make_service( $class_name );
+			yield $this->service_container->has( $id )
+				? $this->service_container->get( $id )
+				: $this->make_service( $class_name );
+		}
+
+		foreach ( $this->service_container as $id => $service ) {
+			if ( ! isset( $this->services[ $id ] ) && $service instanceof $lifecycle_interface ) {
+				yield $service;
+			}
 		}
 	}
 
