@@ -1,10 +1,11 @@
-# The merge bar. A PR merges only with both jobs green on its current head.
+# The merge bar. A PR merges only with all jobs green on its current head.
 #
 # Lint runs on PHP 8.3 because Psalm 5 does not support newer versions.
 # It also runs the tests of the PHPStan architecture rules, which need the
 # locked PHPStan version. The architecture test suite runs with the tests.
 # Tests run on the supported floor and on 8.3. composer.lock was resolved for
 # PHP 8, so the 7.4 job resolves its own dependency set instead of using it.
+# The bundled autoloader check runs on 7.4 without installing Composer dependencies.
 name: ci
 
 on:
@@ -21,6 +22,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  bundled-autoloader:
+    name: bundled autoloader (PHP 7.4, no vendor)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+          coverage: none
+      - run: test ! -d vendor && php -n scripts/check-bundled-autoloader.php
+
   lint:
     name: lint (phpcs, phpstan, psalm, phpstan rule tests)
     runs-on: ubuntu-24.04

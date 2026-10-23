@@ -45,6 +45,7 @@
         ]
     },
     "scripts": {
+        "check:autoloader": "@php scripts/check-bundled-autoloader.php",
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=unit",
         "test:integration": "phpunit --testsuite=integration",
