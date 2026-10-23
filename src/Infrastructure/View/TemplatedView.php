@@ -62,38 +62,48 @@ final class TemplatedView extends SimpleView {
 	/**
 	 * Validate a path.
 	 *
+	 * The path is looked up in each location in turn, and the first readable
+	 * match wins. That match must stay inside the location it was found in,
+	 * so `..` segments cannot reach a file the locations do not cover. A path
+	 * that matches no location is accepted only if it already points to a
+	 * file inside one of them.
+	 *
 	 * @param string $path Path to validate.
 	 *
-	 * @return string Validated Path.
+	 * @return string Validated path, in its canonical form.
 	 * @throws InvalidPath If an invalid path was passed into the View.
 	 */
 	protected function validate( string $path ): string {
 		$path = $this->check_extension( $path, self::VIEW_EXTENSION );
 
-		foreach ( $this->get_locations( $path ) as $location ) {
-			if ( \is_readable( $location ) ) {
-				return $location;
+		foreach ( $this->locations as $location ) {
+			$candidate = $location . $path;
+
+			if ( ! \is_readable( $candidate ) ) {
+				continue;
 			}
+
+			$canonical_path = $this->canonicalize( $candidate );
+
+			if ( ! $this->is_inside( $canonical_path, $location ) ) {
+				throw InvalidPath::for_path_outside_locations( $path, $this->locations );
+			}
+
+			return $canonical_path;
 		}
 
 		if ( ! \is_readable( $path ) ) {
 			throw InvalidPath::from_path( $path );
 		}
 
-		return $path;
-	}
+		$canonical_path = $this->canonicalize( $path );
 
-	/**
-	 * Get the possible locations for the view.
-	 *
-	 * @param string $path Path of the view to get the locations for.
-	 *
-	 * @return array<string> Array of possible locations.
-	 */
-	private function get_locations( string $path ): array {
-		return array_map(
-			fn( string $location ): string => $location . $path,
-			$this->locations
-		);
+		foreach ( $this->locations as $location ) {
+			if ( $this->is_inside( $canonical_path, $location ) ) {
+				return $canonical_path;
+			}
+		}
+
+		throw InvalidPath::for_path_outside_locations( $path, $this->locations );
 	}
 }

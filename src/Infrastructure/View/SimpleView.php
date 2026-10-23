@@ -171,20 +171,76 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Validate a path.
 	 *
+	 * The path is relative to the plugin root, and the file it resolves to
+	 * must stay inside it. Rendering includes the file as PHP, so a path that
+	 * could climb out with `..` segments would be a local file inclusion as
+	 * soon as any part of a view name came from input.
+	 *
 	 * @param string $path Path to validate.
 	 *
-	 * @return string Validated path.
+	 * @return string Validated path, in its canonical form.
 	 * @throws InvalidPath If an invalid path was passed into the View.
 	 */
 	protected function validate( string $path ): string {
-		$path = $this->check_extension( $path, static::VIEW_EXTENSION );
-		$path = $this->ensure_trailing_slash( \dirname( __DIR__, 3 ) ) . $path;
+		$plugin_root = \dirname( __DIR__, 3 );
+		$path        = $this->check_extension( $path, static::VIEW_EXTENSION );
+		$path        = $this->ensure_trailing_slash( $plugin_root ) . $path;
 
 		if ( ! \is_readable( $path ) ) {
 			throw InvalidPath::from_path( $path );
 		}
 
-		return $path;
+		$canonical_path = $this->canonicalize( $path );
+
+		if ( ! $this->is_inside( $canonical_path, $plugin_root ) ) {
+			throw InvalidPath::for_path_outside_locations( $path, [ $plugin_root ] );
+		}
+
+		return $canonical_path;
+	}
+
+	/**
+	 * Resolve a readable path to its canonical form.
+	 *
+	 * The canonical form has no `.` or `..` segments and no symbolic links,
+	 * so it names the file that will actually be included.
+	 *
+	 * @param string $path Readable path to resolve.
+	 *
+	 * @return string Canonical path.
+	 * @throws InvalidPath If the path cannot be resolved.
+	 */
+	protected function canonicalize( string $path ): string {
+		$canonical_path = \realpath( $path );
+
+		if ( false === $canonical_path ) {
+			throw InvalidPath::from_path( $path );
+		}
+
+		return $canonical_path;
+	}
+
+	/**
+	 * Check whether a canonical path lies inside a location.
+	 *
+	 * @param string $canonical_path Canonical path to check.
+	 * @param string $location       Location the path should be inside of.
+	 *
+	 * @return bool Whether the path lies inside the location.
+	 */
+	protected function is_inside( string $canonical_path, string $location ): bool {
+		$canonical_location = \realpath( $location );
+
+		// A location that does not exist cannot contain anything.
+		if ( false === $canonical_location ) {
+			return false;
+		}
+
+		// Compare against the location with a trailing separator, so that a
+		// sibling such as `views-other` does not pass as being inside `views`.
+		$prefix = \rtrim( $canonical_location, '/\\' ) . DIRECTORY_SEPARATOR;
+
+		return 0 === \strpos( $canonical_path, $prefix );
 	}
 
 	/**
@@ -279,7 +335,11 @@ class SimpleView extends stdClass implements View {
 			throw FailedToEscapeValue::from_value( $value );
 		}
 
-		return htmlspecialchars( $value, ENT_COMPAT, 'UTF-8' );
+		// ENT_QUOTES escapes single quotes as well as double quotes, so the
+		// value is safe inside an attribute whichever quote character the
+		// template uses. ENT_SUBSTITUTE replaces invalid UTF-8 with U+FFFD
+		// instead of discarding the whole value.
+		return htmlspecialchars( $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 	}
 
 	/**
