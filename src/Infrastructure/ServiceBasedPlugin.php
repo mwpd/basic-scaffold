@@ -167,32 +167,112 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 	/**
 	 * Activate the plugin.
+	 *
+	 * Every service implementing Activateable is activated, see
+	 * get_lifecycle_services() for which ones and how. The rewrite rules are
+	 * flushed once afterwards, so a service that adds rewrite rules registers
+	 * them in activate() itself.
+	 *
+	 * @throws InvalidService If a service is not valid.
 	 */
 	public function activate(): void {
 		$this->register_services();
 
-		foreach ( $this->service_container as $service ) {
+		foreach ( $this->get_lifecycle_services( Activateable::class ) as $service ) {
 			if ( $service instanceof Activateable ) {
 				$service->activate();
 			}
 		}
 
-		\flush_rewrite_rules();
+		$this->request_soft_rewrite_flush();
 	}
 
 	/**
 	 * Deactivate the plugin.
+	 *
+	 * Every service implementing Deactivateable is deactivated, see
+	 * get_lifecycle_services() for which ones and how. The rewrite rules are
+	 * flushed once afterwards, so a service that adds rewrite rules removes
+	 * them in deactivate() itself.
+	 *
+	 * @throws InvalidService If a service is not valid.
 	 */
 	public function deactivate(): void {
 		$this->register_services();
 
-		foreach ( $this->service_container as $service ) {
+		foreach ( $this->get_lifecycle_services( Deactivateable::class ) as $service ) {
 			if ( $service instanceof Deactivateable ) {
 				$service->deactivate();
 			}
 		}
 
-		\flush_rewrite_rules();
+		$this->request_soft_rewrite_flush();
+	}
+
+	/**
+	 * Get the services that take part in a lifecycle event, one at a time.
+	 *
+	 * The container alone is not enough to find them. A service that is not
+	 * Registerable is stored lazily, so the container holds a wrapper that
+	 * implements no lifecycle interface. A Delayed service, or one waiting for
+	 * a delayed dependency, is not in the container at all until its action
+	 * fires, which may well not happen in the request that activates or
+	 * deactivates the plugin.
+	 *
+	 * So the decision is made by class, before anything is built:
+	 *
+	 * 1. A service that does not implement the lifecycle interface is skipped,
+	 *    and a lazy one stays unbuilt.
+	 * 2. A service already in the container takes part with that instance.
+	 * 3. A Conditional service that is not needed in this request is skipped
+	 *    without being built. Lifecycle work that has to run regardless of the
+	 *    condition belongs in a separate service without it.
+	 * 4. Any other service is made by the injector just for the lifecycle
+	 *    call, with its usual constructor collaborators. It is not put into the
+	 *    container and not registered: its register() still runs at its own
+	 *    registration action, on an instance of its own.
+	 *
+	 * The services come in the order they are configured in. HasDependencies
+	 * only governs registration: it neither holds back nor reorders lifecycle
+	 * calls, and no dependency is registered early for them. Lifecycle steps
+	 * that must run in sequence belong in one service that orchestrates them.
+	 *
+	 * @param class-string $lifecycle_interface Activateable or Deactivateable.
+	 *
+	 * @throws InvalidService If a service is not valid.
+	 *
+	 * @return iterable<Service> Services taking part in the lifecycle event.
+	 */
+	private function get_lifecycle_services( string $lifecycle_interface ): iterable {
+		foreach ( $this->services as $id => $class_name ) {
+			if ( ! is_a( $class_name, $lifecycle_interface, true ) ) {
+				continue;
+			}
+
+			if ( $this->service_container->has( $id ) ) {
+				yield $this->service_container->get( $id );
+				continue;
+			}
+
+			if ( is_a( $class_name, Conditional::class, true ) && ! $class_name::is_needed() ) {
+				continue;
+			}
+
+			yield $this->make_service( $class_name );
+		}
+	}
+
+	/**
+	 * Request a soft flush of the rewrite rules after a lifecycle event.
+	 *
+	 * A soft flush rebuilds the rewrite rules stored in the database, but does
+	 * not rewrite server configuration such as .htaccess. A service that needs
+	 * that calls \flush_rewrite_rules( true ) in its own activate() or
+	 * deactivate(). WordPress itself postpones a flush requested before
+	 * wp_loaded until then, so there is no need to schedule one here.
+	 */
+	private function request_soft_rewrite_flush(): void {
+		\flush_rewrite_rules( false );
 	}
 
 	/**
@@ -670,6 +750,19 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		// The service needs to be registered, so instantiate right away.
+		return $this->make_service( $class_name );
+	}
+
+	/**
+	 * Make a service through the injector right away.
+	 *
+	 * @param class-string $class_name Service class to make.
+	 *
+	 * @throws InvalidService If the injector does not return a service.
+	 *
+	 * @return Service Service that was made.
+	 */
+	private function make_service( string $class_name ): Service {
 		$service = $this->injector->make( $class_name );
 
 		if ( ! $service instanceof Service ) {

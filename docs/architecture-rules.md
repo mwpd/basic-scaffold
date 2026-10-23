@@ -859,8 +859,9 @@ a different object or method, or a different priority adds an entry. Removing
 an existing entry changes state; removing a missing entry leaves it unchanged.
 Actions and filters share hook entries, and fired hooks retain their call
 history. This does not check the plugin's own
-`register_services()` orchestration (#26), activation reaching lazy or delayed
-services (#25), or database and filesystem effects Brain Monkey cannot see.
+`register_services()` orchestration (#26), which services activation and
+deactivation reach (`tests/php/Unit/ServiceBasedPluginTest.php` covers that),
+or database and filesystem effects Brain Monkey cannot see.
 
 **Configuration:** `RepositoryLayout::COMPOSITION_ROOT` names the composition
 root. A service added to it is checked without changing the test.
@@ -870,7 +871,7 @@ services it depends on, and keep constructors to storing dependencies. Guard
 each lifecycle step so a second run does nothing, or make it set rather than
 add.
 
-**Pattern:** [I need to add a feature](patterns.md#i-need-to-add-a-feature).
+**Patterns:** [I need to add a feature](patterns.md#i-need-to-add-a-feature), [I need to set something up when the plugin is activated](patterns.md#i-need-to-set-something-up-when-the-plugin-is-activated).
 
 ### `architecture.capabilitiesOnServices`
 

@@ -28,6 +28,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need to add hooks](#i-need-to-add-hooks)
 - [I need a service only in some requests](#i-need-a-service-only-in-some-requests)
 - [I need to hook in later](#i-need-to-hook-in-later)
+- [I need to set something up when the plugin is activated](#i-need-to-set-something-up-when-the-plugin-is-activated)
 - [I need to create objects on demand](#i-need-to-create-objects-on-demand)
 - [I need to choose an implementation at runtime](#i-need-to-choose-an-implementation-at-runtime)
 - [I need a service locator](#i-need-a-service-locator)
@@ -174,6 +175,77 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 `did_action()` in `register()` are reported; an action that never fires or
 runs too early for the condition is reported once #82 lands.
 
+## I need to set something up when the plugin is activated
+
+**What people reach for:** `register_activation_hook()` next to the code that
+needs it, calling the `init` callback from the activation hook so a post type
+exists before the flush, or a hard `flush_rewrite_rules()` on every
+activation.
+
+**Why not here:** [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns)
+and [the core idea](design-principles.md#how-services-map-to-it): the main
+plugin file registers the activation and deactivation hooks once, and each
+service says for itself what it does there. Calling `register()` early would
+also break the promise of `Delayed`, that a service registers at its own
+action.
+
+**Instead:** implement `Activateable` and `Deactivateable`. The plugin calls
+every service implementing them, in the order they are configured, including
+services it stores lazily and `Delayed` services whose action has not fired
+yet. A service that is not registered yet is built for the call alone, with
+its usual constructor collaborators; its `register()` still runs at its own
+action. Then the plugin asks WordPress for one soft flush of the rewrite
+rules.
+
+So a service with rewrite rules sets them up in `activate()` and removes them
+in `deactivate()`, rather than relying on its normal registration having run
+in that request. Whether it has depends on how the plugin was activated.
+
+```php
+final class BookPostType implements Service, Registerable, Delayed, Activateable, Deactivateable {
+
+	public static function get_registration_action(): string {
+		return 'init';
+	}
+
+	public function register(): void {
+		$this->register_post_type();
+	}
+
+	public function activate(): void {
+		$this->register_post_type(); // Present for the flush that follows.
+	}
+
+	public function deactivate(): void {
+		\unregister_post_type( self::POST_TYPE ); // Gone for the flush that follows.
+	}
+}
+```
+
+Three things to know:
+
+- **The flush is soft.** It rebuilds the rules WordPress stores, but does not
+  write server configuration such as `.htaccess`. A service that needs that
+  calls `\flush_rewrite_rules( true )` at the end of its own `activate()` or
+  `deactivate()`. WordPress postpones any flush requested before `wp_loaded`
+  until then, and does a hard one if any of the requests asked for it.
+  Plugins generated before #25 got a hard flush by default; one that relies
+  on it to regenerate server configuration adds that call when it updates.
+- **`Conditional` still applies.** A service whose `is_needed()` is false in
+  the activation request is neither built nor called. Setup or cleanup that
+  must run whatever the condition belongs in a separate service without it.
+- **`HasDependencies` does not order lifecycle calls.** It only governs
+  registration, and no dependency is registered early for a lifecycle call.
+  Steps that must run in sequence belong in one service that runs them in
+  that order.
+
+**Proven by:** `tests/php/Fixture/Lifecycle/RewriteLifecycleService.php`,
+exercised by `tests/php/Unit/ServiceBasedPluginTest.php`.
+
+**Rules:** `architecture.compositionRootContracts` runs `activate()` and
+`deactivate()` twice and reports a second run that changes anything, so guard
+each step or make it set rather than add.
+
 ## I need to create objects on demand
 
 **What people reach for:** `new Thing()` inside the class that needs it.
@@ -225,7 +297,7 @@ $report = $this->injector->make( Report::class );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:58-60`,
 bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:242-245`, proven by
+`src/Infrastructure/ServiceBasedPlugin.php:322-325`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:628-680`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`; `architecture.dependencyDirection`
