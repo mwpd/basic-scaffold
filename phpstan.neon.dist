@@ -23,8 +23,6 @@ parameters:
         - '#SimpleInjector::get_dependencies_for\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
         - '#SimpleInjector::ensure_is_instantiable\(\) has parameter \$reflection with generic class ReflectionClass but does not specify its types#'
         - '#SimpleInjector::get_class_reflection\(\) return type with generic class ReflectionClass does not specify its types#'
-        # Ignore errors related to echo and type casting in views.
-        - '#Parameter \#1 \(mixed\) of echo cannot be converted to string.#'
 
     # Settings for the architecture rules (tests/php/PHPStan/rules.neon), see
     # docs/architecture-rules.md. Rename the namespaces together with the
@@ -58,6 +56,21 @@ parameters:
         noWordPressErrorMechanisms:
             # Classes that hand a WP_Error to WordPress where it expects one.
             boundaryAdapters: []
+        rawIsEscaped:
+            # A raw() read bypasses automatic escaping; templates must escape
+            # it for its output context (design principle 9).
+            escapingFunctions:
+                - esc_html
+                - esc_attr
+                - esc_url
+                - esc_js
+                - esc_textarea
+                - esc_xml
+                - wp_kses
+                - wp_kses_post
+                - wp_kses_data
+                - absint
+                - intval
         dependencyDirection:
             # The layer generated plugins build on (design principle 4).
             infrastructure: MWPD\BasicScaffold\Infrastructure
