@@ -131,6 +131,15 @@ parameters:
                 - is_front_page
                 - is_home
                 - is_archive
+            # Functions that ask which hooks have run or are running.
+            # Delayed::get_registration_action() states when to register.
+            timingFunctions:
+                - did_action
+                - doing_action
+                - did_filter
+                - doing_filter
+                - current_action
+                - current_filter
         queryContextNeedsDelay:
             # Query-dependent conditions need Delayed, so is_needed() can
             # wait until WordPress has run the query (design principle 7).

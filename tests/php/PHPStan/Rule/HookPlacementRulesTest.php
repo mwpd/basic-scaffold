@@ -100,7 +100,8 @@ final class HookPlacementRulesTest extends RuleTestCase {
 		$this->rule = new NoContextChecksInRegisterRule(
 			new PluginNamespace( self::HOOKS ),
 			[ 'is_admin', 'is_singular' ],
-			$this->createReflectionProvider()
+			$this->createReflectionProvider(),
+			[]
 		);
 
 		$this->analyse(
@@ -117,6 +118,37 @@ final class HookPlacementRulesTest extends RuleTestCase {
 		);
 	}
 
+	public function test_register_leaves_action_timing_to_delayed(): void {
+		$functions = [
+			'did_action',
+			'doing_action',
+			'did_filter',
+			'doing_filter',
+			'current_action',
+			'current_filter',
+		];
+
+		$this->rule = new NoContextChecksInRegisterRule(
+			new PluginNamespace( self::HOOKS ),
+			[],
+			$this->createReflectionProvider(),
+			$functions
+		);
+
+		$errors = [];
+		foreach ( $functions as $offset => $function ) {
+			$errors[] = [
+				$function . '() in ' . self::HOOKS . '\Feature\TimingService::register() waits for an action itself.'
+					. ' Implement Delayed and return the action from get_registration_action(), so the plugin defers'
+					. ' the service until that action.',
+				12 + $offset,
+				$this->tip( 'nocontextchecksinregister', 'i-need-a-service-only-in-some-requests' ),
+			];
+		}
+
+		$this->analyse( $this->fixtures(), $errors );
+	}
+
 	/**
 	 * @return array<string>
 	 */
@@ -129,6 +161,7 @@ final class HookPlacementRulesTest extends RuleTestCase {
 			'Feature/GoodService',
 			'Feature/BadService',
 			'Feature/NotRegisterable',
+			'Feature/TimingService',
 			'Plugin',
 		];
 

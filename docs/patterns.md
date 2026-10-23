@@ -168,9 +168,9 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 **Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-72`.
 
 **Rules:** `architecture.noContextChecksInRegister`,
-`architecture.queryContextNeedsDelay`. `did_action()` in `register()` is
-reported once #84 lands, and an action that never fires or runs too early for
-the condition once #82 lands.
+`architecture.queryContextNeedsDelay`. Hook-timing checks such as
+`did_action()` in `register()` are reported; an action that never fires or
+runs too early for the condition is reported once #82 lands.
 
 ## I need to create objects on demand
 

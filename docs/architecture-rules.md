@@ -680,21 +680,30 @@ action belongs to a service that implements `Delayed`.
 ### `architecture.noContextChecksInRegister`
 
 **Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
-no `is_admin()` checks wrapped around hook calls.
+no `is_admin()` checks wrapped around hook calls, or hooking to an early
+action just to wait for a later one.
 
-**Checks:** `register()` does not call a request-context function directly.
+**Checks:** `register()` does not call a request-context or hook-timing
+function directly.
 
-**Allows:** request-context functions everywhere else, including in the
-callbacks `register()` adds, which run later; principle 4 lets implementation
-details read WordPress state.
+**Allows:** request-context and hook-timing functions everywhere else,
+including in the closures and arrow functions `register()` adds as callbacks,
+which run later. Infrastructure calls outside `register()` are unaffected;
+principle 4 lets implementation details read WordPress state.
 
 **Configuration:** `hooks.contextFunctions` lists the request-context
 functions: `is_admin`, `is_network_admin`, `is_user_admin`, `wp_doing_ajax`,
 `wp_doing_cron`, `wp_is_json_request`, `is_customize_preview`, `is_singular`,
-`is_front_page`, `is_home` and `is_archive`.
+`is_front_page`, `is_home` and `is_archive`. `hooks.timingFunctions` lists the
+hook-timing functions: `did_action`, `doing_action`, `did_filter`,
+`doing_filter`, `current_action` and `current_filter`.
 
-**Fix:** implement `Conditional` and return the answer from `is_needed()`. The
-plugin then never builds the service in a request that does not need it.
+**Fix:** for request conditions, implement `Conditional` and return the answer
+from `is_needed()`. The plugin then never builds the service in a request
+that does not need it. For hook timing, implement `Delayed` and return the
+action from `get_registration_action()`, so the plugin defers the service
+until that action. The two checks have separate messages under the same
+identifier.
 
 **Patterns:** [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests), [I need to hook in later](patterns.md#i-need-to-hook-in-later).
 
