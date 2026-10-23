@@ -6,6 +6,7 @@ namespace MWPD\BasicScaffold\Tests\Fixture\Lifecycle;
 
 use MWPD\BasicScaffold\Infrastructure\Activateable;
 use MWPD\BasicScaffold\Infrastructure\Deactivateable;
+use MWPD\BasicScaffold\Infrastructure\DefaultRegistrationPriority;
 use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
@@ -20,6 +21,8 @@ use MWPD\BasicScaffold\Infrastructure\Service;
  * deactivation hooks.
  */
 final class RewriteLifecycleService implements Service, Registerable, Delayed, Activateable, Deactivateable {
+
+	use DefaultRegistrationPriority;
 
 	public const POST_TYPE = 'bs_fixture_book';
 

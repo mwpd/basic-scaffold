@@ -61,7 +61,7 @@ Each lifecycle question a service has to answer is a small interface in
 | Lifecycle question | Interface | How the plugin uses it |
 | --- | --- | --- |
 | Is it needed in this request at all? | `Conditional::is_needed()` | Checked before the service is built; if `false`, it never exists. A query-dependent condition also needs `Delayed` to wait for `wp` or later. |
-| When does it hook in? | `Delayed::get_registration_action()` | Registration waits for that action, or runs at once if it has already fired. |
+| When does it hook in? | `Delayed::get_registration_action()`, `Delayed::get_registration_priority()` | Registration waits for that action, at that priority, or runs at once if it has already fired. Dependencies that are only ready later take precedence over the priority. |
 | Which services must exist first? | `HasDependencies::get_dependencies()` | Registration waits until those services are registered, and fails with `FailedToResolveDependencies` when they never can be. |
 | What does it hook into? | `Registerable::register()` | Called once the service is built, to add its actions and filters. |
 | What happens on activation or deactivation? | `Activateable`, `Deactivateable` | Called from the plugin's activation and deactivation hooks. |
@@ -71,7 +71,7 @@ The plugin itself only hooks into `plugins_loaded`
 deactivation hooks (`basic-scaffold.php:119-131`). Everything else is decided
 per service. `SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
-(`src/SampleSubsystem/SampleLoopService.php:55-72`), and no other code has to
+(`src/SampleSubsystem/SampleLoopService.php:60-77`), and no other code has to
 know.
 
 The questions are static methods on purpose: the plugin can **decide before it
@@ -208,7 +208,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:770-774`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:778-782`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -321,6 +321,12 @@ distinguishes them (`Simple…`, `WordPress…`, `Cached…`), never `…Impl`,
 `SimpleServiceContainer`, `TemplatedViewFactory` and `WordPressDebugMode` name
 what distinguishes their implementations. The abstract base
 `ServiceBasedPlugin` and the trait `Stringify` follow the same rule.
+One name is an approved exception: the trait `DefaultRegistrationPriority`
+supplies the default registration priority of a `Delayed` service, so
+"default" describes the behaviour it provides, not a kind of implementation.
+The maintainer ruled on that one name
+([#36](https://github.com/mwpd/basic-scaffold/issues/36)); it does not open
+`Default…` names in general.
 Exceptions name the failure, such as `FailedToLoadView` and `InvalidService`;
 only the configured exception marker interface (`BasicScaffoldException` in
 this scaffold) may end in `Exception`.
@@ -460,7 +466,7 @@ WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
 happened (`src/Infrastructure/ServiceBasedPlugin.php:322-326`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:725-728`).
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:733-736`).
 A step that runs a second time must leave the plugin exactly as the first run
 did.
 

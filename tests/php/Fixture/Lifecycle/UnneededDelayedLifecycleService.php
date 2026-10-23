@@ -7,6 +7,7 @@ namespace MWPD\BasicScaffold\Tests\Fixture\Lifecycle;
 use MWPD\BasicScaffold\Infrastructure\Activateable;
 use MWPD\BasicScaffold\Infrastructure\Conditional;
 use MWPD\BasicScaffold\Infrastructure\Deactivateable;
+use MWPD\BasicScaffold\Infrastructure\DefaultRegistrationPriority;
 use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
@@ -18,6 +19,7 @@ final class UnneededDelayedLifecycleService implements
 	Delayed,
 	Activateable,
 	Deactivateable {
+	use DefaultRegistrationPriority;
 	use RecordsLifecycle;
 
 	private const NAME = 'unneeded-delayed';

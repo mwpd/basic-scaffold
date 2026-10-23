@@ -703,8 +703,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * Scheduling is done here, so every service goes through it, whether or not
 	 * it had to wait for its dependencies. For regular services, this means they
 	 * are registered immediately. For delayed services, this means they are only
-	 * registered upon their own registration action, even when their
-	 * dependencies arrived earlier.
+	 * registered upon their own registration action, at their own registration
+	 * priority, even when their dependencies arrived earlier.
+	 *
+	 * A delayed service whose action has already run by the time it is
+	 * scheduled is registered at once. That is the case when its dependencies
+	 * were only ready later than its action, or than its priority on it: the
+	 * service waited for them, and is registered where the pending services
+	 * resume, at the end of the action they arrived on. Dependencies take
+	 * precedence over the priority, and an action is never run again to make
+	 * up for a priority that has passed.
 	 *
 	 * @param string       $id         ID of the service to register.
 	 * @param class-string $class_name Class of the service to register.
@@ -721,7 +729,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 					function () use ( $id, $class_name ): void {
 						$this->maybe_register_service( $id, $class_name );
 					},
-					10,
+					$class_name::get_registration_priority(),
 					0
 				);
 			}

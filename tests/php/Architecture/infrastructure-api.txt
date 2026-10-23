@@ -10,8 +10,11 @@ Infrastructure\Conditional interface
 Infrastructure\Conditional::public abstract static function is_needed(): bool
 Infrastructure\Deactivateable interface
 Infrastructure\Deactivateable::public abstract function deactivate(): void
+Infrastructure\DefaultRegistrationPriority trait
+Infrastructure\DefaultRegistrationPriority::public static function get_registration_priority(): int
 Infrastructure\Delayed interface
 Infrastructure\Delayed::public abstract static function get_registration_action(): string
+Infrastructure\Delayed::public abstract static function get_registration_priority(): int
 Infrastructure\HasDependencies interface
 Infrastructure\HasDependencies::public abstract static function get_dependencies(): array
 Infrastructure\Injector extends Infrastructure\Service

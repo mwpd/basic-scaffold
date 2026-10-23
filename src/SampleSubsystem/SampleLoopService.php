@@ -15,6 +15,7 @@ namespace MWPD\BasicScaffold\SampleSubsystem;
 
 use MWPD\BasicScaffold\Infrastructure\{
 	Conditional,
+	DefaultRegistrationPriority,
 	Delayed,
 	Registerable,
 	Service,
@@ -26,6 +27,10 @@ use WP_Post;
  * Sample loop service.
  */
 final class SampleLoopService implements Service, Registerable, Conditional, Delayed {
+
+	// Nothing else on the action needs to run before or after this service, so
+	// it registers at the default priority.
+	use DefaultRegistrationPriority;
 
 	/**
 	 * We only want to register this service once the loop has been set up, as
