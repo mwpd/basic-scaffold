@@ -164,9 +164,14 @@ example, means nothing before the query.
 **Instead:** implement `Delayed` and name the action in
 `get_registration_action()`. The plugin waits for it, or registers at once if
 it has already fired, and only then asks `is_needed()` and builds the service.
+`get_registration_priority()` places the service among the action's other
+callbacks; the `DefaultRegistrationPriority` trait supplies WordPress's default
+of 10 for a service that has no reason to choose.
 
 ```php
 final class SampleLoopService implements Service, Registerable, Conditional, Delayed {
+
+	use DefaultRegistrationPriority; // Registers at priority 10 on the action.
 
 	private const REGISTRATION_HOOK = 'wp';
 
@@ -180,13 +185,40 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 }
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-72`.
+A service that has to run before or after other callbacks on its action
+implements the method itself instead of using the trait:
+
+```php
+public static function get_registration_priority(): int {
+	return 20; // After the callbacks at the default priority of 10.
+}
+```
+
+**Dependencies take precedence over the priority.** A `Delayed` service that
+also implements `HasDependencies` never registers before its dependencies.
+When they are ready before its action, it still waits for the action and
+registers at its declared priority. When they are only ready after its
+priority on the action has passed, or after the action itself, it registers
+as soon as they are, at the end of the action they arrive on. The plugin does
+not reject that combination, and does not run an action again to make up for a
+priority that has passed.
+
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:29-77`, and the
+priority and dependency cases in
+`tests/php/Unit/ServiceBasedPluginTest.php:533-660`.
 
 **Rules:** `architecture.noContextChecksInRegister`,
 `architecture.queryContextNeedsDelay`, `architecture.registrationActionKnown`.
 Hook-timing checks such as `did_action()` in `register()` are reported, as are
 unknown registration actions. Whether a known action fires in the service's
 request type or runs late enough for its condition remains a review concern.
+
+**Migration:** `get_registration_priority()` is a new method on `Delayed`, so a
+generated plugin's existing `Delayed` services stop loading until they declare
+it: PHP reports a fatal error for a class that does not implement every
+interface method. Add `use DefaultRegistrationPriority;` (from the
+`Infrastructure` namespace) to each of them to keep the priority of 10 they
+were registered at before, or implement the method to choose another one.
 
 ## I need to set something up when the plugin is activated
 
@@ -329,8 +361,8 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:32` and `:69-90`,
 bound at `src/BasicScaffoldPlugin.php:110`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:346-349`, proven by
-`tests/php/Unit/ServiceBasedPluginTest.php:685-737`.
+`src/Infrastructure/ServiceBasedPlugin.php:365-368`, proven by
+`tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`, `architecture.noServiceLocator`;
 `architecture.dependencyDirection` keeps the consumer on the interface.
@@ -508,7 +540,7 @@ own:
 - **It hands out more than services.** Next to the registered services, the
   container holds the injector that builds their collaborators, under
   `mwpd.basic_scaffold.injector`
-  (`src/Infrastructure/ServiceBasedPlugin.php:351-354`), so outside code could
+  (`src/Infrastructure/ServiceBasedPlugin.php:371-374`), so outside code could
   call `bind()`, `share()` or `delegate()` on it, which
   `architecture.noServiceLocator` forbids even the plugin's own subsystems.
 - **Whether a service is there depends on the moment.** `get()` throws
@@ -575,8 +607,8 @@ other code. Two investigations are open, and neither is approved:
   a theme's overrides of them, never a theme's other files or another plugin.
 
 **Proven by:** the configuration filters at
-`src/Infrastructure/ServiceBasedPlugin.php:372-375` and `:835-887`, and
-`tests/php/Unit/ServiceBasedPluginTest.php:575-597`, where a filter added
+`src/Infrastructure/ServiceBasedPlugin.php:391-394` and `:873-954`, and
+`tests/php/Unit/ServiceBasedPluginTest.php:899-921`, where a filter added
 after the plugin was constructed, as a plugin loaded later would add it,
 takes effect at `plugins_loaded`.
 
@@ -624,7 +656,7 @@ Calling a WordPress function inside an implementation detail is still fine
 The delegation is for values a service depends on.
 
 **Proven by:** `src/BasicScaffoldPlugin.php:159-192` and
-`src/SampleSubsystem/SampleLoopService.php:81`.
+`src/SampleSubsystem/SampleLoopService.php:86`.
 
 For request input, a boundary adapter reads the superglobals, sanitizes and
 normalizes them into an internal type, and supplies that value to the service.
@@ -655,7 +687,7 @@ public function __construct( string $path, ViewFactory $view_factory, ?DebugMode
 
 **Proven by:** `src/Infrastructure/View/SimpleView.php:73-76`, and the
 injector and container defaults of `ServiceBasedPlugin`
-(`src/Infrastructure/ServiceBasedPlugin.php:152-171`).
+(`src/Infrastructure/ServiceBasedPlugin.php:164-183`).
 
 **Rules:** `architecture.newOnlyWhereAllowed` allows `new` in exactly this
 shape: a nullable parameter typed to an interface the default implements.

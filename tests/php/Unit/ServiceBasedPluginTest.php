@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MWPD\BasicScaffold\Tests\Unit;
 
+use ArrayObject;
 use Brain\Monkey\Actions;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
@@ -16,6 +17,7 @@ use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\WpService;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithCallback;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
@@ -37,11 +39,17 @@ use MWPD\BasicScaffold\Tests\Fixture\TestServicesPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServiceRegistrationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedDependentService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedService;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedService2;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestEarlyDelayedDependentService;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestLateDelayedDependentService;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestLastDelayedService;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestLateDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceA;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceB;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceC;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingB;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingInjector;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingLast;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingUnneeded;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceWithMissingDependency;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededDelayedService;
@@ -476,6 +484,178 @@ class ServiceBasedPluginTest extends TestCase {
 		// Second delayed dependency registers now.
 		$this->fire( 'wp_loaded' );
 		$this->assertTrue( $plugin->get_container()->has( 'delayed_service_2' ) );
+		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
+	}
+
+	/**
+	 * Get the priorities at which callbacks were added to an action, in order.
+	 *
+	 * @return array<int>
+	 */
+	private function get_added_priorities( string $action ): array {
+		$priorities = array_keys( $this->callbacks[ $action ] ?? [] );
+		sort( $priorities );
+
+		return $priorities;
+	}
+
+	/**
+	 * Add a callback that records, when the action reaches the given priority,
+	 * which of the given services are registered by then.
+	 *
+	 * @param string             $action   Action to probe.
+	 * @param int                $priority Priority to probe at.
+	 * @param ServiceBasedPlugin $plugin   Plugin whose container to look in.
+	 * @param string             ...$ids   IDs of the services to look for.
+	 *
+	 * @return ArrayObject<string,bool> Filled in when the probe runs, with
+	 *                                  whether each service was registered.
+	 */
+	private function probe( string $action, int $priority, ServiceBasedPlugin $plugin, string ...$ids ): ArrayObject {
+		$container = $plugin->get_container();
+		/** @var ArrayObject<string,bool> $seen */
+		$seen = new ArrayObject();
+
+		$this->callbacks[ $action ][ $priority ][] = static function () use ( $container, $ids, $seen ): void {
+			foreach ( $ids as $id ) {
+				$seen[ $id ] = $container->has( $id );
+			}
+		};
+
+		return $seen;
+	}
+
+	/**
+	 * Test that a delayed service is hooked to its registration action at the
+	 * priority it declares, read before the service is built, while a service
+	 * using the default trait keeps priority 10.
+	 */
+	public function test_a_delayed_service_registers_at_its_declared_priority(): void {
+		$plugin = new TestServicesPlugin(
+			[
+				'late_service'    => TestLateDelayedService::class,
+				'delayed_service' => TestDelayedService::class,
+			]
+		);
+		$plugin->register_services();
+
+		$this->assertSame( [ 10, 20 ], $this->get_added_priorities( 'init' ) );
+		$this->assertFalse( $plugin->get_container()->has( 'late_service' ) );
+
+		$seen = $this->probe( 'init', 15, $plugin, 'delayed_service', 'late_service' );
+		$this->fire( 'init' );
+
+		$this->assertSame(
+			[
+				'delayed_service' => true,
+				'late_service'    => false,
+			],
+			$seen->getArrayCopy()
+		);
+		$this->assertTrue( $plugin->get_container()->has( 'late_service' ) );
+	}
+
+	/**
+	 * Test that a service whose requested priority on its own action comes
+	 * before its dependency's waits for the dependency, and then registers at
+	 * the resumption point instead of being rejected.
+	 */
+	public function test_a_dependency_later_on_the_same_action_takes_precedence_over_the_priority(): void {
+		$plugin = new TestServicesPlugin(
+			[
+				'dependent_service' => TestEarlyDelayedDependentService::class,
+				'late_service'      => TestLateDelayedService::class,
+			]
+		);
+		$plugin->register_services();
+
+		// Nothing is hooked at the dependent's own priority 5.
+		$this->assertSame( [ 20, PHP_INT_MAX ], $this->get_added_priorities( 'init' ) );
+
+		$seen = $this->probe( 'init', 21, $plugin, 'late_service', 'dependent_service' );
+		$this->fire( 'init' );
+
+		$this->assertSame(
+			[
+				'late_service'      => true,
+				'dependent_service' => false,
+			],
+			$seen->getArrayCopy()
+		);
+		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
+	}
+
+	/**
+	 * Test that a service whose own action has already run by the time its
+	 * dependency arrives on a later action registers then, without its own
+	 * action being run again.
+	 */
+	public function test_a_dependency_on_a_later_action_takes_precedence_over_the_priority(): void {
+		$plugin = new TestServicesPlugin(
+			[
+				'dependent_service' => TestEarlyDelayedDependentService::class,
+				'late_service'      => TestDelayedService2::class,
+			]
+		);
+		$plugin->register_services();
+
+		$this->fire( 'init' );
+
+		$this->assertSame( [], $this->get_added_priorities( 'init' ) );
+		$this->assertFalse( $plugin->get_container()->has( 'dependent_service' ) );
+
+		$this->fire( 'wp_loaded' );
+
+		$this->assertTrue( $plugin->get_container()->has( 'late_service' ) );
+		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
+	}
+
+	/**
+	 * Test that a service whose dependency arrives before its own action still
+	 * waits for that action, at its declared priority.
+	 */
+	public function test_a_dependent_still_waits_for_its_own_action_at_its_priority(): void {
+		$plugin = new TestServicesPlugin(
+			[
+				'dependent_service' => TestLateDelayedDependentService::class,
+				'delayed_service'   => TestDelayedService::class,
+			]
+		);
+		$plugin->register_services();
+
+		$this->fire( 'init' );
+
+		$this->assertTrue( $plugin->get_container()->has( 'delayed_service' ) );
+		$this->assertFalse( $plugin->get_container()->has( 'dependent_service' ) );
+		$this->assertSame( [ 20 ], $this->get_added_priorities( 'wp' ) );
+
+		$seen = $this->probe( 'wp', 15, $plugin, 'dependent_service' );
+		$this->fire( 'wp' );
+
+		$this->assertSame( [ 'dependent_service' => false ], $seen->getArrayCopy() );
+		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
+	}
+
+	/**
+	 * Test that a dependency hooked at the same last priority as the plugin's
+	 * check of the pending services, but after it, is still waited for rather
+	 * than reported as never registered.
+	 */
+	public function test_a_dependency_at_the_last_priority_is_still_waited_for(): void {
+		$plugin = new TestServicesPlugin(
+			[
+				'dependent_service' => TestServiceNeedingLast::class,
+				'last_service'      => TestLastDelayedService::class,
+				'wp_service'        => WpService::class,
+				'delayed_service'   => TestDelayedService::class,
+			]
+		);
+		$plugin->register_services();
+
+		$this->fire( 'init' );
+		$this->fire( 'wp' );
+
+		$this->assertTrue( $plugin->get_container()->has( 'last_service' ) );
 		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
 	}
 

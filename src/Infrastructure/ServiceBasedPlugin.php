@@ -133,6 +133,18 @@ abstract class ServiceBasedPlugin implements Plugin {
 	private array $resumption_actions = [];
 
 	/**
+	 * Delayed services hooked to their registration action, whose callback
+	 * has not run yet.
+	 *
+	 * Once the action has started, did_action() can no longer tell such a
+	 * service from one that will never be registered: its callback may still
+	 * be ahead, even at the priority the pending services are checked at.
+	 *
+	 * @var array<string,non-empty-string>
+	 */
+	private array $hooked_services = [];
+
+	/**
 	 * Whether register_services() has already run in this request.
 	 */
 	private bool $services_registered = false;
@@ -682,6 +694,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			return null;
 		}
 
+		if ( isset( $this->hooked_services[ $id ] ) ) {
+			return $this->hooked_services[ $id ];
+		}
+
 		$action = $class_name::get_registration_action();
 
 		return \did_action( $action ) ? null : $action;
@@ -703,8 +719,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * Scheduling is done here, so every service goes through it, whether or not
 	 * it had to wait for its dependencies. For regular services, this means they
 	 * are registered immediately. For delayed services, this means they are only
-	 * registered upon their own registration action, even when their
-	 * dependencies arrived earlier.
+	 * registered upon their own registration action, at their own registration
+	 * priority, even when their dependencies arrived earlier.
+	 *
+	 * A delayed service whose action has already run by the time it is
+	 * scheduled is registered at once. That is the case when its dependencies
+	 * were only ready later than its action, or than its priority on it: the
+	 * service waited for them, and is registered where the pending services
+	 * resume, at the end of the action they arrived on. Dependencies take
+	 * precedence over the priority, and an action is never run again to make
+	 * up for a priority that has passed.
 	 *
 	 * @param string       $id         ID of the service to register.
 	 * @param class-string $class_name Class of the service to register.
@@ -716,12 +740,24 @@ abstract class ServiceBasedPlugin implements Plugin {
 			if ( \did_action( $registration_action ) ) {
 				$this->maybe_register_service( $id, $class_name );
 			} else {
+				$registration_priority = $class_name::get_registration_priority();
+
+				$this->hooked_services[ $id ] = $registration_action;
+
 				\add_action(
 					$registration_action,
-					function () use ( $id, $class_name ): void {
+					function () use ( $id, $class_name, $registration_priority ): void {
+						unset( $this->hooked_services[ $id ] );
 						$this->maybe_register_service( $id, $class_name );
+
+						// At the last priority, this can run after the pending
+						// services were checked on this action, so they are
+						// checked again for what this service brings.
+						if ( PHP_INT_MAX === $registration_priority && [] !== $this->pending_services ) {
+							$this->register_pending_services();
+						}
 					},
-					10,
+					$registration_priority,
 					0
 				);
 			}

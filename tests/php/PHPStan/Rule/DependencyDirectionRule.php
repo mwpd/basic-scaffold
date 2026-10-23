@@ -17,6 +17,7 @@ use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PhpParser\Node;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\FileNode;
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
@@ -33,7 +34,11 @@ use PHPStan\Rules\RuleErrorBuilder;
  *   plugins build on it, so it never knows about their features.
  * - A feature subsystem depends on the infrastructure's interfaces and on
  *   the exceptions, never on a concrete infrastructure class, so the
- *   implementation can be swapped in the composition root.
+ *   implementation can be swapped in the composition root. It may use an
+ *   infrastructure trait only if the trait supplies nothing but methods of
+ *   infrastructure interfaces the using class implements, such as
+ *   DefaultRegistrationPriority for Delayed: a trait is not an object that
+ *   could be bound instead.
  * - Only the composition root, an explicit list of classes, knows the
  *   concrete classes and wires everything together.
  * - Nothing depends on the tests.
@@ -138,8 +143,18 @@ final class DependencyDirectionRule implements Rule {
 		}
 
 		if ( $to === DependencyContext::INFRASTRUCTURE ) {
-			return $this->reflection->hasClass( $dependency )
-				&& $this->reflection->getClass( $dependency )->isInterface();
+			if ( ! $this->reflection->hasClass( $dependency ) ) {
+				return false;
+			}
+
+			$type = $this->reflection->getClass( $dependency );
+
+			// Only a subsystem may use a trait that fulfils its interfaces; a
+			// top-level class keeps to the interfaces themselves.
+			return $type->isInterface()
+				|| ( $from !== DependencyContext::TOP_LEVEL
+					&& $type->isTrait()
+					&& $this->supplies_contract( $name, $type ) );
 		}
 
 		// A subsystem may use its own classes and those of other subsystems,
@@ -179,6 +194,14 @@ final class DependencyDirectionRule implements Rule {
 				. ' and the exceptions; add an interface to the infrastructure that the other class implements.';
 		}
 
+		if ( $to === DependencyContext::INFRASTRUCTURE
+			&& $from !== DependencyContext::TOP_LEVEL
+			&& $this->is_trait( $dependency ) ) {
+			return $problem . ' A subsystem only uses a trait of the infrastructure that supplies methods of the'
+				. ' infrastructure interfaces its class implements; implement the interface the trait is for, or'
+				. ' keep the code in the subsystem.';
+		}
+
 		if ( $to === DependencyContext::INFRASTRUCTURE ) {
 			return $problem . sprintf(
 				' Depend on %s instead, and bind the implementation in the composition root.',
@@ -188,6 +211,50 @@ final class DependencyDirectionRule implements Rule {
 
 		return $problem . ' Only the composition root (parameters.architecture.dependencyDirection.compositionRoot)'
 			. ' knows how the plugin is put together; receive what you need through the constructor.';
+	}
+
+	/**
+	 * Check whether a trait supplies only methods of the infrastructure
+	 * interfaces that the class using it implements.
+	 *
+	 * @param string          $name  The class using the trait.
+	 * @param ClassReflection $used  The trait.
+	 * @return bool Whether the trait only fulfils that contract.
+	 */
+	private function supplies_contract( string $name, ClassReflection $used ): bool {
+		if ( ! $this->reflection->hasClass( $name ) ) {
+			return false;
+		}
+
+		$contract = [];
+		foreach ( $this->reflection->getClass( $name )->getInterfaces() as $interface ) {
+			if ( $this->context->get_layer( $interface->getName() ) !== DependencyContext::INFRASTRUCTURE ) {
+				continue;
+			}
+
+			foreach ( $interface->getNativeReflection()->getMethods() as $method ) {
+				$contract[ strtolower( $method->getName() ) ] = true;
+			}
+		}
+
+		$methods = $used->getNativeReflection()->getMethods();
+		foreach ( $methods as $method ) {
+			if ( ! isset( $contract[ strtolower( $method->getName() ) ] ) ) {
+				return false;
+			}
+		}
+
+		return $methods !== [];
+	}
+
+	/**
+	 * Check whether a dependency is a trait.
+	 *
+	 * @param string $dependency The dependency.
+	 * @return bool Whether it is a trait.
+	 */
+	private function is_trait( string $dependency ): bool {
+		return $this->reflection->hasClass( $dependency ) && $this->reflection->getClass( $dependency )->isTrait();
 	}
 
 	/**

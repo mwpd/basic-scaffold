@@ -40,6 +40,10 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 	private const CONTRACT_FIX = ' Depend on the interface it implements (' . self::LAYERS . '\Infrastructure\Contract)'
 		. ' instead, and bind the implementation in the composition root.';
 
+	private const TRAIT_FIX = ' A subsystem only uses a trait of the infrastructure that supplies methods of the'
+		. ' infrastructure interfaces its class implements; implement the interface the trait is for, or keep the'
+		. ' code in the subsystem.';
+
 	private const ROOT_FIX = ' Only the composition root (parameters.architecture.dependencyDirection.compositionRoot)'
 		. ' knows how the plugin is put together; receive what you need through the constructor.';
 
@@ -223,6 +227,47 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 					'Plugin',
 					'the composition root',
 					self::ROOT_FIX
+				),
+			]
+		);
+	}
+
+	public function test_a_subsystem_uses_an_infrastructure_trait_only_to_fulfil_its_interfaces(): void {
+		$this->analyse(
+			$this->fixtures( 'Feature/UsesTraits' ),
+			[
+				$this->error(
+					17,
+					'Feature\UsesShortcut',
+					'the Feature subsystem',
+					'Infrastructure\Shortcut',
+					'the infrastructure',
+					self::TRAIT_FIX
+				),
+				$this->error(
+					22,
+					'Feature\UsesDefaultWithoutContract',
+					'the Feature subsystem',
+					'Infrastructure\DefaultWork',
+					'the infrastructure',
+					self::TRAIT_FIX
+				),
+			]
+		);
+	}
+
+	public function test_a_top_level_class_does_not_use_an_infrastructure_trait(): void {
+		$this->analyse(
+			$this->fixtures( 'StrayTraitUser' ),
+			[
+				$this->error(
+					11,
+					'StrayTraitUser',
+					'a top-level class',
+					'Infrastructure\DefaultWork',
+					'the infrastructure',
+					' Depend on an interface of the infrastructure instead, and bind the implementation in the'
+						. ' composition root.'
 				),
 			]
 		);

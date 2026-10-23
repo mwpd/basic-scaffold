@@ -13,6 +13,8 @@ infrastructure works out when to trigger what.
 ```php
 final class SampleLoopService implements Service, Registerable, Conditional, Delayed {
 
+	use DefaultRegistrationPriority;   // Registers at priority 10 on its action.
+
 	public static function is_needed(): bool {
 		return \is_singular();             // Only on singular views…
 	}

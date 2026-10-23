@@ -6,6 +6,7 @@ namespace MWPD\BasicScaffold\Tests\Fixture\Lifecycle;
 
 use MWPD\BasicScaffold\Infrastructure\Activateable;
 use MWPD\BasicScaffold\Infrastructure\Deactivateable;
+use MWPD\BasicScaffold\Infrastructure\DefaultRegistrationPriority;
 use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
@@ -14,6 +15,7 @@ use MWPD\BasicScaffold\Infrastructure\Service;
  * Registers on init, which has not fired in the tests' lifecycle requests.
  */
 final class DelayedLifecycleService implements Service, Registerable, Delayed, Activateable, Deactivateable {
+	use DefaultRegistrationPriority;
 	use RecordsLifecycle;
 
 	private const NAME = 'delayed';
