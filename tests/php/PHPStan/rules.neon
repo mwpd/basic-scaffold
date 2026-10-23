@@ -26,6 +26,9 @@ parametersSchema:
         noWordPressErrorMechanisms: structure([
             boundaryAdapters: listOf(string())
         ])
+        rawIsEscaped: structure([
+            escapingFunctions: listOf(string())
+        ])
         dependencyDirection: structure([
             infrastructure: string()
             compositionRoot: listOf(string())
@@ -189,6 +192,14 @@ services:
             views: %architecture.dependencyDirection.views%
             reflection: @PHPStan\Reflection\ReflectionProvider
             file_type_mapper: @PHPStan\Type\FileTypeMapper
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\RawIsEscapedRule
+        arguments:
+            views: %architecture.dependencyDirection.views%
+            escaping_functions: %architecture.rawIsEscaped.escapingFunctions%
         tags:
             - phpstan.rules.rule
 

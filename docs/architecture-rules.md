@@ -118,7 +118,7 @@ says which rules enforce each principle, and what stays with review.
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
 | [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed` | Collaborators pulled from globals, HTML echoed from business logic, god classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
-| [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
+| [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
@@ -139,6 +139,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
 | A custom hook without the plugin's prefix | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
+| A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
 | A sample service depending on a concrete infrastructure class | `dependencyDirection` | `tests/php/PHPStan/Fixture/Layers/Feature/Service.php` |
 | A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
 
@@ -296,6 +297,42 @@ when throwing. The scaffold needs no empty catches.
 its previous cause, or rethrow it. Handle the failure in an empty catch; list
 the method only when doing nothing is an intentional, reviewed recovery.
 See [I need to report a failure](patterns.md#i-need-to-report-a-failure).
+
+### `architecture.rawIsEscaped`
+
+**Principle:** [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over).
+
+**Checks:** expressions printed with `echo`, `<?=` or `print` in production
+view directories escape every `$this->raw( … )` occurrence and every use of a
+variable directly assigned from that call, including its properties and array
+items. Each diagnostic names the template file, output line and escaping
+function family.
+
+**Allows:** property reads such as `$this->plugin`, which the view escapes
+already, and raw values enclosed in a configured escaping function's argument.
+Concatenation and nesting inside that argument pass, for example
+`esc_html( 'Title: ' . strtoupper( $this->raw( 'title' ) ) )`. Escaping one
+concatenation fragment does not escape its siblings. Unlisted functions such
+as `strtoupper()` alone do not count as escaping.
+
+The check follows only direct assignments from `raw()` in the template, not
+copies, helper return values, closure captures or interprocedural data flow.
+Once directly assigned from `raw()`, a variable needs escaping for the remainder of the
+template; the check conservatively does not prove that later assignments or
+branches make it safe. Nested function and class bodies are checked in their
+own scope, so their local assignments do not affect the enclosing template.
+
+**Configuration:** `dependencyDirection.views` supplies the same production
+view directories as the dependency rule. `rawIsEscaped.escapingFunctions`
+lists the accepted functions, matched without regard to case or a leading
+backslash. Defaults are `esc_html`, `esc_attr`, `esc_url`, `esc_js`,
+`esc_textarea`, `esc_xml`, `wp_kses`, `wp_kses_post`, `wp_kses_data`, `absint`
+and `intval`.
+
+**Fix:** wrap each raw value, or the expression containing it, in the listed
+function appropriate to its output context. The check enforces explicit
+escaping; choosing the right context still needs review. See
+[I need to print output](patterns.md#i-need-to-print-output).
 
 ### `architecture.strictTypes`
 

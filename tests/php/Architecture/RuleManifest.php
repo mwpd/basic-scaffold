@@ -82,6 +82,8 @@ final class RuleManifest {
 
 	public const EXCEPTIONS_KEEP_CAUSE = 'architecture.exceptionsKeepCause';
 
+	public const RAW_IS_ESCAPED = 'architecture.rawIsEscaped';
+
 	public const DEPENDENCY_DIRECTION = 'architecture.dependencyDirection';
 
 	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
@@ -217,6 +219,18 @@ final class RuleManifest {
 			'signatures'       => [
 				'loses the caught exception',
 				'discards the caught exception',
+			],
+		],
+		self::RAW_IS_ESCAPED                        => [
+			'principle'        => 'Principle 9: Never trust what WordPress hands over',
+			'principle_anchor' => '9-never-trust-what-wordpress-hands-over',
+			'pattern'          => 'i-need-to-print-output',
+			'configuration'    => 'parameters.architecture.rawIsEscaped',
+			'checked_by'       => [
+				Rule\RawIsEscapedRule::class,
+			],
+			'signatures'       => [
+				'prints an unescaped raw() value',
 			],
 		],
 		self::DEPENDENCY_DIRECTION                  => [
