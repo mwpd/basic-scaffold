@@ -205,9 +205,15 @@ final class SynchronousSiteRunner implements SiteRunner {
 	 * WordPress keeps a stack of switched sites, and restore_current_blog()
 	 * only takes one entry off it. Work that switches sites itself must
 	 * restore them before it returns. If it does not, the site that is current
-	 * afterwards is not the one switched to here; the original site is then
-	 * switched to again, and the work fails, unless it already failed with an
-	 * exception of its own, which is never replaced.
+	 * afterwards is not the one switched to here: the switches it left are
+	 * restored one by one until it is, then this one, and the work fails,
+	 * unless it already failed with an exception of its own, which is never
+	 * replaced. Leftover switches that happen to end on the same site cannot
+	 * be told apart without reading WordPress's globals.
+	 *
+	 * The switch itself happens inside the protected part: switch_to_blog()
+	 * runs the switch_blog action once it has switched, and a callback that
+	 * throws there must not leave the site switched either.
 	 *
 	 * @param SiteId   $site_id Site to switch to.
 	 * @param callable $work    Work to do in the site.
@@ -219,14 +225,21 @@ final class SynchronousSiteRunner implements SiteRunner {
 		$target   = $site_id->to_int();
 		$current  = $target;
 
-		\switch_to_blog( $target );
-
 		try {
+			\switch_to_blog( $target );
 			$work();
 		} finally {
 			$current = \get_current_blog_id();
 
-			\restore_current_blog();
+			// Undo switches the work left behind, then the one made here,
+			// unless the work already undid it.
+			while ( ! in_array( \get_current_blog_id(), [ $target, $original ], true ) && \restore_current_blog() ) {
+				continue;
+			}
+
+			if ( \get_current_blog_id() === $target ) {
+				\restore_current_blog();
+			}
 
 			if ( \get_current_blog_id() !== $original ) {
 				\switch_to_blog( $original );

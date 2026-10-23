@@ -96,6 +96,12 @@ final class Multisite {
 	private array $writes = [];
 
 	/**
+	 * Site whose switch_blog callbacks throw once WordPress has switched to
+	 * it, if any.
+	 */
+	private ?int $failing_switch = null;
+
+	/**
 	 * Recorder that also receives each option write, if any.
 	 */
 	private ?LifecycleRecorder $recorder = null;
@@ -235,7 +241,8 @@ final class Multisite {
 	/**
 	 * @param int $site Site to switch to.
 	 *
-	 * @throws LogicException On a single site, where WordPress has no such function.
+	 * @throws LogicException On a single site, where WordPress has no such function, or
+	 *                        when a switch_blog callback is set up to fail.
 	 */
 	public function switch_to_blog( int $site ): bool {
 		if ( ! $this->multisite ) {
@@ -245,6 +252,11 @@ final class Multisite {
 		$this->switches[] = $site;
 		$this->stack[]    = $this->current;
 		$this->current    = $site;
+
+		// Core runs the switch_blog action once it has switched.
+		if ( $site === $this->failing_switch ) {
+			throw new LogicException( "A switch_blog callback failed for site {$site}." );
+		}
 
 		return true;
 	}
@@ -299,6 +311,13 @@ final class Multisite {
 	 */
 	public function record_writes_into( LifecycleRecorder $recorder ): void {
 		$this->recorder = $recorder;
+	}
+
+	/**
+	 * Make the switch_blog callbacks throw when a site is switched to.
+	 */
+	public function fail_switching_to( int $site ): void {
+		$this->failing_switch = $site;
 	}
 
 	/**

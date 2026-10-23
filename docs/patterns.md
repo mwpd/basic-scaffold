@@ -329,7 +329,10 @@ Things to know:
   `is_needed()` asked there. Shared instances are shared within that site
   only, nothing goes into the plugin's container and nothing is registered.
   Callable declarations in the configuration run for each site too, so they
-  should only work out class names.
+  should only work out class names. Whether the sites are visited at all is
+  decided by class, from the services configured in the site the event starts
+  in, so a scoped service that only another site's filters add is not
+  reached.
 - **Address network options by ID.** Switching sites does not switch networks,
   so use `$context->network_id()` with `get_network_option()` and its
   siblings.
@@ -529,7 +532,7 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
 bound at `src/BasicScaffoldPlugin.php:111`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:1148-1151`, proven by
+`src/Infrastructure/ServiceBasedPlugin.php:1168-1171`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`, `architecture.noServiceLocator`;
@@ -713,7 +716,7 @@ own:
 - **It hands out more than services.** Next to the registered services, the
   container holds the injector that builds their collaborators, under
   `mwpd.basic_scaffold.injector`
-  (`src/Infrastructure/ServiceBasedPlugin.php:1154-1157`), so outside code could
+  (`src/Infrastructure/ServiceBasedPlugin.php:1174-1177`), so outside code could
   call `bind()`, `share()` or `delegate()` on it, which
   `architecture.noServiceLocator` forbids even the plugin's own subsystems.
 - **Whether a service is there depends on the moment.** `get()` throws
@@ -781,7 +784,7 @@ other code. Two investigations are open, and neither is approved:
   a theme's overrides of them, never a theme's other files or another plugin.
 
 **Proven by:** the configuration filters at
-`src/Infrastructure/ServiceBasedPlugin.php:1210-1213` and `:1671-1752`, and
+`src/Infrastructure/ServiceBasedPlugin.php:1230-1233` and `:1691-1772`, and
 `tests/php/Unit/ServiceBasedPluginTest.php:899-921`, where a filter added
 after the plugin was constructed, as a plugin loaded later would add it,
 takes effect at `plugins_loaded`.
@@ -867,7 +870,7 @@ public function __construct(
 
 **Proven by:** `src/Infrastructure/View/SimpleView.php:86-97`, and the
 injector and container defaults of `ServiceBasedPlugin`
-(`src/Infrastructure/ServiceBasedPlugin.php:264-296`).
+(`src/Infrastructure/ServiceBasedPlugin.php:270-302`).
 
 **Rules:** `architecture.newOnlyWhereAllowed` allows `new` in exactly this
 shape: a nullable parameter typed to an interface the default implements.

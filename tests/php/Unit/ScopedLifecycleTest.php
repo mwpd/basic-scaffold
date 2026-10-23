@@ -31,7 +31,10 @@ use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\NetworkLifecycleService;
 use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\SiteCache;
 use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\SiteLifecycleService;
 use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\ThrowingScopedService;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingInjector;
 use MWPD\BasicScaffold\Tests\Fixture\TestLifecyclePlugin;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\FailedToRestoreSite;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
 use RuntimeException;
@@ -70,7 +73,7 @@ final class ScopedLifecycleTest extends TestCase {
 	}
 
 	/**
-	 * @param array<string,class-string> $services Services, in configuration order.
+	 * @param array<string,class-string|callable> $services Services, in configuration order.
 	 */
 	private function plugin( array $services ): TestLifecyclePlugin {
 		return new TestLifecyclePlugin( $services, $this->recorder );
@@ -325,6 +328,58 @@ final class ScopedLifecycleTest extends TestCase {
 			$this->recorder->events()
 		);
 		$this->assertFalse( $plugin->get_container()->has( 'delayed' ) );
+	}
+
+	/**
+	 * A lazily stored service of the plugin's own graph that is reached while
+	 * a scoped graph is built is still made by the plugin's injector, not by
+	 * the scoped one.
+	 */
+	public function test_runtime_services_reached_while_a_graph_is_built_keep_the_plugins_injector(): void {
+		$installation = Multisite::with_networks( [ 1 => [ 1, 2 ] ], 1 );
+		$installation->install();
+		$plugin = $this->plugin(
+			[
+				'needs-injector' => TestServiceNeedingInjector::class,
+				'site'           => static function ( Injector $injector, ServiceContainer $container ): string {
+					if ( $container->has( 'needs-injector' ) ) {
+						$container->get( 'needs-injector' );
+					}
+
+					return SiteLifecycleService::class;
+				},
+			]
+		);
+
+		$plugin->activate_in( LifecycleScope::network_wide() );
+
+		$service = $plugin->get_container()->get( 'needs-injector' );
+		$this->assertInstanceOf( TestServiceNeedingInjector::class, $service );
+		$this->assertSame( $plugin->get_container()->get( 'injector' ), $service->get_injector() );
+	}
+
+	/**
+	 * A container passed in already filled can hold, under a configured ID,
+	 * an instance that implements a scoped interface. That instance does not
+	 * get the parameterless call either.
+	 */
+	public function test_a_prefilled_scoped_instance_gets_no_parameterless_call(): void {
+		Multisite::single_site()->install();
+		$container = new SimpleServiceContainer();
+		$container->put( 'lazy', new FullLifecycleService( $this->recorder ) );
+		$plugin = new TestLifecyclePlugin(
+			[ 'lazy' => LazyLifecycleService::class ],
+			$this->recorder,
+			null,
+			null,
+			null,
+			$container
+		);
+
+		$plugin->activate();
+		$plugin->deactivate();
+
+		$this->assertSame( [ 'construct:all@1', 'flush', 'flush' ], $this->recorder->events() );
 	}
 
 	/**

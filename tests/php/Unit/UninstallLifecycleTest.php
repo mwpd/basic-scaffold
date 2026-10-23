@@ -6,6 +6,8 @@ namespace MWPD\BasicScaffold\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Exception\InvalidConfiguration;
+use MWPD\BasicScaffold\Exception\InvalidService;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope;
 use MWPD\BasicScaffold\Infrastructure\SiteDeactivateable;
 use MWPD\BasicScaffold\Infrastructure\SiteInitializable;
@@ -101,6 +103,24 @@ final class UninstallLifecycleTest extends TestCase {
 			],
 			$this->recorder->events()
 		);
+		$this->assertSame( self::CALLBACK, $installation->uninstall_callback( 1 ) );
+	}
+
+	/**
+	 * The callback is stored before the services are even registered, so an
+	 * activation that fails while registering them can still be uninstalled.
+	 */
+	public function test_a_failed_registration_still_leaves_the_callback(): void {
+		$installation = Multisite::single_site();
+		$installation->install();
+
+		try {
+			$this->plugin( [ 'invalid' => DummyClass::class ] )->activate();
+			$this->fail( 'The invalid service was accepted.' );
+		} catch ( InvalidService $failure ) {
+			$this->assertStringContainsString( 'does not implement', $failure->getMessage() );
+		}
+
 		$this->assertSame( self::CALLBACK, $installation->uninstall_callback( 1 ) );
 	}
 

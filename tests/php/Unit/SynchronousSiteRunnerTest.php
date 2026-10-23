@@ -223,6 +223,7 @@ final class SynchronousSiteRunnerTest extends TestCase {
 
 		$this->assertSame( [ '1' ], $this->visits );
 		$this->assertSame( 1, $installation->current_site() );
+		$this->assertSame( 0, $installation->stack_depth() );
 	}
 
 	/**
@@ -248,6 +249,31 @@ final class SynchronousSiteRunnerTest extends TestCase {
 		}
 
 		$this->assertSame( 2, $installation->current_site() );
+		$this->assertSame( 0, $installation->stack_depth() );
+	}
+
+	/**
+	 * WordPress runs the switch_blog action after it has switched. A callback
+	 * that throws there still leaves the original site current.
+	 */
+	public function test_a_failing_switch_restores_the_original_site(): void {
+		$installation = Multisite::with_networks( [ 1 => [ 1, 2, 3 ] ], 2 );
+		$installation->install();
+		$installation->fail_switching_to( 1 );
+
+		try {
+			( new SynchronousSiteRunner() )->run_on_sites(
+				SiteSelection::network( NetworkId::from_int( 1 ) ),
+				$this->record_sites( $installation )
+			);
+			$this->fail( 'The failure was not propagated.' );
+		} catch ( \LogicException $failure ) {
+			$this->assertSame( 'A switch_blog callback failed for site 1.', $failure->getMessage() );
+		}
+
+		$this->assertSame( [], $this->visits );
+		$this->assertSame( 2, $installation->current_site() );
+		$this->assertSame( 0, $installation->stack_depth() );
 	}
 
 	public function test_a_page_size_must_be_positive(): void {

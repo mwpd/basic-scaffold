@@ -238,6 +238,12 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	private bool $lifecycle_only = false;
 
 	/**
+	 * Injector that callable declarations receive while a scoped lifecycle
+	 * graph is built, or null outside of that.
+	 */
+	private ?Injector $resolving_injector = null;
+
+	/**
 	 * Instantiate a Plugin object.
 	 *
 	 * @param bool                  $enable_filters    Optional. Whether to
@@ -318,9 +324,10 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	/**
 	 * Activate the plugin in the current site, or in the whole current network.
 	 *
-	 * The uninstall callback is registered first, before any service sets
-	 * anything up, so that an activation that fails part-way can still be
-	 * uninstalled. Then the services are called in three phases:
+	 * The uninstall callback is registered first, before the services are
+	 * registered or set anything up, so that an activation that fails
+	 * part-way can still be uninstalled. Then the services are called in
+	 * three phases:
 	 *
 	 * 1. Every service implementing Activateable, and none of the scoped
 	 *    activation interfaces, is activated once, in the current site, as
@@ -342,8 +349,8 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function activate_in( LifecycleScope $scope ): void {
-		$this->register_services();
 		$this->register_uninstall_callback();
+		$this->register_services();
 
 		foreach ( $this->get_lifecycle_services( Activateable::class ) as $service ) {
 			if ( $service instanceof Activateable ) {
@@ -568,7 +575,10 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * Check whether a configured service implements a lifecycle interface.
 	 *
 	 * The decision is made by class, without building anything, from the
-	 * services resolved in the current site.
+	 * services resolved in the current site. It decides whether a scoped
+	 * event visits the other sites at all, so a plugin without scoped services
+	 * never traverses a network. Which services take part in each site is
+	 * then decided again in that site.
 	 *
 	 * @param class-string ...$interfaces Lifecycle interfaces to look for.
 	 */
@@ -631,28 +641,29 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 			throw InvalidConfiguration::from_missing_injector_factory( \get_class( $this->injector ) );
 		}
 
-		$plugin_injector = $this->injector;
+		$outer_resolving_injector = $this->resolving_injector;
 
 		try {
 			/*
-			 * The configuration methods and resolvers of the composition root
-			 * read the injector from the property, as they do during
-			 * registration. It points at the graph's injector while the graph
-			 * is built and its services are called, and at the plugin's own
-			 * injector again afterwards, whatever happens.
+			 * Callable declarations in the configuration receive the injector
+			 * of the graph they are resolved for: the fresh one while it is
+			 * configured, as during registration, and the configured one when
+			 * the services are resolved. The plugin's own injector property
+			 * is left alone, so its lazily built services and its Injector
+			 * delegation keep using the plugin's graph, even if they are
+			 * reached while this graph is built.
 			 */
-			$this->injector = $this->injector_factory->create();
-			$this->injector = $this->configure_injector( $this->injector );
-
-			$graph_injector = $this->injector;
-			$graph_injector = $graph_injector->delegate(
+			$graph_injector           = $this->injector_factory->create();
+			$this->resolving_injector = $graph_injector;
+			$graph_injector           = $this->configure_injector( $graph_injector );
+			$graph_injector           = $graph_injector->delegate(
 				Injector::class,
 				static function () use ( &$graph_injector ): Injector {
 					return $graph_injector;
 				}
 			);
 
-			$this->injector = $graph_injector;
+			$this->resolving_injector = $graph_injector;
 
 			foreach ( $this->resolve_services() as $class_name ) {
 				if ( ! is_a( $class_name, $capability, true ) ) {
@@ -672,7 +683,7 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 				$call( $service );
 			}
 		} finally {
-			$this->injector = $plugin_injector;
+			$this->resolving_injector = $outer_resolving_injector;
 		}
 	}
 
@@ -1053,9 +1064,18 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 				continue;
 			}
 
-			yield $this->service_container->has( $id )
-				? $this->service_container->get( $id )
-				: $this->make_service( $class_name );
+			if ( ! $this->service_container->has( $id ) ) {
+				yield $this->make_service( $class_name );
+				continue;
+			}
+
+			// A container passed in already filled can hold an instance of
+			// another class under a configured ID.
+			$service = $this->service_container->get( $id );
+
+			if ( null === $this->find_declaring_interface( [ $id => get_class( $service ) ], $scoped_interfaces ) ) {
+				yield $service;
+			}
 		}
 
 		foreach ( $this->service_container as $id => $service ) {
@@ -2052,7 +2072,7 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		}
 
 		if ( is_callable( $value ) ) {
-			return $value( $this->injector, $this->service_container );
+			return $value( $this->resolving_injector ?? $this->injector, $this->service_container );
 		}
 
 		return $value;

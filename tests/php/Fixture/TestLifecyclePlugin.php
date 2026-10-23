@@ -7,6 +7,7 @@ namespace MWPD\BasicScaffold\Tests\Fixture;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\InjectorFactory;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\SiteRunner;
 use MWPD\BasicScaffold\Tests\Fixture\Lifecycle\LifecycleRecorder;
@@ -47,17 +48,19 @@ final class TestLifecyclePlugin extends ServiceBasedPlugin {
 	 * @param SiteRunner|null                     $site_runner      Optional. Runner to use.
 	 * @param Injector|null                       $injector         Optional. Injector to use.
 	 * @param InjectorFactory|null                $injector_factory Optional. Injector factory to use.
+	 * @param ServiceContainer|null               $container        Optional. Service container to use.
 	 */
 	public function __construct(
 		array $services,
 		LifecycleRecorder $recorder,
 		?SiteRunner $site_runner = null,
 		?Injector $injector = null,
-		?InjectorFactory $injector_factory = null
+		?InjectorFactory $injector_factory = null,
+		?ServiceContainer $container = null
 	) {
 		$this->services = $services;
 		$this->recorder = $recorder;
-		parent::__construct( false, $injector, null, $site_runner, $injector_factory );
+		parent::__construct( false, $injector, $container, $site_runner, $injector_factory );
 	}
 
 	/**
