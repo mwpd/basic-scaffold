@@ -21,6 +21,8 @@
 			     phpstan/phpdoc-parser version Psalm's plugins need, and Psalm
 			     crashes. PHPStan analyses these files at level max instead. -->
 			<directory name="tests/php/PHPStan"/>
+			<!-- Bootstrap contract fixtures deliberately make invalid hook calls. -->
+			<directory name="tests/php/Fixture/BootstrapContract"/>
 			<!-- Stand-ins for WordPress classes, which the WordPress stubs declare. -->
 			<directory name="tests/php/Fixture/WordPress"/>
 		</ignoreFiles>

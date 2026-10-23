@@ -118,6 +118,8 @@ final class RuleManifest {
 
 	public const NO_SIDE_EFFECTS_ON_INCLUDE = 'architecture.noSideEffectsOnInclude';
 
+	public const BOOTSTRAP_CONTRACT = 'architecture.bootstrapContract';
+
 	public const NO_RUNTIME_DEPENDENCIES = 'architecture.noRuntimeDependencies';
 
 	public const TESTS_ARE_DISCOVERED = 'architecture.testsAreDiscovered';
@@ -465,6 +467,16 @@ final class RuleManifest {
 			'configuration'    => 'RepositoryLayout',
 			'checked_by'       => [
 				RepositoryStructureTest::class . '::test_the_plugin_has_no_side_effects_on_include',
+			],
+			'signatures'       => [],
+		],
+		self::BOOTSTRAP_CONTRACT                    => [
+			'principle'        => 'Principle 12: Extension points run at a hook, never at include time',
+			'principle_anchor' => '12-extension-points-run-at-a-hook-never-at-include-time',
+			'pattern'          => 'i-need-to-run-code-when-the-plugin-file-loads',
+			'configuration'    => 'RepositoryLayout::BOOTSTRAP',
+			'checked_by'       => [
+				BootstrapContractTest::class . '::test_the_bootstrap_only_registers_the_entry_hooks',
 			],
 			'signatures'       => [],
 		],

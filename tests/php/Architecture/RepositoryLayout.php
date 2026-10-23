@@ -90,7 +90,11 @@ final class RepositoryLayout {
 	 * rules on purpose, and with stand-ins for WordPress classes, which live in
 	 * the global namespace like the classes they stand in for.
 	 */
-	public const RULE_FIXTURES = [ 'tests/php/PHPStan/Fixture', 'tests/php/Fixture/WordPress' ];
+	public const RULE_FIXTURES = [
+		'tests/php/PHPStan/Fixture',
+		'tests/php/Fixture/WordPress',
+		'tests/php/Fixture/BootstrapContract',
+	];
 
 	/**
 	 * Markdown files, and directories searched recursively, with code citations.
