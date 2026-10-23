@@ -702,8 +702,8 @@ function for where it is printed.
 
 You do not need a `try`/`catch` around rendering. A view that cannot be
 created or rendered throws in debug mode and renders an empty string in
-production, so a broken template leaves its own place on the page empty and
-nothing else. See [I need to report a failure](#i-need-to-report-a-failure).
+production, so a broken template leaves its own place on the page empty while
+the rest of the page renders. See [I need to report a failure](#i-need-to-report-a-failure).
 
 ```php
 // views/test-loop-service.php
@@ -768,7 +768,7 @@ try {
 ```
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`,
-`src/Infrastructure/View/SimpleView.php:99-137` and
+`src/Infrastructure/View/SimpleView.php:99-135` and
 `src/Exception/FailedToLoadView.php:39`.
 
 **Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,

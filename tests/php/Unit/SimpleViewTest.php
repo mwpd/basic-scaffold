@@ -12,6 +12,8 @@ use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleView;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleViewFactory;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use Error;
+use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
 use RuntimeException;
 use stdClass;
@@ -190,14 +192,45 @@ final class SimpleViewTest extends TestCase {
 		$this->debug_mode->method( 'is_debug_mode' )
 			->willReturn( true );
 
-		$this->expectException( FailedToLoadView::class );
-
 		$view = new SimpleView(
 			'tests/php/Fixture/views/broken-view.php',
 			$this->view_factory,
 			$this->debug_mode
 		);
-		$view->render();
+
+		try {
+			$view->render();
+			$this->fail( 'A template with a PHP error should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$this->assertInstanceOf( Error::class, $exception->getPrevious() );
+		}
+	}
+
+	public function test_a_failing_template_is_the_cause_even_when_cleaning_up_after_it_fails_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/throwing-cleanup-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$level = \ob_get_level();
+
+		try {
+			$view->render();
+			$this->fail( 'A failing template should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$previous = $exception->getPrevious();
+			$this->assertInstanceOf( LogicException::class, $previous );
+			$this->assertSame( 'The template failed.', $previous->getMessage() );
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
 	}
 
 	/**
@@ -234,9 +267,10 @@ final class SimpleViewTest extends TestCase {
 	 */
 	public static function data_failing_templates(): array {
 		return [
-			'template that throws'       => [ 'tests/php/Fixture/views/plugin/throwing-view.php' ],
-			'template with a PHP error'  => [ 'tests/php/Fixture/views/broken-view.php' ],
-			'output handler that throws' => [ 'tests/php/Fixture/views/plugin/throwing-buffer-view.php' ],
+			'template that throws'                 => [ 'tests/php/Fixture/views/plugin/throwing-view.php' ],
+			'template with a PHP error'            => [ 'tests/php/Fixture/views/broken-view.php' ],
+			'output handler that throws'           => [ 'tests/php/Fixture/views/plugin/throwing-buffer-view.php' ],
+			'template and cleanup that both throw' => [ 'tests/php/Fixture/views/plugin/throwing-cleanup-view.php' ],
 		];
 	}
 

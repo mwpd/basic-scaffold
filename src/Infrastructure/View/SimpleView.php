@@ -114,9 +114,7 @@ class SimpleView extends stdClass implements View {
 			}
 		} catch ( Throwable $throwable ) {
 			// Remove whatever levels were added up until now.
-			while ( \ob_get_level() > $buffer_level && \ob_end_clean() ) {
-				continue;
-			}
+			$this->discard_buffers_above( $buffer_level );
 
 			/*
 			 * Rendered output goes straight back to WordPress, so this is
@@ -146,6 +144,45 @@ class SimpleView extends stdClass implements View {
 		$buffer = \ob_get_clean();
 
 		return false === $buffer ? '' : $buffer;
+	}
+
+	/**
+	 * Discard every output buffer above a given level, with its content.
+	 *
+	 * Removing a buffer runs its output handler, and a handler the failed
+	 * template installed can throw as well. PHP removes the buffer anyway, so
+	 * the cleanup carries on. The template's own failure is the one that gets
+	 * reported; the handler's failure is a consequence of it.
+	 *
+	 * @param int $level Buffer level to return to.
+	 */
+	private function discard_buffers_above( int $level ): void {
+		while ( \ob_get_level() > $level ) {
+			$current_level = \ob_get_level();
+
+			try {
+				$removed = $this->remove_buffer();
+			} catch ( Throwable $handler_failure ) {
+				$removed = \ob_get_level() < $current_level;
+			}
+
+			// A buffer that cannot be removed stops the loop instead of
+			// retrying it forever.
+			if ( ! $removed ) {
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Remove the innermost output buffer and discard its content.
+	 *
+	 * @return bool Whether a buffer was removed.
+	 * @throws Throwable If the buffer's output handler throws. PHP removes the
+	 *                   buffer anyway.
+	 */
+	private function remove_buffer(): bool {
+		return \ob_end_clean();
 	}
 
 	/**

@@ -374,7 +374,7 @@ delegation returns an instance of the class it was registered for
 
 **Output is escaped for the context it lands in.** The reverse direction gets
 the same care. Values a view reads as properties are escaped by default
-(`src/Infrastructure/View/SimpleView.php:266-297`). A value fetched with
+(`src/Infrastructure/View/SimpleView.php:303-334`). A value fetched with
 `raw()` is the explicit exception, and the template must then escape it for
 where it is printed: HTML text, an attribute, a URL or JavaScript each need
 their own escaping, using WordPress's matching `esc_*` function.
@@ -438,8 +438,8 @@ cannot be created or rendered is handled inside the view system itself. In
 debug mode, the view factories rethrow the original exception, and
 `SimpleView::render()` throws `FailedToLoadView` with the template's
 exception as its cause. In production, a factory returns an `EmptyView` and a
-failing template renders an empty string, after the view has restored the
-caller's output buffers (`src/Infrastructure/View/SimpleView.php:115-137`,
+failing template renders an empty string, after the view has discarded the
+output buffers the template opened (`src/Infrastructure/View/SimpleView.php:115-135`,
 `src/Infrastructure/View/TemplatedViewFactory.php:69-90`). The samples need no
 `try`/`catch` around rendering for that reason.
 
