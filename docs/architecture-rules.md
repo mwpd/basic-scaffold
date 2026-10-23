@@ -137,7 +137,7 @@ that names the fix. The fixtures and tests listed prove it.
 | `new` of a service inside another service | `newOnlyWhereAllowed` | `tests/php/PHPStan/Fixture/Creation/Consumer.php` |
 | A class that is not `final` | `finalByDefault` | `tests/php/PHPStan/Fixture/FinalByDefault/classes.php` |
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
-| A custom hook without the plugin's prefix | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php` |
+| A public WordPress name without the plugin's prefix, or an overlong post type/taxonomy name | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php`, `Registrations.php`, `NameLengths.php` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
 | A service pulling a collaborator or request input from globals | `noGlobalState` | `tests/php/PHPStan/Fixture/NoGlobalState/Service.php` |
 | HTML or a string printed directly by a service | `outputOnlyThroughViews` | `tests/php/PHPStan/Fixture/OutputOnlyThroughViews/Service.php` |
@@ -747,35 +747,57 @@ this scaffold run side by side.
 **Checks:** the names the plugin creates in WordPress's shared spaces start
 with the prefix for their kind:
 
-| Kind | Functions | Name |
-| --- | --- | --- |
-| `hooks` | `do_action`, `do_action_ref_array`, `apply_filters`, `apply_filters_ref_array` | 1st argument |
-| `options` | `add_option`, `update_option`, `delete_option`, `get_option` and their `_site_option` variants | 1st argument |
-| `transients` | `set_transient`, `get_transient`, `delete_transient` and their `_site_transient` variants | 1st argument |
-| `meta` | `register_meta`, `register_post_meta`, `register_term_meta` | meta key, the 2nd argument |
-| `assets` | `wp_register_script`, `wp_register_style`, `wp_enqueue_script`, `wp_enqueue_style` | handle, the 1st argument |
+| Kind | Functions | Name | Default prefix |
+| --- | --- | --- | --- |
+| `hooks` | `do_action`, `do_action_ref_array`, `apply_filters`, `apply_filters_ref_array` | 1st argument | `mwpd.basic_scaffold.` |
+| `options` | `add_option`, `update_option`, `delete_option`, `get_option` and their `_site_option` variants | 1st argument | `mwpd_basic_scaffold_` |
+| `transients` | `set_transient`, `get_transient`, `delete_transient` and their `_site_transient` variants | 1st argument | `mwpd_basic_scaffold_` |
+| `meta` | `register_meta`, `register_post_meta`, `register_term_meta` | meta key, the 2nd argument | `mwpd_basic_scaffold_` |
+| `assets` | `wp_register_script`, `wp_register_style`, `wp_enqueue_script`, `wp_enqueue_style` | handle, the 1st argument | `mwpd-basic-scaffold-` |
+| `postTypes` | `register_post_type` | 1st argument; full name at most 20 characters | `mwpd_bs_` |
+| `taxonomies` | `register_taxonomy` | 1st argument; full name at most 32 characters | `mwpd_bs_` |
+| `shortcodes` | `add_shortcode` | 1st argument | `mwpd_basic_scaffold_` |
+| `restRoutes` | `register_rest_route` | namespace, the 1st argument | `mwpd/basic-scaffold` |
+| `cron` | `wp_schedule_event`; `wp_schedule_single_event`, `wp_unschedule_event`; `wp_next_scheduled`, `wp_clear_scheduled_hook` | hook: 3rd; 2nd; 1st argument, respectively | `mwpd_basic_scaffold_` |
+| `adminPages` | `add_menu_page`, `add_options_page`, `add_management_page`; `add_submenu_page` | menu slug: 4th; 5th argument, respectively | `mwpd-basic-scaffold-` |
+| `settings` | `register_setting` | option group and option name, the 1st and 2nd arguments | `mwpd_basic_scaffold_` |
+| `ajax` | `add_action` with a known `wp_ajax_` or `wp_ajax_nopriv_` action | the remainder after WordPress's action prefix | `mwpd_basic_scaffold_` |
 
 A name passes when PHPStan knows it starts with the prefix, or when it is built
 from one of the kind's prefix constants of the class itself, as in
 `static::HOOK_PREFIX . static::SERVICES_FILTER`. A name the rule cannot work
 out fails, so build names from the prefix. Arguments unpacked from a constant
-array are read from the array.
+array are read from the array. The length limits come from the installed
+WordPress stubs' `register_post_type()` and `register_taxonomy()` declarations.
+They apply to the full constant string, including its prefix. A name built
+from a configured prefix constant skips the length check because its final
+length may be unknown.
 
 **Allows:** for calls that only read a name, such as `get_option()`,
 `wp_enqueue_script()` without a source, or firing a hook, the names WordPress
-owns that the kind lists as allowed. `add_action()` and `add_filter()` are not checked: they
-subscribe to names other code owns.
+owns that the kind lists as allowed. `wp_next_scheduled()` is also a read;
+scheduling and clearing cron events create or change the plugin's own names.
+`add_filter()` and non-AJAX `add_action()` subscriptions are unchecked because
+they subscribe to names other code owns. Only `add_action()` names known to
+start with `wp_ajax_` or `wp_ajax_nopriv_` are checked, and their remainder
+must carry the AJAX prefix. A known AJAX wrapper with an unresolved remainder
+fails with the usual "cannot check" message.
 
 **Configuration:** `prefixedNames.<kind>` sets the kind's `prefix`, its
-prefix `constants` and the `allowed` names. The scaffold uses
-`mwpd.basic_scaffold.` for hooks, with the `HOOK_PREFIX` constant;
-`mwpd_basic_scaffold_` for options, transients and meta keys; and
-`mwpd-basic-scaffold-` for asset handles. A plugin generated from the scaffold
-renames all of them, and `HOOK_PREFIX` and `SERVICE_PREFIX` in its
-composition root.
+prefix `constants` and the `allowed` names. A kind absent from configuration
+is skipped. The defaults above follow WordPress conventions: underscores for
+stored keys, shortcodes, cron hooks, settings and AJAX actions; hyphens for
+asset handles and admin slugs; and the path-like `mwpd/basic-scaffold` for REST
+namespaces (for example, `mwpd/basic-scaffold/v1`). Post types and taxonomies
+use the shorter `mwpd_bs_` so the prefix leaves room for a name within their
+limits; the option prefix alone is already 20 characters. Hooks retain
+`mwpd.basic_scaffold.` and the `HOOK_PREFIX` constant. A plugin generated from
+the scaffold renames these settings together with `HOOK_PREFIX` and
+`SERVICE_PREFIX` in its composition root.
 
 **Fix:** start the name with the prefix, or build it from the prefix
-constant.
+constant. Shorten overlong post type and taxonomy names, including the prefix,
+to the WordPress limit.
 
 **Pattern:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares).
 
