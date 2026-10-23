@@ -4,6 +4,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Unit;
 
+use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
@@ -11,6 +12,7 @@ use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleView;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 use PHPUnit\Framework\MockObject\MockObject;
+use stdClass;
 
 final class SimpleViewTest extends TestCase {
 
@@ -237,6 +239,182 @@ final class SimpleViewTest extends TestCase {
 		$result  = $view->render( $context );
 
 		$this->assertStringContainsString( 'shared context', $result );
+	}
+
+	public function test_it_throws_on_a_non_stringable_context_value_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/static-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+		$view->render( [ 'some_value' => [ 'not', 'stringable' ] ] );
+
+		$this->expectException( FailedToEscapeValue::class );
+
+		$_ = $view->some_value;
+	}
+
+	public function test_a_non_stringable_context_value_is_the_cause_of_a_failed_render_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/dynamic-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		try {
+			$view->render( [ 'some_value' => [ 'not', 'stringable' ] ] );
+			$this->fail( 'Rendering a non-stringable value in debug mode should throw.' );
+		} catch ( FailedToLoadView $exception ) {
+			$this->assertInstanceOf( FailedToEscapeValue::class, $exception->getPrevious() );
+		}
+	}
+
+	public function test_it_renders_nothing_for_a_non_stringable_context_value_in_production(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( false );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/dynamic-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$this->assertEquals(
+			'<p>Rendering works with context: .</p>',
+			$this->normalize( $view->render( [ 'some_value' => [ 'not', 'stringable' ] ] ) )
+		);
+	}
+
+	public function test_escaping_a_non_stringable_value_throws_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$this->expectException( FailedToEscapeValue::class );
+
+		$this->escape( new stdClass() );
+	}
+
+	public function test_escaping_a_non_stringable_value_returns_an_empty_string_in_production(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( false );
+
+		$this->assertSame( '', $this->escape( new stdClass() ) );
+	}
+
+	/**
+	 * @dataProvider data_debug_modes
+	 */
+	public function test_it_keeps_the_output_of_a_buffer_the_template_leaves_open( bool $debug_mode ): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( $debug_mode );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/unclosed-buffer-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$level = \ob_get_level();
+
+		try {
+			$result = $view->render();
+			$after  = \ob_get_level();
+		} finally {
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
+		$this->assertEquals( '<p>Left open.</p>', $this->normalize( $result ) );
+	}
+
+	/**
+	 * @dataProvider data_debug_modes
+	 */
+	public function test_it_does_not_close_a_buffer_it_does_not_own( bool $debug_mode ): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( $debug_mode );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/closing-buffer-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		// The caller's own buffer, which the view must leave alone.
+		$level = \ob_get_level();
+		\ob_start();
+		echo 'Output of the caller.';
+
+		try {
+			$result = $view->render();
+			$after  = \ob_get_level();
+			$caller = \ob_get_contents();
+		} finally {
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level + 1, $after, 'The view closed a buffer it does not own.' );
+		$this->assertSame( 'Output of the caller.', $caller );
+		$this->assertSame( '', $result );
+	}
+
+	/**
+	 * Both debug modes, for behaviour that must not depend on them.
+	 *
+	 * @return array<string, array{bool}>
+	 */
+	public static function data_debug_modes(): array {
+		return [
+			'debug mode on'  => [ true ],
+			'debug mode off' => [ false ],
+		];
+	}
+
+	/**
+	 * Escape a value through SimpleView::escape(), which templates and
+	 * subclasses call.
+	 *
+	 * @param mixed $value Value to escape.
+	 * @return string Escaped value.
+	 */
+	private function escape( $value ): string {
+		$view = new class(
+			'tests/php/Fixture/views/plugin/static-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		) extends SimpleView {
+
+			/**
+			 * Escape a value through the view's escape().
+			 *
+			 * @param mixed $value Value to escape.
+			 * @return string Escaped value.
+			 */
+			public function escape_value( $value ): string {
+				return $this->escape( $value );
+			}
+		};
+
+		return $view->escape_value( $value );
+	}
+
+	/**
+	 * Close output buffers down to a level, discarding their content.
+	 *
+	 * A test that fails halfway must not leave buffers behind for the next.
+	 *
+	 * @param int $level Buffer level to return to.
+	 */
+	private function restore_buffer_level( int $level ): void {
+		while ( \ob_get_level() > $level ) {
+			\ob_end_clean();
+		}
 	}
 
 	/**

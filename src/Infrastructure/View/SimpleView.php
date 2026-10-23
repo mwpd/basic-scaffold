@@ -89,9 +89,9 @@ class SimpleView extends stdClass implements View {
 		// partial views.
 		$this->_context_ = $context;
 
-		// Save current buffering level so we can backtrack in case of an error.
-		// This is needed because the view itself might also add an unknown
-		// number of output buffering levels.
+		// Save the current buffering level so the view can return to it
+		// afterwards. The template might open or close buffering levels of
+		// its own, whether it succeeds or fails.
 		$buffer_level = \ob_get_level();
 		\ob_start();
 
@@ -112,6 +112,19 @@ class SimpleView extends stdClass implements View {
 				$this->path,
 				$throwable
 			);
+		}
+
+		// Buffers the template opened and left open hold part of its output,
+		// so they are flushed into the view's own buffer rather than leaked.
+		while ( \ob_get_level() > $buffer_level + 1 ) {
+			\ob_end_flush();
+		}
+
+		// If the template closed the view's own buffer, there is nothing left
+		// to collect. Closing the buffer below it would take the caller's
+		// output instead.
+		if ( \ob_get_level() <= $buffer_level ) {
+			return '';
 		}
 
 		$buffer = \ob_get_clean();
@@ -225,7 +238,9 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Return the escaped value of a context property.
 	 *
-	 * Use the raw() method to skip automatic escaping.
+	 * Use the raw() method to skip automatic escaping. A value that cannot be
+	 * escaped is handled by escape(): it throws FailedToEscapeValue in debug
+	 * mode and becomes an empty string otherwise.
 	 *
 	 * @param string $property Property for which to return the escaped value.
 	 * @return string Escaped context property value.
@@ -233,11 +248,7 @@ class SimpleView extends stdClass implements View {
 	 */
 	public function __get( string $property ) {
 		if ( array_key_exists( $property, $this->_context_ ) ) {
-			$value = $this->_context_[ $property ];
-
-			if ( $this->is_stringable( $value ) ) {
-				return $this->escape( $value );
-			}
+			return $this->escape( $this->_context_[ $property ] );
 		}
 
 		/*
@@ -267,8 +278,9 @@ class SimpleView extends stdClass implements View {
 	 * Escape a value for output.
 	 *
 	 * @param mixed $value Value to escape.
-	 * @return string Escaped value.
-	 * @throws FailedToEscapeValue If the value could not be escaped.
+	 * @return string Escaped value, or an empty string if the value could not
+	 *                be escaped outside of debug mode.
+	 * @throws FailedToEscapeValue If the value could not be escaped (in debug mode).
 	 */
 	protected function escape( $value ): string {
 		if ( is_object( $value ) && method_exists( $value, '__toString' ) ) {
@@ -280,7 +292,16 @@ class SimpleView extends stdClass implements View {
 		}
 
 		if ( ! is_string( $value ) ) {
-			throw FailedToEscapeValue::from_value( $value );
+			/*
+			 * A value without a string form, like an array, is a bug in the
+			 * code that passed it in. Debug mode reports it; production renders
+			 * nothing in its place instead of breaking the whole view.
+			 */
+			if ( $this->is_debug_mode() ) {
+				throw FailedToEscapeValue::from_value( $value );
+			}
+
+			return '';
 		}
 
 		// ENT_QUOTES escapes single quotes as well as double quotes, so the
