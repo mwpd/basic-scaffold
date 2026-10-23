@@ -77,7 +77,7 @@ if ( is_readable( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
 }
 
-if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
+if ( ! class_exists( BasicScaffoldPluginFactory::class ) ) {
 	// Composer autoloader apparently was not found, so fall back to our bundled
 	// autoloader.
 	require_once __DIR__ . '/src/Infrastructure/Autoloader.php';
