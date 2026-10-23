@@ -17,6 +17,7 @@ use Brain\Monkey\Container;
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Infrastructure\Delayed;
 use MWPD\BasicScaffold\Infrastructure\HasDependencies;
+use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
@@ -76,14 +77,10 @@ final class CompositionRootContract {
 	 * @return array<string> Problems found.
 	 */
 	public function check(): array {
-		$injector = new SimpleInjector();
 		// Composition roots keep the constructor of ServiceBasedPlugin, so the
 		// injector it takes is the one the plugin configures.
-		$plugin = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, $injector );
-		// The plugin configures its injector when it registers its services.
-		// The check configures it the same way, without registering anything.
-		// The simple injector is configured in place.
-		self::call( $plugin, 'configure_injector', $injector );
+		$plugin   = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, new SimpleInjector() );
+		$injector = $this->configure_injector( $plugin );
 		$declared = self::call( $plugin, 'get_service_classes' );
 		$services = is_array( $declared ) ? $declared : [];
 		$problems = [];
@@ -204,7 +201,7 @@ final class CompositionRootContract {
 	 *
 	 * @param string                $id         Identifier of the service.
 	 * @param class-string<Service> $class_name Class of the service.
-	 * @param SimpleInjector        $injector   Injector the plugin configured.
+	 * @param Injector              $injector   Injector the plugin configured.
 	 * @param array<string>         $calls      Watched functions called.
 	 * @param mixed                 $before     Hook storage when the watch
 	 *                                          started.
@@ -213,7 +210,7 @@ final class CompositionRootContract {
 	private function check_construction(
 		string $id,
 		string $class_name,
-		SimpleInjector $injector,
+		Injector $injector,
 		array &$calls,
 		$before
 	): array {
@@ -287,6 +284,32 @@ final class CompositionRootContract {
 		$reflection->setAccessible( true );
 
 		return $reflection->invoke( $plugin, ...$values );
+	}
+
+	/**
+	 * Configure the plugin's injector the way registering its services does,
+	 * without registering anything.
+	 *
+	 * The plugin keeps the injector that configure_injector() returns, which
+	 * may be a new instance, and resolves callables in its configuration with
+	 * it, so the check does the same.
+	 *
+	 * @param ServiceBasedPlugin $plugin Plugin whose injector to configure.
+	 * @return Injector Configured injector.
+	 */
+	private function configure_injector( ServiceBasedPlugin $plugin ): Injector {
+		$property = new ReflectionProperty( ServiceBasedPlugin::class, 'injector' );
+		$property->setAccessible( true );
+
+		$injector = $property->getValue( $plugin );
+		assert( $injector instanceof Injector );
+
+		$configured = self::call( $plugin, 'configure_injector', $injector );
+		assert( $configured instanceof Injector );
+
+		$property->setValue( $plugin, $configured );
+
+		return $configured;
 	}
 
 	/**
