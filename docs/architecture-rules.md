@@ -16,7 +16,13 @@ composer lint                  # includes the PHPStan architecture rules
 composer test                  # includes the architecture test suite
 composer test:architecture     # only the architecture test suite
 composer test:phpstan-rules    # only the tests of the PHPStan rules
+composer check:autoloader      # source declarations through the bundled autoloader alone
 ```
+
+CI also runs `php -n scripts/check-bundled-autoloader.php` on PHP 7.4 in a
+checkout without `vendor/`, before installing any dependencies. This loads every
+class, interface and trait under `src/` directly through the bundled autoloader,
+independently of the bootstrap's Composer detection (#10).
 
 ## How the rules are built
 
@@ -110,7 +116,7 @@ says which rules enforce each principle, and what stays with review.
 | Principle | Checked by | Reviewed by hand |
 | --- | --- | --- |
 | [The core idea: complexity that grows linearly](design-principles.md#the-core-idea-complexity-that-grows-linearly) | `hooksInLifecycleMethods`, `queryContextNeedsDelay`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | Each service deciding its own lifecycle through capability interfaces |
-| [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4`, `explicitNullableParameters` | Loading without `vendor/` (#33) |
+| [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4`, `explicitNullableParameters`; bundled autoloader CI check | Bootstrap Composer detection (#10) |
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
