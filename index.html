@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>MWPD Basic Scaffold: WordPress plugins whose complexity grows linearly</title>
+<meta name="description" content="A WordPress plugin template where every feature is a service that declares its own place in the WordPress lifecycle, with 38 architecture rules that keep it that way for you and your coding agents. Shown through Content Freshness, a real plugin built from it.">
+<meta property="og:title" content="MWPD Basic Scaffold">
+<meta property="og:description" content="WordPress plugins whose complexity grows linearly. Lifecycle-aware services, one composition root, and architecture checks that explain the fix.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mwpd.github.io/basic-scaffold/">
+<style>
+:root {
+	--paper: #fafaf7;
+	--paper-deep: #f1f0ea;
+	--rule: #d4d2ca;
+	--rule-soft: #e5e3dc;
+	--ink: #1c1c1a;
+	--ink-2: #4a4944;
+	--ink-3: #66655f;
+	--mark: #ffe66d;
+	--code-bg: #f3f2ed;
+	--code-rule: #dcdad2;
+	--c-key: #7a2f6e;
+	--c-str: #8f4a1c;
+	--c-com: #66655f;
+	--c-fn: #1d4f99;
+	--c-type: #1c1c1a;
+	--c-var: #3d3c38;
+	--term-bg: #141614;
+	--term-ink: #dbe0db;
+	--term-dim: #939b93;
+	--term-warn: #f0c75e;
+	--term-ok: #8fd6c3;
+	--ok: #0f5c4f;
+	--bad: #a3392c;
+	--serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Source Serif Pro", "Source Serif 4", Georgia, "Liberation Serif", serif;
+	--sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Liberation Sans", Arial, sans-serif;
+	--mono: ui-monospace, "SF Mono", Menlo, "Cascadia Code", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+	--measure: 40rem;
+	--margin: 16rem;
+	--gutter: 3rem;
+	--page: calc(var(--measure) + var(--margin) + var(--gutter));
+	--page-pad: calc(var(--page) + 2.5rem);
+	color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--paper: #151614;
+		--paper-deep: #1c1d1b;
+		--rule: #393a36;
+		--rule-soft: #2a2b28;
+		--ink: #e7e5de;
+		--ink-2: #bebbb2;
+		--ink-3: #a19e95;
+		--mark: #5e5114;
+		--code-bg: #1c1e1c;
+		--code-rule: #30322e;
+		--c-key: #e3a6d8;
+		--c-str: #e8a77f;
+		--c-com: #9b9e96;
+		--c-fn: #9bbdf5;
+		--c-type: #e7e5de;
+		--c-var: #d0cdc4;
+		--term-bg: #0d100e;
+		--ok: #8fd6c3;
+		--bad: #ef8f80;
+	}
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 1rem; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--serif);
+	font-size: 1.0625rem;
+	line-height: 1.58;
+	text-rendering: optimizeLegibility;
+	font-feature-settings: "kern", "liga", "onum";
+}
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 0.16em; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 2px; }
+code, kbd, pre, samp { font-family: var(--mono); font-feature-settings: normal; }
+:where(p, li, dd, dt, td, th, figcaption, .note, h2, h3, summary) code {
+	font-size: 0.8em;
+	background: var(--code-bg);
+	border: 1px solid var(--code-rule);
+	border-radius: 3px;
+	padding: 0.04em 0.28em;
+	overflow-wrap: anywhere;
+}
+mark { background: var(--mark); color: inherit; padding: 0 0.15em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.12; letter-spacing: -0.012em; text-wrap: balance; margin: 0; }
+p { margin: 0 0 1.1em; text-wrap: pretty; }
+ul, ol { padding-left: 1.3em; margin: 0 0 1.1em; }
+li { margin-bottom: 0.35em; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: 1rem; top: -3rem; background: var(--paper); color: var(--link); padding: 0.5rem 0.75rem; font-family: var(--sans); z-index: 10; }
+.skip:focus { top: 1rem; }
+
+/* ---- Running head ---- */
+.head { font-family: var(--sans); font-size: 0.8125rem; background: var(--cloth); color: var(--cloth-ink-2); }
+.head-in {
+	max-width: var(--page-pad);
+	margin: 0 auto;
+	padding: 0.85rem 1.25rem;
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem 1.5rem;
+	flex-wrap: wrap;
+}
+.head .brand { color: var(--cloth-ink); font-weight: 600; text-decoration: none; }
+.head nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.head nav a { color: var(--cloth-ink-2); text-decoration: none; }
+.head nav a:hover { color: var(--cloth-ink); text-decoration: underline; }
+.head a:focus-visible { outline-color: var(--cloth-ink); }
+
+/* ---- Cover ---- */
+.cover {
+	background: var(--cloth);
+	color: var(--cloth-ink);
+	border-top: 1px solid rgba(255,255,255,0.08);
+	padding: clamp(2.75rem, 6vw, 5.5rem) 1.25rem clamp(2.75rem, 5vw, 4.5rem);
+}
+.cover-in { max-width: var(--page); margin: 0 auto; }
+.series { font-family: var(--sans); font-size: 0.875rem; color: var(--cloth-ink-2); margin: 0 0 1.75rem; }
+.series cite { font-style: italic; }
+.cover h1 {
+	font-size: clamp(2.3rem, 1.2rem + 4.4vw, 4.5rem);
+	letter-spacing: -0.022em;
+	line-height: 1.04;
+	max-width: 16ch;
+	color: #fff;
+}
+.cover h1 em { font-style: italic; font-weight: 500; }
+.cover .sub { font-size: clamp(1.125rem, 1rem + 0.55vw, 1.35rem); line-height: 1.42; max-width: 35em; margin: 1.4rem 0 2.1rem; color: var(--cloth-ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 0.9rem 1.75rem; align-items: center; margin-bottom: 1.4rem; }
+.btn {
+	display: inline-block;
+	font-family: var(--sans);
+	font-weight: 600;
+	font-size: 0.9375rem;
+	padding: 0.8rem 1.3rem;
+	border-radius: 3px;
+	background: #fbfaf6;
+	color: var(--cloth-deep);
+	text-decoration: none;
+	box-shadow: 0 1px 0 rgba(0,0,0,0.25), 0 6px 14px -8px rgba(0,0,0,0.5);
+	transition: transform 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(0,0,0,0.25), 0 10px 18px -8px rgba(0,0,0,0.55); }
+.btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:hover { transform: none; } }
+.cover .link-arrow { color: var(--cloth-ink); font-family: var(--sans); font-size: 0.9375rem; font-weight: 500; }
+.cover a:focus-visible { outline-color: #fff; }
+.link-arrow::after { content: " \2192"; }
+.proof { font-family: var(--sans); font-size: 0.875rem; color: var(--cloth-ink-2); margin: 0; max-width: 60em; }
+.proof a { color: var(--cloth-ink); }
+
+/* ---- Chapters ---- */
+main { display: block; }
+.chapter { max-width: var(--page-pad); margin: 0 auto; padding: clamp(3.5rem, 7vw, 6rem) 1.25rem 0; }
+.chapter > * { max-width: var(--measure); }
+.chapter > :is(.listing, .term, .wide, .ap-list, .facts, .prod, .three, .questions, .act, .ledger, .pair, .shot, .faq, .svc-table, .steps-grid) { max-width: none; }
+.kicker { display: block; font-family: var(--sans); font-size: 0.875rem; color: var(--ink-3); margin-bottom: 0.8rem; }
+.chapter h2 { font-size: clamp(1.9rem, 1.3rem + 2.2vw, 2.9rem); letter-spacing: -0.02em; margin-bottom: 1.4rem; max-width: 22ch; }
+.chapter h3 { font-size: 1.3rem; margin: 2.5rem 0 0.6rem; }
+.lede { font-size: 1.2rem; line-height: 1.46; max-width: 34em; }
+.muted { color: var(--ink-2); }
+.small { font-size: 0.9375rem; }
+
+/* Sidenotes: inline by default, outer margin when there is room */
+.note {
+	font-family: var(--sans);
+	font-size: 0.8125rem;
+	line-height: 1.5;
+	color: var(--ink-2);
+	border-top: 1px solid var(--rule);
+	padding-top: 0.6rem;
+	margin: 0.25rem 0 1.4rem;
+	max-width: 32rem;
+}
+.note p { margin: 0 0 0.5em; }
+.note .n { font-family: var(--serif); font-size: 0.75rem; color: var(--ink-3); margin-right: 0.35em; vertical-align: super; }
+@media (min-width: 70rem) {
+	.chapter { padding-right: calc(1.25rem + var(--margin) + var(--gutter)); }
+	.chapter > * { max-width: none; }
+	.chapter > :is(.listing, .term, .wide, .ap-list, .facts, .prod, .three, .act, .ledger, .pair, .shot, .svc-table, .steps-grid) {
+		margin-right: calc(-1 * (var(--margin) + var(--gutter)));
+		clear: both;
+	}
+	.chapter > .questions, .chapter > .faq { clear: both; }
+	.note {
+		float: right;
+		clear: right;
+		width: calc(var(--margin) - 0.5rem);
+		margin: 0.2rem calc(-1 * (var(--margin) + var(--gutter))) 1.25rem 1.5rem;
+		max-width: none;
+		border-top-color: var(--rule-soft);
+	}
+}
+
+/* ---- Listings ---- */
+figure { margin: 0; }
+.listing, .term { margin: 1.75rem 0 2.25rem; border-top: 1px solid var(--ink); }
+.listing figcaption, .term figcaption, .wide figcaption, .shot figcaption {
+	font-family: var(--sans);
+	font-size: 0.8125rem;
+	line-height: 1.5;
+	color: var(--ink-2);
+	padding: 0.6rem 0;
+}
+:is(.listing, .term, .wide, .shot) figcaption > b:first-child { margin-right: 0.6em; }
+:is(.listing, .term, .wide, .shot) figcaption b { color: var(--ink); font-weight: 600; }
+:is(.listing, .term, .wide, .shot) figcaption .tag { float: right; margin-left: 1.5rem; font-weight: 600; color: var(--ok); }
+@media (max-width: 40rem) { :is(.listing, .term, .wide, .shot) figcaption .tag { float: none; display: block; margin: 0.2rem 0 0; } }
+:is(.listing, .term, .wide, .shot) figcaption .tag.bad { color: var(--bad); }
+:is(.listing, .term, .wide, .shot) figcaption .tag.hyp { color: var(--ink-3); }
+.listing pre, .term pre {
+	margin: 0;
+	padding: 1rem 1.1rem 1.1rem;
+	border-radius: 4px;
+	overflow-x: auto;
+	font-size: 0.8125rem;
+	line-height: 1.6;
+	tab-size: 4;
+	-moz-tab-size: 4;
+}
+.listing pre { background: var(--code-bg); border: 1px solid var(--code-rule); }
+.listing pre:focus-visible, .term pre:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.k { color: var(--c-key); }
+.s { color: var(--c-str); }
+.c { color: var(--c-com); font-style: italic; }
+.f { color: var(--c-fn); }
+.t { color: var(--c-type); font-weight: 600; }
+.v { color: var(--c-var); }
+.x { background: color-mix(in srgb, var(--bad) 16%, transparent); box-shadow: inset 0 -1.5px 0 var(--bad); border-radius: 1px; }
+.ln { display: inline-block; min-width: 100%; }
+.ln.hl { background: color-mix(in srgb, var(--ok) 13%, transparent); box-shadow: inset 2px 0 0 var(--ok); margin: 0 -1.1rem; padding: 0 1.1rem; min-width: calc(100% + 2.2rem); }
+.ln.add { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.ln.del { background: color-mix(in srgb, var(--bad) 11%, transparent); }
+.ln.del, .ln.del * { color: var(--ink-2); }
+.pm { display: inline-block; width: 1.4em; color: var(--ink-3); user-select: none; -webkit-user-select: none; }
+.ln.add .pm { color: var(--ok); font-weight: 700; }
+.ln.del .pm { color: var(--bad); font-weight: 700; }
+pre.diff { padding-left: 0.5rem; }
+
+/* ---- Terminal ---- */
+.term pre { background: var(--term-bg); color: var(--term-ink); line-height: 1.55; }
+.term .d { color: var(--term-dim); }
+.term .w { color: var(--term-warn); }
+.term .g { color: var(--term-ok); }
+.term .p { color: var(--term-ok); font-weight: 600; }
+.term .e { color: #f2a196; font-weight: 600; }
+
+/* ---- Figures ---- */
+.wide { margin: 1.75rem 0 2.25rem; }
+.wide > figcaption { max-width: 62ch; display: block; }
+
+/* Curves */
+.curves { width: 100%; max-width: 34rem; height: auto; display: block; border: 1px solid var(--rule-soft); border-radius: 4px; background: var(--paper-deep); }
+.curves text { font-family: var(--sans); font-size: 11px; fill: var(--ink-2); }
+.curves .axis { stroke: var(--rule); stroke-width: 1; }
+.curves .exp { stroke: var(--bad); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+.curves .lin { stroke: var(--ok); stroke-width: 2.25; fill: none; stroke-linecap: round; }
+.curves .exp-l { fill: var(--bad); }
+.curves .lin-l { fill: var(--ok); font-weight: 600; }
+
+/* Questions grid */
+.questions {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+	gap: 0 2rem;
+	border-top: 1px solid var(--ink);
+	margin: 1.75rem 0 2rem;
+	font-size: 0.9375rem;
+}
+.questions > div { padding: 0.9rem 0 1rem; border-bottom: 1px solid var(--rule-soft); }
+.questions dt { font-weight: 600; margin-bottom: 0.25rem; }
+.questions dd { margin: 0; color: var(--ink-2); font-size: 0.9rem; line-height: 1.48; }
+
+/* Three columns */
+.three { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.5rem 2rem; margin: 1.5rem 0 2rem; border-top: 1px solid var(--ink); padding-top: 1.2rem; }
+.three h3 { margin: 0 0 0.4rem; font-size: 1.1rem; }
+.three p { font-size: 0.9375rem; color: var(--ink-2); margin: 0; }
+
+/* Anti-pattern list */
+.ap-list { margin: 1.75rem 0 1rem; border-top: 1px solid var(--ink); font-size: 0.9375rem; }
+.ap-list .row { display: grid; grid-template-columns: minmax(12rem, 2fr) 3fr; gap: 0 2rem; padding: 0.7rem 0; border-bottom: 1px solid var(--rule-soft); }
+.ap-list .row.hd { font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-3); padding: 0.5rem 0; border-bottom: 1px solid var(--rule); }
+.ap-list dt { font-weight: 600; margin: 0; }
+.ap-list dt::before { content: "\2717"; color: var(--bad); font-family: var(--sans); margin-right: 0.5em; font-weight: 400; }
+.ap-list dd { margin: 0; color: var(--ink-2); }
+.ap-list dd::before { content: "\2192"; color: var(--ok); margin-right: 0.5em; }
+@media (max-width: 40rem) {
+	.ap-list .row { grid-template-columns: 1fr; gap: 0.3rem; }
+	.ap-list .row.hd span:last-child { display: none; }
+}
+
+/* Facts */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 2rem; margin: 1.75rem 0 1rem; border-top: 1px solid var(--ink); font-size: 0.9375rem; }
+.facts > div { padding: 0.9rem 0 1rem; border-bottom: 1px solid var(--rule-soft); }
+.facts dt { font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-3); margin-bottom: 0.3rem; }
+.facts dd { margin: 0; }
+
+/* Steps */
+ol.steps { list-style: none; padding: 0; counter-reset: s; }
+ol.steps > li { counter-increment: s; position: relative; padding-left: 2.4rem; margin-bottom: 1rem; }
+ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 0.05em; font-family: var(--sans); font-size: 0.8125rem; font-weight: 600; width: 1.6rem; height: 1.6rem; line-height: 1.6rem; text-align: center; border: 1px solid var(--rule); border-radius: 50%; color: var(--ink-2); }
+
+/* Closing */
+.close { margin-top: clamp(4rem, 8vw, 6rem); background: var(--paper-deep); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.close-in { max-width: var(--page-pad); margin: 0 auto; padding: clamp(2.5rem, 5vw, 3.5rem) 1.25rem; display: grid; grid-template-columns: 1fr auto; gap: 1.5rem 2rem; align-items: start; }
+.close h2 { font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.25rem); margin-bottom: 0.75rem; max-width: 20ch; }
+.close p { max-width: 34em; color: var(--ink-2); margin-bottom: 1.25rem; }
+.close .btn { background: var(--cloth); color: var(--cloth-ink); box-shadow: none; }
+.close .btn:hover { background: var(--cloth-deep); }
+.close .btn:focus-visible { outline-color: var(--link); }
+@media (max-width: 40rem) { .close-in { grid-template-columns: 1fr; } }
+
+/* Colophon */
+footer { border-top: 1px solid var(--rule); font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-2); }
+.close + footer { border-top: 0; }
+.foot-in { max-width: var(--page-pad); margin: 0 auto; padding: 2rem 1.25rem 3rem; display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; justify-content: space-between; align-items: baseline; }
+footer p { margin: 0; max-width: 42em; }
+footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
+@media (max-width: 40rem) {
+	.listing pre, .term pre { tab-size: 2; -moz-tab-size: 2; font-size: 0.75rem; padding: 0.85rem 0.9rem; }
+	.ln.hl { margin: 0 -0.9rem; padding: 0 0.9rem; min-width: calc(100% + 1.8rem); }
+	body { font-size: 1.0625rem; }
+}
+
+:root {
+	--cloth: #0f4d44;
+	--cloth-deep: #0a3933;
+	--cloth-ink: #eaf3f0;
+	--cloth-ink-2: #b9d3cc;
+	--link: #0d5c50;
+}
+@media (prefers-color-scheme: dark) {
+	:root { --cloth: #0d3f38; --cloth-deep: #092e29; --cloth-ink-2: #a9c7be; --link: #86d3bf; }
+}
+
+/* Figure 1: which services each request builds */
+.matrix { margin: clamp(2.5rem, 5vw, 3.75rem) 0 0; font-family: var(--sans); font-size: 0.8125rem; color: var(--cloth-ink-2); }
+.matrix table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.matrix th, .matrix td { text-align: left; vertical-align: top; padding: 0.6rem 0.6rem 0.65rem; }
+.matrix thead th { border-bottom: 1px solid rgba(255,255,255,0.3); font-weight: 400; padding-top: 0; }
+.matrix thead th:first-child { width: 10.5rem; }
+.matrix thead code { display: block; font-size: 0.78rem; font-weight: 600; color: var(--cloth-ink); background: none; border: 0; padding: 0; margin-bottom: 0.2rem; overflow-wrap: anywhere; }
+.matrix thead span { display: block; line-height: 1.35; }
+.matrix tbody th { color: var(--cloth-ink); font-weight: 600; padding-left: 0; }
+.matrix tbody tr + tr > * { border-top: 1px solid rgba(255,255,255,0.12); }
+.matrix tbody td { border-left: 1px solid rgba(255,255,255,0.09); }
+.matrix td code { background: none; border: 0; padding: 0; color: inherit; font-size: 0.76rem; }
+.matrix .on b {
+	display: block;
+	background: rgba(255,255,255,0.13);
+	border: 1px solid rgba(255,255,255,0.34);
+	border-radius: 3px;
+	padding: 0.35rem 0.5rem;
+	color: #fff;
+	font-weight: 600;
+	line-height: 1.3;
+}
+.matrix .on b code { display: block; font-weight: 400; color: var(--cloth-ink-2); margin-top: 0.1rem; }
+.matrix .off { color: var(--cloth-ink-2); line-height: 1.35; }
+.matrix .off::before { content: "\2014"; display: block; color: rgba(255,255,255,0.45); line-height: 1; margin-bottom: 0.2rem; }
+.matrix figcaption { margin-top: 1rem; max-width: 66ch; line-height: 1.5; }
+.matrix figcaption b { color: var(--cloth-ink); }
+.matrix figcaption code { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: var(--cloth-ink); }
+@media (max-width: 52rem) {
+	.matrix thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+	.matrix table, .matrix tbody, .matrix tr, .matrix th, .matrix td { display: block; width: auto; }
+	.matrix tbody tr { border-top: 1px solid rgba(255,255,255,0.3); padding: 0.7rem 0 0.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.8rem; }
+	.matrix tbody tr + tr > * { border-top: 0; }
+	.matrix tbody th { grid-column: 1 / -1; padding: 0 0 0.1rem; font-size: 0.875rem; }
+	.matrix tbody td { border-left: 0; padding: 0; }
+	.matrix td::after { content: none; }
+	.matrix td[data-svc]::before { content: attr(data-svc); display: block; font-family: var(--mono); font-size: 0.7rem; color: var(--cloth-ink); margin-bottom: 0.2rem; overflow-wrap: anywhere; }
+	.matrix .off::before { content: attr(data-svc) " \2014"; color: var(--cloth-ink-2); margin-bottom: 0.15rem; line-height: 1.3; }
+}
+
+/* The three acts */
+.act > :is(p, h3, .kicker) { max-width: var(--measure); }
+.example-link + .act { border-top: 0; padding-top: 0; }
+@media (min-width: 70rem) { .act > .note { margin-right: 0; float: right; } .act > :is(p, h3) { max-width: var(--measure); } }
+.act { margin-top: 3rem; padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+.act > .kicker { color: var(--link); font-weight: 600; margin-bottom: 0.4rem; }
+.act h3 { margin-top: 0; font-size: clamp(1.35rem, 1.15rem + 0.8vw, 1.7rem); }
+.pair .listing { margin: 1.25rem 0 1.5rem; }
+
+/* Figure 2: the ledger of feature commits */
+.ledger { margin: 2rem 0 2.25rem; border-top: 1px solid var(--ink); font-family: var(--sans); font-size: 0.8125rem; }
+.ledger table { width: 100%; border-collapse: collapse; }
+.ledger th, .ledger td { text-align: left; padding: 0.55rem 0.7rem 0.55rem 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+.ledger thead th { font-weight: 400; color: var(--ink-3); border-bottom-color: var(--rule); }
+.ledger thead th code { font-size: 0.75rem; }
+.ledger tbody th { font-weight: 600; font-family: var(--serif); font-size: 0.9375rem; white-space: nowrap; }
+.ledger td { color: var(--ink-2); }
+.ledger td.root { font-family: var(--mono); font-size: 0.75rem; color: var(--ink); }
+.ledger td.new { color: var(--ok); }
+.ledger td.new::before { content: "+ "; font-weight: 700; }
+.ledger td.none { color: var(--rule); }
+.ledger .scroll { overflow-x: auto; }
+.ledger figcaption { padding: 0.6rem 0; color: var(--ink-2); line-height: 1.45; max-width: 66ch; }
+.ledger figcaption b { color: var(--ink); }
+
+/* Agent loop */
+.loop { list-style: none; margin: 1.75rem 0 0.5rem; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); counter-reset: loop; }
+.loop li { margin: 0; padding: 0.9rem 1.1rem 1rem; position: relative; counter-increment: loop; font-size: 0.9375rem; }
+.loop li + li { border-left: 1px solid var(--rule-soft); }
+.loop li:first-child { padding-left: 0; }
+.loop li::before { content: counter(loop); display: block; font-family: var(--sans); font-size: 0.75rem; color: var(--ink-3); margin-bottom: 0.3rem; }
+.loop b { display: block; margin-bottom: 0.25rem; }
+.loop span { color: var(--ink-2); font-size: 0.875rem; line-height: 1.45; display: block; }
+.loop li:nth-child(2) b { color: var(--bad); }
+.loop li:nth-child(4) b { color: var(--ok); }
+@media (max-width: 52rem) { .loop { grid-template-columns: 1fr 1fr; } .loop li:nth-child(3) { border-left: 0; } .loop li:nth-child(n+3) { border-top: 1px solid var(--rule-soft); } }
+@media (max-width: 30rem) { .loop { grid-template-columns: 1fr; } .loop li + li { border-left: 0; border-top: 1px solid var(--rule-soft); } }
+
+/* Production */
+.prod { margin: 1.75rem 0 1rem; border-top: 1px solid var(--ink); }
+.prod .row { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 2rem; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--rule-soft); }
+.prod p { margin: 0; }
+.prod small { display: block; font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-2); margin-top: 0.2rem; }
+.prod .badge-cell { text-align: right; font-family: var(--sans); font-size: 0.75rem; color: var(--ink-3); }
+.prod .badge-cell img { display: block; margin: 0 0 0.25rem auto; height: 20px; width: auto; }
+@media (max-width: 36rem) { .prod .row { grid-template-columns: 1fr; } .prod .badge-cell { text-align: left; } .prod .badge-cell img { margin-left: 0; } }
+
+/* Worked example callout */
+.example-link { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 2rem; align-items: center; margin: 2rem 0 0; padding: 1.1rem 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 0.9375rem; }
+.example-link p { margin: 0; color: var(--ink-2); }
+.example-link b { color: var(--ink); font-family: var(--serif); font-size: 1.1rem; display: block; margin-bottom: 0.15rem; }
+.example-link nav { display: flex; gap: 0.4rem 1.25rem; flex-wrap: wrap; }
+@media (max-width: 40rem) { .example-link { grid-template-columns: 1fr; } }
+
+@media (prefers-reduced-motion: no-preference) {
+	.curves .lin { stroke-dasharray: 470; stroke-dashoffset: 470; animation: draw 1.4s cubic-bezier(.16,1,.3,1) 0.3s forwards; }
+	@keyframes draw { to { stroke-dashoffset: 0; } }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="head">
+	<div class="head-in">
+		<a class="brand" href="./">MWPD Basic Scaffold</a>
+		<nav aria-label="Primary">
+			<a href="#example">Worked example</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/design-principles.md">Principles</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/patterns.md">Patterns</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/architecture-rules.md">Rules</a>
+			<a href="https://github.com/mwpd/basic-scaffold">GitHub</a>
+		</nav>
+	</div>
+</header>
+
+<main id="main">
+
+<section class="cover" aria-labelledby="title">
+	<div class="cover-in">
+		<p class="series">A WordPress plugin template &middot; Companion code to <cite>Modern WordPress Plugin Development</cite></p>
+		<h1 id="title">WordPress plugins whose complexity grows <em>linearly.</em></h1>
+		<p class="sub">A scaffold where every feature is a service that knows its own place in the WordPress lifecycle, with architecture checks that keep it that way for you and your coding agents.</p>
+		<div class="actions">
+			<a class="btn" href="https://github.com/new?template_name=basic-scaffold&amp;template_owner=mwpd">Use this template</a>
+			<a class="link-arrow" href="../content-freshness/">See the worked example</a>
+		</div>
+		<p class="proof">The same architecture runs in the <a href="https://wordpress.org/plugins/amp/">AMP</a> and <a href="https://wordpress.org/plugins/web-stories/">Web Stories</a> plugins. PHP 7.4+, WordPress 6.0+, MIT.</p>
+
+		<figure class="matrix">
+			<table>
+				<caption class="sr">Which of Content Freshness's four services are built in five kinds of request</caption>
+				<thead>
+					<tr>
+						<th scope="col">Request</th>
+						<th scope="col"><code>OutdatedPostNotice</code><span>Conditional, Delayed to <code>wp</code></span></th>
+						<th scope="col"><code>PostAgeColumn</code><span>Conditional, Delayed to <code>current_screen</code></span></th>
+						<th scope="col"><code>FreshnessSetting</code><span>Delayed to <code>admin_init</code></span></th>
+						<th scope="col"><code>StaleContentDigest</code><span>Activateable, Deactivateable</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<th scope="row">A single post</th>
+						<td class="on" data-svc="OutdatedPostNotice"><b>Built <code>at wp</code></b></td>
+						<td class="off" data-svc="PostAgeColumn"><span class="sr">Not built: </span><code>current_screen</code> never fires</td>
+						<td class="off" data-svc="FreshnessSetting"><span class="sr">Not built: </span><code>admin_init</code> never fires</td>
+						<td class="on" data-svc="StaleContentDigest"><b>Built <code>at plugins_loaded</code></b></td>
+					</tr>
+					<tr>
+						<th scope="row">Posts list screen</th>
+						<td class="off" data-svc="OutdatedPostNotice"><span class="sr">Not built: </span><code>is_needed()</code> says no</td>
+						<td class="on" data-svc="PostAgeColumn"><b>Built <code>at current_screen</code></b></td>
+						<td class="on" data-svc="FreshnessSetting"><b>Built <code>at admin_init</code></b></td>
+						<td class="on" data-svc="StaleContentDigest"><b>Built <code>at plugins_loaded</code></b></td>
+					</tr>
+					<tr>
+						<th scope="row">Settings &rsaquo; Reading</th>
+						<td class="off" data-svc="OutdatedPostNotice"><span class="sr">Not built: </span><code>wp</code> never fires</td>
+						<td class="off" data-svc="PostAgeColumn"><span class="sr">Not built: </span><code>is_needed()</code> says no</td>
+						<td class="on" data-svc="FreshnessSetting"><b>Built <code>at admin_init</code></b></td>
+						<td class="on" data-svc="StaleContentDigest"><b>Built <code>at plugins_loaded</code></b></td>
+					</tr>
+					<tr>
+						<th scope="row">A WP-Cron run</th>
+						<td class="off" data-svc="OutdatedPostNotice"><span class="sr">Not built: </span><code>wp</code> never fires</td>
+						<td class="off" data-svc="PostAgeColumn"><span class="sr">Not built: </span><code>current_screen</code> never fires</td>
+						<td class="off" data-svc="FreshnessSetting"><span class="sr">Not built: </span><code>admin_init</code> never fires</td>
+						<td class="on" data-svc="StaleContentDigest"><b>Built <code>at plugins_loaded</code></b></td>
+					</tr>
+					<tr>
+						<th scope="row">An archive page</th>
+						<td class="off" data-svc="OutdatedPostNotice"><span class="sr">Not built: </span><code>is_needed()</code> says no</td>
+						<td class="off" data-svc="PostAgeColumn"><span class="sr">Not built: </span><code>current_screen</code> never fires</td>
+						<td class="off" data-svc="FreshnessSetting"><span class="sr">Not built: </span><code>admin_init</code> never fires</td>
+						<td class="on" data-svc="StaleContentDigest"><b>Built <code>at plugins_loaded</code></b></td>
+					</tr>
+				</tbody>
+			</table>
+			<figcaption><b>Figure 1.</b> The four services of <a href="../content-freshness/" style="color:inherit">Content Freshness</a>, a plugin built from this scaffold, in five kinds of request, as logged on a running site. Nothing outside the services decides this: each one's declarations do. The digest is built everywhere so that its cron hook exists whenever WP-Cron happens to run.</figcaption>
+		</figure>
+	</div>
+</section>
+
+<section class="chapter" id="problem" aria-labelledby="h-problem">
+	<h2 id="h-problem">You have maintained this plugin.</h2>
+	<p class="lede">It started with one feature: warn readers that an old post may be out of date. Then editors wanted a column in the Posts list, a setting, and a weekly email.</p>
+
+	<figure class="listing">
+		<pre tabindex="0"><code><span class="k">class</span> <span class="t">Content_Freshness</span> {
+
+	<span class="k">private</span> <span class="k">static</span> <span class="v">$instance</span>;
+
+	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="x">instance</span>() {
+		<span class="k">if</span> ( ! <span class="t">self</span>::<span class="v">$instance</span> ) {
+			<span class="t">self</span>::<span class="v">$instance</span> = <span class="k">new</span> <span class="f">self</span>();
+		}
+		<span class="k">return</span> <span class="t">self</span>::<span class="v">$instance</span>;
+	}
+
+	<span class="k">private</span> <span class="k">function</span> <span class="f">__construct</span>() {
+		<span class="c">// The notice. Never true: the query has not run yet.</span>
+		<span class="k">if</span> ( ! <span class="f">is_admin</span>() &amp;&amp; <span class="x"><span class="f">is_singular</span>( <span class="s">'post'</span> )</span> ) {
+			<span class="f">add_filter</span>( <span class="s">'the_content'</span>, <span class="k">array</span>( <span class="v">$this</span>, <span class="s">'notice'</span> ) );
+		}
+
+		<span class="c">// The column, the setting... and the digest's cron hook.</span>
+		<span class="k">if</span> ( <span class="x"><span class="f">is_admin</span>()</span> ) {
+			<span class="f">add_filter</span>( <span class="s">'manage_posts_columns'</span>, <span class="k">array</span>( <span class="v">$this</span>, <span class="s">'add_column'</span> ) );
+			<span class="f">add_action</span>( <span class="s">'manage_posts_custom_column'</span>, <span class="k">array</span>( <span class="v">$this</span>, <span class="s">'render_column'</span> ), 10, 2 );
+			<span class="f">add_action</span>( <span class="s">'admin_init'</span>, <span class="k">array</span>( <span class="v">$this</span>, <span class="s">'register_setting'</span> ) );
+			<span class="f">add_action</span>( <span class="s">'cf_send_digest'</span>, <span class="k">array</span>( <span class="v">$this</span>, <span class="s">'send_digest'</span> ) ); <span class="c">// wp-cron.php is not admin.</span>
+		}
+
+		<span class="c">// Runs on every request, on include, and is never cleared.</span>
+		<span class="k">if</span> ( ! <span class="f">wp_next_scheduled</span>( <span class="s">'cf_send_digest'</span> ) ) {
+			<span class="x"><span class="f">wp_schedule_event</span>( <span class="f">time</span>(), <span class="s">'weekly'</span>, <span class="s">'cf_send_digest'</span> )</span>;
+		}
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">notice</span>( <span class="v">$content</span> ) {
+		<span class="x"><span class="k">global</span> <span class="v">$post</span></span>; <span class="c">// Also every post in a related-posts block.</span>
+		<span class="v">$days</span> = <span class="f">get_option</span>( <span class="s">'cf_days'</span>, 365 );
+		<span class="k">if</span> ( <span class="f">time</span>() - <span class="f">strtotime</span>( <span class="v">$post</span>-&gt;post_modified ) &gt; <span class="v">$days</span> * DAY_IN_SECONDS ) {
+			<span class="v">$content</span> = <span class="s">'&lt;p class="notice"&gt;This post may be out of date.&lt;/p&gt;'</span> . <span class="v">$content</span>;
+		}
+		<span class="k">return</span> <span class="v">$content</span>;
+	}
+
+	<span class="c">// add_column(), render_column(), send_digest(): the same option read</span>
+	<span class="c">// and the same date arithmetic, three more times.</span>
+}
+
+<span class="t">Content_Freshness</span>::<span class="f">instance</span>();</code></pre>
+		<figcaption><b>Listing 1</b> <span>The same three features, written the usual way.</span> <span class="tag bad">Invented for this page, not from any repository</span></figcaption>
+	</figure>
+
+	<aside class="note"><span class="n">a</span>Two lifecycle facts make code like this hard to get right. Many conditions only answer after a certain point: <code>is_singular()</code> means nothing until the query has run. And WP-Cron runs in its own request to <code>wp-cron.php</code>, where <code>is_admin()</code> is false, so the digest callback above is never there when the event fires.</aside>
+
+	<p>Every line that decides <em>when</em> or <em>whether</em> lives next to every other such line. The column has to stay out of the notice's way, the digest has to survive the column's <code>is_admin()</code>, and none of it can be tested without the rest. The fourth feature has to know about three. The tenth has to know about nine.</p>
+
+	<figure class="wide">
+		<svg class="curves" viewBox="0 0 540 250" role="img" aria-labelledby="curves-title curves-desc">
+			<title id="curves-title">Complexity against features</title>
+			<desc id="curves-desc">A dashed curve rises steeply as features are added when every feature must account for every other. A straight line rises gently when each feature is its own service.</desc>
+			<line class="axis" x1="48" y1="210" x2="510" y2="210"/>
+			<line class="axis" x1="48" y1="24" x2="48" y2="210"/>
+			<text x="510" y="232" text-anchor="end">features added</text>
+			<text x="16" y="34" transform="rotate(-90 16 34)" text-anchor="end">what each change must know about</text>
+			<path class="exp" d="M48 208 C 180 204, 300 190, 360 150 S 430 60, 470 28"/>
+			<path class="lin" d="M48 208 L 500 158"/>
+			<text class="exp-l" x="340" y="100" text-anchor="end">every feature knows every other</text>
+			<text class="lin-l" x="500" y="180" text-anchor="end">one service per feature</text>
+		</svg>
+		<figcaption><b>Figure 2.</b> A sketch of the argument, not a measurement. In Listing 1 each feature adds conditions the others must respect. A service adds only itself.</figcaption>
+	</figure>
+</section>
+
+<section class="chapter" id="example" aria-labelledby="h-example">
+	<h2 id="h-example">The same plugin, one service at a time.</h2>
+	<p class="lede">Content Freshness is the scaffold's worked example: a real plugin with those four features, built from this template commit by commit. Watch what each new feature changes.</p>
+
+	<div class="example-link">
+		<p><b>Content Freshness 1.0.0</b>A notice for readers, a column and a weekly digest for editors, one setting. Every listing below is from its source.</p>
+		<nav aria-label="Worked example">
+			<a href="../content-freshness/">Plugin page</a>
+			<a href="https://github.com/mwpd/content-freshness">Source on GitHub</a>
+		</nav>
+	</div>
+
+	<div class="act">
+		<span class="kicker">First feature</span>
+		<h3>The notice decides for itself where it belongs.</h3>
+		<p>The notice is needed on a single post, and WordPress can only say whether this is a single post once the query has run. So the service says both, as static answers the plugin can ask before it builds anything.</p>
+		<figure class="listing">
+			<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">OutdatedPostNotice</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Conditional</span>, <span class="t">Delayed</span> {
+
+	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">is_needed</span>(): <span class="t">bool</span> {
+		<span class="k">return</span> <span class="f">\is_singular</span>( <span class="s">'post'</span> ); <span class="c">// Only on a single post...</span>
+	}
+
+	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">get_registration_action</span>(): <span class="t">string</span> {
+		<span class="k">return</span> <span class="s">'wp'</span>; <span class="c">// ...asked once the query has run.</span>
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">__construct</span>(
+		<span class="t">FreshnessPolicy</span> <span class="v">$policy</span>,
+		<span class="t">MainLoop</span> <span class="v">$main_loop</span>,
+		<span class="t">ViewFactory</span> <span class="v">$view_factory</span>,
+		<span class="t">DebugMode</span> <span class="v">$debug_mode</span>
+	) {
+		<span class="v">$this</span>-&gt;policy = <span class="v">$policy</span>; <span class="c">// Constructors only store what they get.</span>
+		<span class="c">// ...</span>
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">register</span>(): <span class="t">void</span> {
+		<span class="f">\add_filter</span>( <span class="s">'the_content'</span>, [ <span class="v">$this</span>, <span class="s">'prepend_notice'</span> ] );
+	}
+
+	<span class="c">// prepend_notice() asks MainLoop and FreshnessPolicy, renders a view.</span>
+}</code></pre>
+			<figcaption><b>Listing 2</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/Notice/OutdatedPostNotice.php"><code>src/Notice/OutdatedPostNotice.php</code></a>, trimmed to its declarations. <span class="tag">From the repository</span></figcaption>
+		</figure>
+		<p>It never checks <code>is_admin()</code>. It does not fetch the post when it is built: <code>MainLoop</code> tells it, while <code>the_content</code> runs, whether this is the queried post in the main loop, so a related-posts block further down gets no notice.</p>
+	</div>
+
+	<div class="act">
+		<span class="kicker">Second feature</span>
+		<h3>The column is one more service and one more line.</h3>
+		<p>The Posts list column lives in a different part of WordPress, on an admin screen that is only known once <code>current_screen</code> fires. It says so, the same way. The composition root gains one entry; the notice is not touched.</p>
+		<div class="pair">
+			<figure class="listing">
+				<pre class="diff" tabindex="0"><code><span class="ln ctx"><span class="pm" aria-hidden="true"> </span>	<span class="t">WordPressMainLoop</span></span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>};</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span><span class="k">use</span> <span class="t">MWPD\ContentFreshness\PostsList\PostAgeColumn</span>;</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span></span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>	<span class="k">protected</span> <span class="k">function</span> <span class="f">get_service_classes</span>(): <span class="k">array</span> {</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>		<span class="k">return</span> [</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>			<span class="t">self</span>::OUTDATED_POST_NOTICE_ID =&gt; <span class="t">OutdatedPostNotice</span>::<span class="k">class</span>,</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>			<span class="t">self</span>::POST_AGE_COLUMN_ID      =&gt; <span class="t">PostAgeColumn</span>::<span class="k">class</span>,</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>		];</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>	}</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>	<span class="k">public</span> <span class="k">const</span> POST_AGE_COLUMN_ID = <span class="t">self</span>::SERVICE_PREFIX . <span class="s">'posts-list.post-age-column'</span>;</span></code></pre>
+				<figcaption><b>Listing 3</b> <span>What commit <code>b79fd37</code> “Add the post age column” changed in <code>src/ContentFreshnessPlugin.php</code>. Trimmed: the same commit also removed the scaffold's sample service.</span></figcaption>
+			</figure>
+			<figure class="listing">
+				<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">PostAgeColumn</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Conditional</span>, <span class="t">Delayed</span> {
+
+	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">is_needed</span>(): <span class="t">bool</span> {
+		<span class="v">$screen</span> = <span class="f">\get_current_screen</span>();
+
+		<span class="k">return</span> <span class="k">null</span> !== <span class="v">$screen</span> &amp;&amp; <span class="t">self</span>::SCREEN === <span class="v">$screen</span>-&gt;id;   <span class="c">// 'edit-post'</span>
+	}
+
+	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">get_registration_action</span>(): <span class="t">string</span> {
+		<span class="k">return</span> <span class="s">'current_screen'</span>;
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">__construct</span>( <span class="t">FreshnessPolicy</span> <span class="v">$policy</span>, <span class="t">ViewFactory</span> <span class="v">$view_factory</span>, <span class="t">DebugMode</span> <span class="v">$debug_mode</span> ) {
+		<span class="c">// ...</span>
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">register</span>(): <span class="t">void</span> {
+		<span class="f">\add_filter</span>( <span class="s">'manage_post_posts_columns'</span>, [ <span class="v">$this</span>, <span class="s">'add_column'</span> ] );
+		<span class="f">\add_filter</span>( <span class="s">'manage_edit-post_sortable_columns'</span>, [ <span class="v">$this</span>, <span class="s">'make_sortable'</span> ] );
+		<span class="f">\add_action</span>( <span class="s">'manage_post_posts_custom_column'</span>, [ <span class="v">$this</span>, <span class="s">'render_cell'</span> ], 10, 2 );
+	}
+}</code></pre>
+				<figcaption><b>Listing 4</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/PostsList/PostAgeColumn.php"><code>src/PostsList/PostAgeColumn.php</code></a>, trimmed. <span class="tag">From the repository</span></figcaption>
+			</figure>
+		</div>
+	</div>
+
+	<div class="act">
+		<span class="kicker">Third feature</span>
+		<h3>The digest needs the plugin's lifecycle, not a request.</h3>
+		<p>A weekly email is scheduled when the plugin is activated and cleared when it is deactivated. The service says that by implementing <code>Activateable</code> and <code>Deactivateable</code>, and the plugin calls it from its activation hooks.</p>
+		<p>It is deliberately not <code>Conditional</code>. WP-Cron fires the event in whatever request comes along, so the callback has to be hooked in every request, and activation skips a <code>Conditional</code> service that is not needed in the activation request.</p>
+		<div class="pair">
+			<figure class="listing">
+				<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">StaleContentDigest</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Activateable</span>, <span class="t">Deactivateable</span> {
+
+	<span class="k">public</span> <span class="k">const</span> CRON_HOOK = <span class="s">'mwpd_content_freshness_send_digest'</span>;
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">register</span>(): <span class="t">void</span> {
+		<span class="f">\add_action</span>( <span class="t">self</span>::CRON_HOOK, [ <span class="v">$this</span>, <span class="s">'send'</span> ], 10, 0 );
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">activate</span>(): <span class="t">void</span> {
+		<span class="k">if</span> ( <span class="k">false</span> !== <span class="f">\wp_next_scheduled</span>( <span class="t">self</span>::CRON_HOOK ) ) {
+			<span class="k">return</span>; <span class="c">// Activating twice schedules once.</span>
+		}
+
+		<span class="v">$result</span> = <span class="f">\wp_schedule_event</span>(
+			<span class="v">$this</span>-&gt;clock-&gt;<span class="f">now</span>()-&gt;<span class="f">getTimestamp</span>() + <span class="t">self</span>::FIRST_DELAY,
+			<span class="t">self</span>::RECURRENCE,
+			<span class="t">self</span>::CRON_HOOK,
+			[],
+			<span class="k">true</span>
+		);
+		<span class="c">// ... a WP_Error becomes FailedToScheduleDigest.</span>
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">deactivate</span>(): <span class="t">void</span> {
+		<span class="v">$result</span> = <span class="f">\wp_clear_scheduled_hook</span>( <span class="t">self</span>::CRON_HOOK, [], <span class="k">true</span> );
+		<span class="c">// ...</span>
+	}
+}</code></pre>
+				<figcaption><b>Listing 5</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/Digest/StaleContentDigest.php"><code>src/Digest/StaleContentDigest.php</code></a>, trimmed. <span class="tag">From the repository</span></figcaption>
+			</figure>
+			<figure class="listing">
+				<pre class="diff" tabindex="0"><code><span class="ln ctx"><span class="pm" aria-hidden="true"> </span>			<span class="t">self</span>::POST_AGE_COLUMN_ID      =&gt; <span class="t">PostAgeColumn</span>::<span class="k">class</span>,</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>			<span class="t">self</span>::FRESHNESS_SETTING_ID    =&gt; <span class="t">FreshnessSetting</span>::<span class="k">class</span>,</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>			<span class="t">self</span>::STALE_CONTENT_DIGEST_ID =&gt; <span class="t">StaleContentDigest</span>::<span class="k">class</span>,</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>		];</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>	...</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>			<span class="t">MainLoop</span>::<span class="k">class</span>        =&gt; <span class="t">WordPressMainLoop</span>::<span class="k">class</span>,</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>			<span class="c">// The digest asks the database for the stalest posts.</span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>			<span class="t">StalePosts</span>::<span class="k">class</span>      =&gt; <span class="t">WordPressStalePosts</span>::<span class="k">class</span>,</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>		];</span></code></pre>
+				<figcaption><b>Listing 6</b> <span>Commit <code>4f6b654</code> “Add the stale content digest” in the composition root: the service, and a binding for the one collaborator it brought, trimmed of its import and ID constant.</span></figcaption>
+			</figure>
+		</div>
+		<aside class="note"><span class="n">b</span>The fourth service, <code>FreshnessSetting</code>, is <code>Delayed</code> to <code>admin_init</code> and not <code>Conditional</code>: waiting for <code>admin_init</code> already keeps it out of the front end, and an <code>is_admin()</code> condition would stop it from cleaning up when the plugin is deleted through WP-CLI.</aside>
+		<p>The fourth feature, the setting under Settings &rsaquo; Reading, went in the same way. Removing its option when the plugin is deleted was a lifecycle point the scaffold had no interface for. The scaffold's rule is that such a point gets a new capability interface, never a condition inside a service, so the example added one: <a href="https://github.com/mwpd/content-freshness/blob/main/src/Infrastructure/Uninstallable.php"><code>Uninstallable</code></a>.</p>
+	</div>
+
+	<figure class="ledger">
+		<div class="scroll">
+		<table>
+			<thead>
+				<tr>
+					<th scope="col">Commit</th>
+					<th scope="col">Composition root</th>
+					<th scope="col"><code>Notice/</code></th>
+					<th scope="col"><code>PostsList/</code></th>
+					<th scope="col"><code>Settings/</code></th>
+					<th scope="col"><code>Digest/</code></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr><th scope="row">Add the outdated post notice</th><td class="root">94 lines</td><td class="new">3 files</td><td class="none">&ndash;</td><td class="none">&ndash;</td><td class="none">&ndash;</td></tr>
+				<tr><th scope="row">Add the post age column</th><td class="root">10 lines</td><td class="none">&ndash;</td><td class="new">1 file</td><td class="none">&ndash;</td><td class="none">&ndash;</td></tr>
+				<tr><th scope="row">Add the freshness setting</th><td class="root">4 lines</td><td class="none">&ndash;</td><td class="none">&ndash;</td><td class="new">1 file</td><td class="none">&ndash;</td></tr>
+				<tr><th scope="row">Add the stale content digest</th><td class="root">11 lines</td><td class="none">&ndash;</td><td class="none">&ndash;</td><td class="none">&ndash;</td><td class="new">3 files</td></tr>
+			</tbody>
+		</table>
+		</div>
+		<figcaption><b>Figure 3.</b> The four feature commits in Content Freshness and the source directories they touched, from <code>git log --stat</code>. Line counts are additions plus deletions in <code>ContentFreshnessPlugin.php</code>; the first two also removed the scaffold's sample services. Shared code outside the feature directories: the notice reworded one exception, the digest added two. No feature commit touched another feature's code.</figcaption>
+	</figure>
+
+	<p>That staircase is the whole point. Each feature was one more service that manages its own lifecycle. Complexity grew by one service at a time, not by one more condition in every existing one.</p>
+
+	<h3>The lifecycle questions a service can answer</h3>
+	<dl class="questions">
+		<div><dt>Is it needed in this request at all?</dt><dd><code>Conditional::is_needed()</code>. Asked before the service is built. If the answer is no, the service never exists.</dd></div>
+		<div><dt>When does it hook in?</dt><dd><code>Delayed::get_registration_action()</code>. Registration waits for that action, or runs at once if it has already fired.</dd></div>
+		<div><dt>Which services must exist first?</dt><dd><code>HasDependencies::get_dependencies()</code>. Registration waits until they are registered, and fails loudly when they never can be.</dd></div>
+		<div><dt>What does it hook into?</dt><dd><code>Registerable::register()</code>. Called once the service is built, to add its actions and filters.</dd></div>
+		<div><dt>What happens on activation?</dt><dd><code>Activateable::activate()</code>. Called from the plugin's activation hook. Safe to run twice.</dd></div>
+		<div><dt>And on deactivation?</dt><dd><code>Deactivateable::deactivate()</code>. Called from the deactivation hook, the same way.</dd></div>
+	</dl>
+	<p>The questions are static methods on purpose, so the plugin can <mark>decide before it builds</mark>. A service a request does not need is never instantiated, which is what Figure 1 shows: each request pays only for the services it uses.</p>
+</section>
+
+<section class="chapter" id="root" aria-labelledby="h-root">
+	<h2 id="h-root">One composition root.</h2>
+	<p class="lede">The plugin class implements no features. It lists the services and tells a small injector how to assemble them, in one place.</p>
+
+	<figure class="listing">
+		<pre tabindex="0"><code><span class="k">protected</span> <span class="k">function</span> <span class="f">get_bindings</span>(): <span class="k">array</span> {
+	<span class="k">return</span> [
+		<span class="c">// Views can be overridden by the theme.</span>
+		<span class="t">ViewFactory</span>::<span class="k">class</span>     =&gt; <span class="t">TemplatedViewFactory</span>::<span class="k">class</span>,
+
+		<span class="c">// Failures surface when WP_DEBUG is on, and degrade when it is off.</span>
+		<span class="t">DebugMode</span>::<span class="k">class</span>       =&gt; <span class="t">WordPressDebugMode</span>::<span class="k">class</span>,
+
+		<span class="c">// Ages are measured against the time WordPress tells.</span>
+		<span class="t">Clock</span>::<span class="k">class</span>           =&gt; <span class="t">WordPressClock</span>::<span class="k">class</span>,
+
+		<span class="c">// A post is outdated once it is older than the maximum age set</span>
+		<span class="c">// under Settings &gt; Reading. Rebind this to change the rule for</span>
+		<span class="c">// every service at once.</span>
+<span class="ln hl">		<span class="t">FreshnessPolicy</span>::<span class="k">class</span> =&gt; <span class="t">OptionFreshnessPolicy</span>::<span class="k">class</span>,</span>
+
+		<span class="c">// The notice asks WordPress's main loop which post it renders.</span>
+		<span class="t">MainLoop</span>::<span class="k">class</span>        =&gt; <span class="t">WordPressMainLoop</span>::<span class="k">class</span>,
+
+		<span class="c">// The digest asks the database for the stalest posts.</span>
+		<span class="t">StalePosts</span>::<span class="k">class</span>      =&gt; <span class="t">WordPressStalePosts</span>::<span class="k">class</span>,
+	];
+}
+
+<span class="k">protected</span> <span class="k">function</span> <span class="f">get_shared_instances</span>(): <span class="k">array</span> {
+	<span class="k">return</span> [
+		<span class="c">// One policy for the whole request: it reads the option once, and</span>
+		<span class="c">// every service that asks gets the same answer.</span>
+		<span class="t">FreshnessPolicy</span>::<span class="k">class</span>,
+	];
+}</code></pre>
+		<figcaption><b>Listing 7</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/ContentFreshnessPlugin.php"><code>src/ContentFreshnessPlugin.php</code></a>, the bindings and shared instances. <span class="tag">From the repository</span></figcaption>
+	</figure>
+
+	<aside class="note"><span class="n">c</span>The injector and the service container are small in-house implementations behind interfaces. <code>ServiceBasedPlugin</code> takes any <code>Injector</code> and <code>ServiceContainer</code> through its constructor and falls back to the simple ones when none is passed.</aside>
+
+	<p>Services ask for interfaces in their constructors. The notice, the column and the digest all ask for a <code>FreshnessPolicy</code>; the highlighted line decides which one they get. <code>new</code> is reserved for value objects and exceptions, the inside of factories, and the built-in default a constructor falls back to. Everything else comes from the injector, so there is one place to read when you want to know how the plugin fits together.</p>
+
+	<h3>Swapping an implementation is one binding.</h3>
+	<p>Change that line, and every service that asks for a <code>FreshnessPolicy</code> gets the new rule. None of them changes. The plugin's own test proves it by rebinding the policy to a test double through the injector's filter, and checking that the option is never read:</p>
+
+	<figure class="listing">
+		<pre tabindex="0"><code><span class="k">public</span> <span class="k">function</span> <span class="f">test_a_rebound_policy_changes_the_rule_without_touching_the_service</span>(): <span class="t">void</span> {
+	<span class="f">Functions\expect</span>( <span class="s">'get_option'</span> )-&gt;<span class="f">never</span>();
+	<span class="f">Filters\expectApplied</span>( <span class="s">'mwpd.content_freshness.bindings'</span> )
+		-&gt;<span class="f">once</span>()
+		-&gt;<span class="f">andReturnUsing</span>(
+			<span class="k">static</span> <span class="k">function</span> ( <span class="k">array</span> <span class="v">$bindings</span> ): <span class="k">array</span> {
+<span class="ln hl">				<span class="v">$bindings</span>[ <span class="t">FreshnessPolicy</span>::<span class="k">class</span> ] = <span class="t">FixedFreshnessPolicy</span>::<span class="k">class</span>;</span>
+
+				<span class="k">return</span> <span class="v">$bindings</span>;
+			}
+		);
+	<span class="c">// The fixed policy says "fresh" unless told otherwise.</span>
+	<span class="f">Filters\expectApplied</span>( <span class="s">'mwpd.content_freshness.arguments'</span> )
+		-&gt;<span class="f">once</span>()
+		-&gt;<span class="f">andReturnUsing</span>(
+			<span class="k">static</span> <span class="k">function</span> ( <span class="k">array</span> <span class="v">$arguments</span> ): <span class="k">array</span> {
+				<span class="v">$arguments</span>[ <span class="t">FixedFreshnessPolicy</span>::<span class="k">class</span> ] = [ <span class="s">'outdated'</span> =&gt; <span class="k">false</span> ];
+
+				<span class="k">return</span> <span class="v">$arguments</span>;
+			}
+		);
+
+	<span class="v">$this</span>-&gt;<span class="f">assertSame</span>( <span class="s">'&lt;p&gt;Content.&lt;/p&gt;'</span>, <span class="v">$this</span>-&gt;<span class="f">registered_notice</span>()-&gt;<span class="f">prepend_notice</span>( <span class="s">'&lt;p&gt;Content.&lt;/p&gt;'</span> ) );
+}</code></pre>
+		<figcaption><b>Listing 8</b> <a href="https://github.com/mwpd/content-freshness/blob/main/tests/php/Integration/Notice/OutdatedPostNoticeTest.php"><code>tests/php/Integration/Notice/OutdatedPostNoticeTest.php</code></a>. <code>FixedFreshnessPolicy</code> is a fixture in <code>tests/php/Fixture/Freshness/</code>. <span class="tag">From the repository</span></figcaption>
+	</figure>
+
+	<p>A site does the same from a plugin or must-use plugin, for example with a policy that leaves posts in an evergreen category alone:</p>
+
+	<figure class="listing">
+		<pre tabindex="0"><code><span class="f">add_filter</span>(
+	<span class="s">'mwpd.content_freshness.bindings'</span>,
+	<span class="k">static</span> <span class="k">function</span> ( <span class="k">array</span> <span class="v">$bindings</span> ): <span class="k">array</span> {
+		<span class="v">$bindings</span>[ <span class="t">\MWPD\ContentFreshness\Freshness\FreshnessPolicy</span>::<span class="k">class</span> ] = <span class="t">My_Freshness_Policy</span>::<span class="k">class</span>;
+
+		<span class="k">return</span> <span class="v">$bindings</span>;
+	}
+);</code></pre>
+		<figcaption><b>Listing 9</b> <span>From the plugin's README. <code>My_Freshness_Policy</code> is a class you would write.</span> <span class="tag hyp">Hypothetical class</span></figcaption>
+	</figure>
+</section>
+
+<section class="chapter" id="checks" aria-labelledby="h-checks">
+	<h2 id="h-checks">Architecture that is checked, not just documented.</h2>
+	<p class="lede">38 architecture rules, as PHPStan rules and an architecture test suite, run in <code>composer lint</code>, <code>composer test</code> and CI. A failure never only says no.</p>
+
+	<p>Here is the column as a coding agent might first write it, the way most plugins do: no lifecycle declarations, and an <code>is_admin()</code> guard at the top of <code>register()</code>.</p>
+
+	<figure class="listing">
+		<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">PostAgeColumn</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span> {
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">register</span>(): <span class="t">void</span> {
+		<span class="k">if</span> ( ! <span class="x"><span class="f">\is_admin</span>()</span> ) {
+			<span class="k">return</span>;
+		}
+
+		<span class="f">\add_filter</span>( <span class="s">'manage_post_posts_columns'</span>, [ <span class="v">$this</span>, <span class="s">'add_column'</span> ] );
+		<span class="f">\add_filter</span>( <span class="s">'manage_edit-post_sortable_columns'</span>, [ <span class="v">$this</span>, <span class="s">'make_sortable'</span> ] );
+		<span class="f">\add_action</span>( <span class="s">'manage_post_posts_custom_column'</span>, [ <span class="v">$this</span>, <span class="s">'render_cell'</span> ], 10, 2 );
+	}
+}</code></pre>
+		<figcaption><b>Listing 10</b> <span>A first draft of <code>PostAgeColumn</code>, written for this page.</span> <span class="tag bad">Not from the repository</span></figcaption>
+	</figure>
+
+	<figure class="term">
+		<pre tabindex="0"><samp>$ vendor/bin/phpstan analyze -vv src/PostsList/PostAgeColumn.php
+<span class="d"> ------ -----------------------------------------------------------------------------------------</span>
+<span class="d">  Line   PostAgeColumn.php</span>
+<span class="d"> ------ -----------------------------------------------------------------------------------------</span>
+  82     is_admin() in MWPD\ContentFreshness\PostsList\PostAgeColumn::register() decides at
+         registration whether the service applies to this request. Implement Conditional and
+         return the answer from is_needed(), so the plugin does not even build the service
+         when it is not needed.
+         <span class="p">🪪  architecture.noContextChecksInRegister</span>
+<span class="w">         💡 Principle 7: Show the alternative to WordPress anti-patterns, see
+            docs/design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns. Pattern:
+            docs/patterns.md#i-need-a-service-only-in-some-requests. Rule:
+            docs/architecture-rules.md#architecturenocontextchecksinregister</span>
+<span class="d"> ------ -----------------------------------------------------------------------------------------</span>
+
+<span class="e"> [ERROR] Found 1 error</span></samp></pre>
+		<figcaption><b>Listing 11</b> <span>Real output: Listing 10 dropped into a copy of Content Freshness and analysed. The message is the one the rule's test asserts.</span></figcaption>
+	</figure>
+
+	<aside class="note"><span class="n">d</span>Some of the other mistakes the rules catch: a hook added in a constructor, <code>new</code> of a service inside another service, a class that is not <code>final</code>, a bare SPL exception, a public WordPress name without the plugin's prefix, HTML printed by a service, a subsystem service missing from the composition root, a delayed service waiting for a misspelled action.</aside>
+
+	<p>Every failure has the same three parts: what is wrong and where, what to do instead, and why, with links to the principle, to the pattern that meets the need the rejected code was after, and to the rule's own entry.</p>
+
+	<p>The rules cannot be silenced inline or baselined. <code>architecture.noSuppression</code> rejects an <code>@phpstan-ignore</code> or an <code>ignoreErrors</code> entry aimed at an architecture rule, and <code>architecture.gatesAtStrength</code> fails the build if PHPStan drops below <code>max</code>, Psalm rises above level 2, or a baseline appears. A real exception becomes reviewed configuration under <code>parameters.architecture</code> in <code>phpstan.neon.dist</code>, where it stays visible.</p>
+
+	<p class="muted">Around the architecture rules: PHPStan at <code>max</code>, Psalm at level 2, the WordPress Coding Standards and PHPCompatibility for 7.4, and PHPUnit on PHP 7.4 and 8.3, all in CI.</p>
+</section>
+
+<section class="chapter" id="agents" aria-labelledby="h-agents">
+	<h2 id="h-agents">Built for the code your agent writes.</h2>
+	<p class="lede">Agents write WordPress code from the average of the internet, and the average looks like Listing 1. The scaffold gives an agent three things a prompt does not.</p>
+
+	<div class="three">
+		<div>
+			<h3>Rules up front</h3>
+			<p>An agent-agnostic <a href="https://github.com/mwpd/basic-scaffold/blob/main/AGENTS.md"><code>AGENTS.md</code></a> with the design principles and the hard rules, read by Claude Code, Codex, Cursor and others before the first edit.</p>
+		</div>
+		<div>
+			<h3>Answers indexed by need</h3>
+			<p><a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/patterns.md"><code>docs/patterns.md</code></a> has 17 sections named the way the problem is phrased: “I need a singleton”, “I need a service locator”, “I need to hook in later”. Each gives the scaffold's answer, with code that passes the checks.</p>
+		</div>
+		<div>
+			<h3>A feedback loop that teaches</h3>
+			<p>When an agent reaches for the wrong pattern, the check fails with the fix and a link to the pattern. The agent corrects itself in the next iteration instead of shipping it.</p>
+		</div>
+	</div>
+
+	<figure class="wide">
+		<ol class="loop">
+			<li><b>The agent writes the column</b><span>with <code>is_admin()</code> inside <code>register()</code>, because that is what most plugins do (Listing 10).</span></li>
+			<li><b>The check fails</b><span>with Listing 11: what is wrong, what to do instead, and where to read why.</span></li>
+			<li><b>The agent reads the pattern</b><span>“I need a service only in some requests”: the condition moves into <code>is_needed()</code>, and because the screen is only known at <code>current_screen</code>, the service becomes <code>Delayed</code> too.</span></li>
+			<li><b>The check passes</b><span>and the column declares its own lifecycle, like every other service (Listing 12).</span></li>
+		</ol>
+		<figcaption><b>Figure 4.</b> The loop an agent runs inside <code>composer lint</code>. The right way is enforced and explained, not hoped for.</figcaption>
+	</figure>
+
+	<figure class="listing">
+		<pre class="diff" tabindex="0"><code><span class="ln del"><span class="pm" aria-hidden="true">&minus;</span><span class="k">final</span> <span class="k">class</span> <span class="t">PostAgeColumn</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span> {</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span><span class="k">final</span> <span class="k">class</span> <span class="t">PostAgeColumn</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Conditional</span>, <span class="t">Delayed</span> {</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">is_needed</span>(): <span class="t">bool</span> {</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>		<span class="v">$screen</span> = <span class="f">\get_current_screen</span>();</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>		<span class="k">return</span> <span class="k">null</span> !== <span class="v">$screen</span> &amp;&amp; <span class="t">self</span>::SCREEN === <span class="v">$screen</span>-&gt;id;</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>	}</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">get_registration_action</span>(): <span class="t">string</span> {</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>		<span class="k">return</span> <span class="s">'current_screen'</span>;</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>	}</span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span></span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>	<span class="k">public</span> <span class="k">function</span> <span class="f">register</span>(): <span class="t">void</span> {</span>
+<span class="ln del"><span class="pm" aria-hidden="true">&minus;</span>		<span class="k">if</span> ( ! <span class="f">\is_admin</span>() ) {</span>
+<span class="ln del"><span class="pm" aria-hidden="true">&minus;</span>			<span class="k">return</span>;</span>
+<span class="ln del"><span class="pm" aria-hidden="true">&minus;</span>		}</span>
+<span class="ln del"><span class="pm" aria-hidden="true">&minus;</span></span>
+<span class="ln ctx"><span class="pm" aria-hidden="true"> </span>		<span class="f">\add_filter</span>( <span class="s">'manage_post_posts_columns'</span>, [ <span class="v">$this</span>, <span class="s">'add_column'</span> ] );</span></code></pre>
+		<figcaption><b>Listing 12</b> <span>From Listing 10 to the shape that ships in <a href="https://github.com/mwpd/content-freshness/blob/main/src/PostsList/PostAgeColumn.php"><code>PostAgeColumn.php</code></a>, trimmed of imports and constants.</span></figcaption>
+	</figure>
+
+	<p>Agents assemble plugins the right way for the same reason people do: the architecture is written down where they look first, the fix is in the error, and the gate does not open until it is applied.</p>
+</section>
+
+<section class="chapter" id="antipatterns" aria-labelledby="h-ap">
+	<h2 id="h-ap">The WordPress anti-patterns, and what to do instead.</h2>
+	<p class="lede">From principle 7 of the design principles. In a review, an item from the left column is a defect even if the code works.</p>
+
+	<dl class="ap-list">
+		<div class="row hd"><span>Common in plugins</span><span>In the scaffold</span></div>
+		<div class="row"><dt>Hooks registered in a constructor</dt><dd>Constructors only store dependencies. Hooks go in <code>register()</code>, called by the plugin at the right time.</dd></div>
+		<div class="row"><dt>A singleton with <code>::instance()</code> and static state</dt><dd>Shared instances come from the injector. The plugin factory keeps one plugin instance without the Singleton pattern.</dd></div>
+		<div class="row"><dt>A service locator, such as <code>Services::get( 'id' )</code></dt><dd>Each need behind it has its own answer: constructor injection, a factory, a typed registry, a shared instance, or a bridge at the edge of the graph.</dd></div>
+		<div class="row"><dt>A global or singleton so WordPress callbacks can reach the plugin</dt><dd>A bridge in the main file gets the plugin through the plugin factory and delegates at once, as the activation hooks do.</dd></div>
+		<div class="row"><dt><code>new</code> for collaborators inside a class, or pulling them from globals</dt><dd>Dependencies arrive through the constructor and are configured as bindings in the composition root.</dd></div>
+		<div class="row"><dt><code>is_admin()</code> wrapped around hook calls throughout the code</dt><dd>The service states when it is needed once, in <code>Conditional::is_needed()</code>.</dd></div>
+		<div class="row"><dt>Hooking an early action just to wait for a later one</dt><dd>The service names its registration action through <code>Delayed</code>, and the plugin defers it.</dd></div>
+		<div class="row"><dt>Query-dependent checks before the query has run</dt><dd>A <code>Conditional</code> service also implements <code>Delayed</code> and returns <code>wp</code> or later, so the plugin waits before asking.</dd></div>
+		<div class="row"><dt>Work done when a file is included</dt><dd>Only the main plugin file has side effects. Everything else is autoloadable declarations.</dd></div>
+		<div class="row"><dt>One god class holding the whole plugin</dt><dd>A composition root wires small services, each with one responsibility.</dd></div>
+		<div class="row"><dt>Echoing HTML from business logic</dt><dd>Output goes through views from a <code>ViewFactory</code>, escaped by default.</dd></div>
+	</dl>
+	<p class="muted small">The patterns behind each row, with code, are in <a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns">the principles</a> and <a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/patterns.md">the patterns</a>.</p>
+</section>
+
+<section class="chapter" id="runtime" aria-labelledby="h-runtime">
+	<h2 id="h-runtime">Runs on PHP and WordPress alone.</h2>
+	<p class="lede">Copy the plugin directory and activate it. There is no build step on the server and nothing to install there.</p>
+
+	<dl class="facts">
+		<div><dt>Requirements</dt><dd>PHP 7.4 or later, WordPress 6.0 or later. The code is written to the 7.4 floor and PHPCompatibility checks it.</dd></div>
+		<div><dt>Runtime dependencies</dt><dd>None. <code>composer.json</code> requires nothing but PHP. Composer is a development tool for tests, static analysis and coding standards.</dd></div>
+		<div><dt>Autoloading</dt><dd>The Composer autoloader when <code>vendor/</code> is present; the bundled <code>Infrastructure\Autoloader</code> when it is not. CI proves the second path on PHP 7.4 without installing anything.</dd></div>
+		<div><dt>Views</dt><dd>Escaped by default; <code>raw()</code> is the explicit exception. Templates can be overridden from the child theme, then the parent theme, then the plugin.</dd></div>
+		<div><dt>Errors</dt><dd>Typed exceptions on PHP's SPL hierarchy, one marker interface, named constructors. Loud with <code>WP_DEBUG</code> on; with it off, the broken part degrades and the page around it stays up.</dd></div>
+		<div><dt>Infrastructure</dt><dd>Injector, container, views and autoloader are small in-house implementations behind interfaces, so a stronger one can replace any of them when a real need appears.</dd></div>
+	</dl>
+</section>
+
+<section class="chapter" id="production" aria-labelledby="h-prod">
+	<h2 id="h-prod">Proven at scale, twice.</h2>
+	<p class="lede">The architecture in this scaffold powers two of Google's WordPress plugins. Each keeps its own adapted copy of the infrastructure, and fixes proven there flow back here.</p>
+
+	<div class="prod">
+		<div class="row">
+			<p><b><a href="https://wordpress.org/plugins/amp/">AMP</a></b>: the official AMP plugin for WordPress<small>Infrastructure in <a href="https://github.com/ampproject/amp-wp/tree/develop/src/Infrastructure"><code>src/Infrastructure</code></a></small></p>
+			<div class="badge-cell"><img src="https://img.shields.io/wordpress/plugin/installs/amp" alt="AMP active installs on WordPress.org" width="150" height="20" loading="lazy">Live count from WordPress.org</div>
+		</div>
+		<div class="row">
+			<p><b><a href="https://wordpress.org/plugins/web-stories/">Web Stories</a></b>: Google's visual storytelling plugin<small>Infrastructure in <a href="https://github.com/GoogleForCreators/web-stories-wp/tree/main/includes/Infrastructure"><code>includes/Infrastructure</code></a></small></p>
+			<div class="badge-cell"><img src="https://img.shields.io/wordpress/plugin/installs/web-stories" alt="Web Stories active installs on WordPress.org" width="150" height="20" loading="lazy">Live count from WordPress.org</div>
+		</div>
+	</div>
+</section>
+
+<section class="chapter" id="start" aria-labelledby="h-start">
+	<h2 id="h-start">Your next plugin, from this one.</h2>
+
+	<figure class="term">
+		<pre tabindex="0"><samp>$ gh repo create my-plugin --template mwpd/basic-scaffold --clone
+$ cd my-plugin
+$ composer install
+$ composer test &amp;&amp; composer lint</samp></pre>
+		<figcaption><b>Listing 13</b> <span>Or press <b>Use this template</b> on GitHub. <code>composer test</code> runs the unit, integration and architecture suites; <code>composer lint</code> runs PHPCS, PHPStan, Psalm and the tests of the PHPStan rules.</span></figcaption>
+	</figure>
+
+	<aside class="note"><span class="n">e</span>The checks are configured by namespace. Once step 1 renames it in <code>phpstan.neon.dist</code>, every rule on this page applies to your code, and to whatever your agent writes next.</aside>
+
+	<ol class="steps">
+		<li><b>Make it yours.</b> Rename the plugin header and file name in <code>basic-scaffold.php</code>, the <code>MWPD\BasicScaffold</code> namespace in <code>src/</code>, <code>tests/</code> and <code>composer.json</code>, the namespaces under <code>parameters.architecture</code> in <code>phpstan.neon.dist</code>, the <code>BasicScaffoldPlugin</code>, <code>BasicScaffoldPluginFactory</code> and <code>BasicScaffoldException</code> classes, and the <code>HOOK_PREFIX</code> and <code>SERVICE_PREFIX</code> constants.</li>
+		<li><b>Replace the samples.</b> Swap the services in <code>src/SampleSubsystem/</code> and the templates in <code>views/</code> for your own. Content Freshness's history shows the whole journey, one commit per step.</li>
+		<li><b>List your services</b> in <code>BasicScaffoldPlugin::get_service_classes()</code>. Then keep adding one per feature.</li>
+	</ol>
+</section>
+
+<div class="close">
+	<div class="close-in">
+		<div>
+			<h2>Add the next feature. Change nothing else.</h2>
+			<p>That is the promise, and the checks are what keep it. Generate a plugin and see whether the first service you write passes.</p>
+			<a class="btn" href="https://github.com/new?template_name=basic-scaffold&amp;template_owner=mwpd">Use this template</a>
+		</div>
+		<p><a class="link-arrow" href="../content-freshness/">Read the worked example</a></p>
+	</div>
+</div>
+
+</main>
+
+<footer>
+	<div class="foot-in">
+		<p>Companion code to <a href="https://www.mwpd.io/"><cite>Modern WordPress Plugin Development</cite></a> by Alain Schlesser. MIT licence.</p>
+		<nav aria-label="Repository">
+			<a href="https://github.com/mwpd/basic-scaffold">GitHub</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/design-principles.md">Design principles</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/patterns.md">Patterns</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/architecture-rules.md">Architecture rules</a>
+			<a href="https://github.com/mwpd/basic-scaffold/blob/main/AGENTS.md">AGENTS.md</a>
+			<a href="../content-freshness/">Content Freshness</a>
+		</nav>
+	</div>
+</footer>
+
+</body>
+</html>
