@@ -119,7 +119,7 @@ says which rules enforce each principle, and what stays with review.
 | [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
-| [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
+| [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
@@ -243,6 +243,28 @@ classes that hand a `WP_Error` to WordPress. The scaffold has none yet.
 
 **Fix:** throw a dedicated exception. The code that hands control back to
 WordPress catches it and decides what the user sees.
+
+**Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
+
+### `architecture.noFalseOnFailure`
+
+**Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
+
+**Checks:** inside the plugin's namespace, no method, function, closure or arrow
+function declares a return type that unions literal `false` with another type,
+such as `string|false`. Native unions and `@return`, `@phpstan-return` and
+`@psalm-return` tags are checked.
+
+**Allows:** plain `bool`, `false` alone, nullable returns and inferred return
+types. A union nested inside a returned value, such as `array<string|false>`,
+is allowed. Whether `false` or `null` signals a failure in other cases stays
+with review. The rule does not inspect what WordPress functions return.
+
+**Configuration:** none beyond the plugin's namespace.
+
+**Fix:** return the value and throw a dedicated exception on failure. Turn a
+`false` returned by a WordPress function into an exception where the call is
+made.
 
 **Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
 

@@ -102,6 +102,15 @@ services:
         tags:
             - phpstan.rules.rule
 
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoFalseOnFailureRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            file_type_mapper: @PHPStan\Type\FileTypeMapper
+            type_node_resolver: @PHPStan\PhpDoc\TypeNodeResolver
+        tags:
+            - phpstan.rules.rule
+
     architectureWordPressErrorTransport:
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\WordPressErrorTransport
         arguments:
