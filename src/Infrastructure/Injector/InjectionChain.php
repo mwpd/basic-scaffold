@@ -21,6 +21,10 @@ use MWPD\BasicScaffold\Exception\InvalidInjectionChain;
  *
  * It is used to detect circular dependencies, and can also be dumped for
  * debugging information.
+ *
+ * The chain is immutable: adding to it returns a modified copy. Each branch of
+ * the object tree carries only its own ancestry, so a class that two branches
+ * both depend on is not mistaken for a circular reference.
  */
 final class InjectionChain {
 
@@ -32,9 +36,10 @@ final class InjectionChain {
 	private array $chain = [];
 
 	/**
-	 * Resolutions.
+	 * Resolutions, keyed by name so lookups stay cheap. Insertion order is the
+	 * order the resolutions were made in.
 	 *
-	 * @var array<bool>
+	 * @var array<string, true>
 	 */
 	private array $resolutions = [];
 
@@ -42,24 +47,26 @@ final class InjectionChain {
 	 * Add class to injection chain.
 	 *
 	 * @param string $class_name Class to add to injection chain.
-	 * @return self Modified injection chain.
+	 * @return self Modified copy of the injection chain.
 	 */
 	public function add_to_chain( string $class_name ): self {
-		$this->chain[] = $class_name;
+		$new_chain          = clone $this;
+		$new_chain->chain[] = $class_name;
 
-		return $this;
+		return $new_chain;
 	}
 
 	/**
 	 * Add resolution for circular reference detection.
 	 *
 	 * @param string $resolution Resolution to add.
-	 * @return self Modified injection chain.
+	 * @return self Modified copy of the injection chain.
 	 */
 	public function add_resolution( string $resolution ): self {
-		$this->resolutions[ $resolution ] = true;
+		$new_chain                             = clone $this;
+		$new_chain->resolutions[ $resolution ] = true;
 
-		return $this;
+		return $new_chain;
 	}
 
 	/**
@@ -89,6 +96,15 @@ final class InjectionChain {
 	 */
 	public function get_chain(): array {
 		return \array_reverse( $this->chain );
+	}
+
+	/**
+	 * Get the resolutions in the order they were made.
+	 *
+	 * @return array<string> Resolutions, from the first to the most recent.
+	 */
+	public function get_resolutions(): array {
+		return \array_keys( $this->resolutions );
 	}
 
 	/**

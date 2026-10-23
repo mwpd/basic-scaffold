@@ -7,6 +7,13 @@ use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
 use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithNamedArguments;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\BindingCycleFrom;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\BindingCycleTo;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\CycleEnd;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\CycleStart;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\DiamondTop;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\SharedLeaf;
+use MWPD\BasicScaffold\Tests\Fixture\Injector\TwoOfTheSameDependency;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
@@ -116,6 +123,60 @@ final class SimpleInjectorTest extends TestCase {
 				DummyClassWithDependency::class
 			)
 			->make( DummyClassWithDependency::class );
+	}
+
+	public function test_it_resolves_a_class_reached_by_two_branches_of_the_tree(): void {
+		$object = ( new SimpleInjector() )->make( DiamondTop::class );
+
+		$this->assertInstanceOf( DiamondTop::class, $object );
+		$this->assertInstanceOf( SharedLeaf::class, $object->left->leaf );
+		$this->assertInstanceOf( SharedLeaf::class, $object->right->leaf );
+	}
+
+	public function test_it_resolves_two_parameters_of_the_same_type(): void {
+		$object = ( new SimpleInjector() )->make( TwoOfTheSameDependency::class );
+
+		$this->assertInstanceOf( TwoOfTheSameDependency::class, $object );
+		$this->assertInstanceOf( SharedLeaf::class, $object->first );
+		$this->assertInstanceOf( SharedLeaf::class, $object->second );
+	}
+
+	public function test_it_names_the_resolution_path_of_a_circular_reference(): void {
+		try {
+			( new SimpleInjector() )->make( CycleStart::class );
+			$this->fail( 'Resolving a class that depends on itself did not throw.' );
+		} catch ( FailedToMakeInstance $exception ) {
+			$this->assertSame( FailedToMakeInstance::CIRCULAR_REFERENCE, $exception->getCode() );
+			$this->assertSame(
+				\sprintf(
+					'Circular reference detected while trying to resolve the interface or class "%1$s",'
+						. ' along the resolution path %1$s -> %2$s -> %1$s.',
+					CycleStart::class,
+					CycleEnd::class
+				),
+				$exception->getMessage()
+			);
+		}
+	}
+
+	public function test_it_throws_if_bindings_form_a_cycle(): void {
+		try {
+			( new SimpleInjector() )
+				->bind( BindingCycleFrom::class, BindingCycleTo::class )
+				->bind( BindingCycleTo::class, BindingCycleFrom::class )
+				->make( BindingCycleFrom::class );
+			$this->fail( 'Resolving two interfaces bound to each other did not throw.' );
+		} catch ( FailedToMakeInstance $exception ) {
+			$this->assertSame( FailedToMakeInstance::CIRCULAR_REFERENCE, $exception->getCode() );
+			$this->assertStringEndsWith(
+				\sprintf(
+					'%1$s -> %2$s -> %1$s.',
+					BindingCycleFrom::class,
+					BindingCycleTo::class
+				),
+				$exception->getMessage()
+			);
+		}
 	}
 
 	public function test_it_can_delegate_instantiation(): void {

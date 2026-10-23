@@ -40,14 +40,29 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	 * Create a new instance of the exception for an interface or class that
 	 * created a circular reference.
 	 *
-	 * @param string $interface_or_class Interface or class name that generated
-	 *                                   the circular reference.
+	 * @param string        $interface_or_class Interface or class name that
+	 *                                          generated the circular reference.
+	 * @param array<string> $resolution_path    Optional. Resolutions made on
+	 *                                          the way to the circular
+	 *                                          reference, in resolution order.
 	 */
-	public static function for_circular_reference( string $interface_or_class ): self {
+	public static function for_circular_reference(
+		string $interface_or_class,
+		array $resolution_path = []
+	): self {
 		$message = \sprintf(
-			'Circular reference detected while trying to resolve the interface or class "%s".',
+			'Circular reference detected while trying to resolve the interface or class "%s"',
 			$interface_or_class
 		);
+
+		if ( $resolution_path !== [] ) {
+			// Close the loop, so the path shows the edge that leads back.
+			$resolution_path[] = $interface_or_class;
+
+			$message .= ', along the resolution path ' . \implode( ' -> ', $resolution_path );
+		}
+
+		$message .= '.';
 
 		return new self( $message, self::CIRCULAR_REFERENCE );
 	}
