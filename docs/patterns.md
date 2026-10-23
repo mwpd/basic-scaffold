@@ -295,7 +295,7 @@ and call `make()` on it. A constructor parameter typed `Injector` gets the
 plugin's own injector, whichever implementation the plugin was given; the
 infrastructure sets that up, so the composition root needs no configuration
 for it. A service only ever calls `make()` on the injector: bindings, sharing
-and delegations stay in the composition root (#92).
+and delegations stay in the composition root.
 
 ```php
 public function __construct( Injector $injector ) {
@@ -312,8 +312,8 @@ bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:346-349`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:685-737`.
 
-**Rules:** `architecture.newOnlyWhereAllowed`; `architecture.dependencyDirection`
-keeps the consumer on the interface.
+**Rules:** `architecture.newOnlyWhereAllowed`, `architecture.noServiceLocator`;
+`architecture.dependencyDirection` keeps the consumer on the interface.
 
 ## I need to choose an implementation at runtime
 
@@ -354,8 +354,8 @@ value (a view path) and returns an interface (`View`). It always builds the
 same implementation, though; the path only picks the template file.
 
 **Rules:** `architecture.newOnlyWhereAllowed`,
-`architecture.dependencyDirection`. Container lookups from a subsystem are
-reported once #92 lands.
+`architecture.dependencyDirection`, `architecture.noServiceLocator`. Receive
+the typed registry through the constructor instead of the service container.
 
 ## I need a service locator
 
@@ -368,7 +368,9 @@ a locator hides dependencies and lets any code reach any object. A locator
 that keeps its own registry needs static state, which
 `architecture.noStaticState` already rejects. One that only forwards to the
 plugin factory, `BasicScaffoldPluginFactory::create()->get_container()->get( $id )`,
-holds no state of its own, and is not caught until #86 and #92 land.
+holds no state of its own. `architecture.pluginFactoryOnlyAtEdges` rejects
+that factory call inside the object graph, and `architecture.noServiceLocator`
+keeps the container out of feature subsystems.
 
 **Instead:** find the need behind it. Each one has its own answer:
 
@@ -384,9 +386,10 @@ holds no state of its own, and is not caught until #86 and #92 land.
 **Proven by:** the sections linked above.
 
 **Rules:** `architecture.noStaticState`, for locators with a registry of
-their own. Container lookups and reconfiguring the injector from a subsystem
-are reported once #92 lands, and calls to the plugin factory outside the main
-file and listed bridges once #86 lands.
+their own; `architecture.noServiceLocator`, for container dependencies and
+reconfiguring the injector from a subsystem; `architecture.pluginFactoryOnlyAtEdges`,
+for plugin factory calls outside the main file and listed bridges. Receiving
+`Injector` and calling `make()` remains supported for on-demand creation.
 
 ## I need a singleton
 

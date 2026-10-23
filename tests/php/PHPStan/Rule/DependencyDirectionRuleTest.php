@@ -47,14 +47,17 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 
 	protected function getRule(): Rule {
 		return new DependencyDirectionRule(
-			self::LAYERS,
-			[ self::LAYERS . '\TestDouble' ],
-			self::LAYERS . '\Exception',
-			self::LAYERS . '\Infrastructure',
-			[ self::LAYERS . '\Plugin' ],
-			[ (string) realpath( self::FIXTURES . 'views' ) ],
-			$this->createReflectionProvider(),
-			self::getContainer()->getByType( FileTypeMapper::class )
+			new DependencyContext(
+				self::LAYERS,
+				[ self::LAYERS . '\TestDouble' ],
+				self::LAYERS . '\Exception',
+				self::LAYERS . '\Infrastructure',
+				[ self::LAYERS . '\Plugin' ],
+				[ (string) realpath( self::FIXTURES . 'views' ) ],
+				$this->createReflectionProvider(),
+				self::getContainer()->getByType( FileTypeMapper::class )
+			),
+			$this->createReflectionProvider()
 		);
 	}
 

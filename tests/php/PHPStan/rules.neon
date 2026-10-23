@@ -53,6 +53,11 @@ parametersSchema:
             compositionRoot: listOf(string())
             views: listOf(string())
         ])
+        noServiceLocator: structure([
+            container: string()
+            injector: string()
+            allowedInjectorMethods: listOf(string())
+        ])
         newOnlyWhereAllowed: structure([
             factories: listOf(string())
             valueObjects: listOf(string())
@@ -256,8 +261,8 @@ services:
         tags:
             - phpstan.rules.rule
 
-    -
-        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\DependencyDirectionRule
+    architectureDependencyContext:
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\DependencyContext
         arguments:
             root_namespace: %architecture.namespace%
             test_namespaces: %architecture.excludedNamespaces%
@@ -267,6 +272,23 @@ services:
             views: %architecture.dependencyDirection.views%
             reflection: @PHPStan\Reflection\ReflectionProvider
             file_type_mapper: @PHPStan\Type\FileTypeMapper
+        autowired: false
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\DependencyDirectionRule
+        arguments:
+            context: @architectureDependencyContext
+            reflection: @PHPStan\Reflection\ReflectionProvider
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoServiceLocatorRule
+        arguments:
+            context: @architectureDependencyContext
+            container: %architecture.noServiceLocator.container%
+            injector: %architecture.noServiceLocator.injector%
+            allowed_injector_methods: %architecture.noServiceLocator.allowedInjectorMethods%
         tags:
             - phpstan.rules.rule
 

@@ -95,6 +95,7 @@ final class RuleManifest {
 	public const OUTPUT_ONLY_THROUGH_VIEWS = 'architecture.outputOnlyThroughViews';
 
 	public const DEPENDENCY_DIRECTION = 'architecture.dependencyDirection';
+	public const NO_SERVICE_LOCATOR   = 'architecture.noServiceLocator';
 
 	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
 
@@ -342,6 +343,17 @@ final class RuleManifest {
 				'Exceptions only depend on each other',
 				'and bind the implementation in the composition root',
 				'knows how the plugin is put together',
+			],
+		],
+		self::NO_SERVICE_LOCATOR                    => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-a-service-locator',
+			'configuration'    => 'parameters.architecture.noServiceLocator',
+			'checked_by'       => [ Rule\NoServiceLocatorRule::class ],
+			'signatures'       => [
+				'depends on the service container',
+				'Configure bindings, sharing and delegations in the composition root',
 			],
 		],
 		self::NEW_ONLY_WHERE_ALLOWED                => [
