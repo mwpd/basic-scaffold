@@ -40,7 +40,9 @@ Every failure has the same three parts:
 
 ## When a rule stops you
 
-Change the code so it follows the rule. The message says how.
+Change the code so it follows the rule. The message says how, and
+[docs/patterns.md](patterns.md) shows the scaffold's way of meeting the need
+the code was after, with examples that pass the checks.
 
 Never silence an architecture rule with an inline `@phpstan-ignore`, an
 `ignoreErrors` entry or a baseline. If the rule is wrong for a real case, open
@@ -150,6 +152,8 @@ extended. The scaffold lists `SimpleView`, the base of `TemplatedView`.
 and injected collaborators. Add it to `baseClasses` only when it is designed
 for extension from the start.
 
+**Pattern:** [I need to start simple and add implementations later](patterns.md#i-need-to-start-simple-and-add-implementations-later).
+
 ### `architecture.noStaticState`
 
 **Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph),
@@ -173,6 +177,8 @@ WordPress reaches from outside the object graph.
 instance with `share()` when more than one object needs it. A cache belongs on
 the object that computes it.
 
+**Patterns:** [I need a singleton](patterns.md#i-need-a-singleton), [I need a service locator](patterns.md#i-need-a-service-locator).
+
 ### `architecture.noWordPressErrorMechanisms`
 
 **Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
@@ -195,6 +201,8 @@ classes that hand a `WP_Error` to WordPress. The scaffold has none yet.
 **Fix:** throw a dedicated exception. The code that hands control back to
 WordPress catches it and decides what the user sees.
 
+**Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
+
 ### `architecture.throwOnlyPluginExceptions`
 
 **Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
@@ -212,6 +220,8 @@ marker interface and the namespace the exceptions live in.
 
 **Fix:** add an exception for the failure to `src/Exception/`, shaped as
 `architecture.exceptionShape` describes, and throw that.
+
+**Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
 
 ### `architecture.exceptionShape`
 
@@ -234,6 +244,8 @@ Whether exceptions are `final` is checked by `architecture.finalByDefault`.
 input or configuration and `RuntimeException` for a failure while running, add
 a named constructor that states the cause, or move the class.
 
+**Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
+
 ### `architecture.exceptionsThroughNamedConstructors`
 
 **Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
@@ -247,6 +259,8 @@ exception's own static methods.
 
 **Fix:** call the named constructor the message lists, or add one that states
 the new cause, so the same failure always reads the same.
+
+**Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
 
 ### `architecture.strictTypes`
 
@@ -302,6 +316,8 @@ whitespace after a closing `?>`, all count as side effects.
 
 **Fix:** move the code into a service method that `register()` hooks in at
 the right time, or into the main plugin file.
+
+**Pattern:** [I need to run code when the plugin file loads](patterns.md#i-need-to-run-code-when-the-plugin-file-loads).
 
 ### `architecture.noRuntimeDependencies`
 
@@ -374,6 +390,8 @@ directories of the view templates that run in production. The exceptions' namesp
 in the composition root, or receive what you need through the constructor. In
 the infrastructure, add an interface the other class implements.
 
+**Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime).
+
 ### `architecture.newOnlyWhereAllowed`
 
 **Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph).
@@ -409,6 +427,8 @@ and bind the implementation in the composition root. Ask a factory for objects
 that can only be created later or are needed once per use. Add a class to
 `valueObjects` only if it represents a value rather than a collaborator.
 
+**Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need a default collaborator that can be replaced](patterns.md#i-need-a-default-collaborator-that-can-be-replaced), [I need WordPress state, such as the current post](patterns.md#i-need-wordpress-state-such-as-the-current-post).
+
 ### `architecture.noHooksInConstructor`
 
 **Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
@@ -425,6 +445,8 @@ creating an object never changes global state.
 
 **Fix:** keep the constructor to storing dependencies, and add the hooks in
 `register()`, which the plugin calls at the right time.
+
+**Pattern:** [I need to add hooks](patterns.md#i-need-to-add-hooks).
 
 ### `architecture.hooksInLifecycleMethods`
 
@@ -449,6 +471,8 @@ interface. The infrastructure's namespace and the composition root come from
 **Fix:** add the hook in `register()`. A hook that has to wait for a later
 action belongs to a service that implements `Delayed`.
 
+**Patterns:** [I need to add hooks](patterns.md#i-need-to-add-hooks), [I need to hook in later](patterns.md#i-need-to-hook-in-later).
+
 ### `architecture.noContextChecksInRegister`
 
 **Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
@@ -467,6 +491,8 @@ functions: `is_admin`, `is_network_admin`, `is_user_admin`, `wp_doing_ajax`,
 
 **Fix:** implement `Conditional` and return the answer from `is_needed()`. The
 plugin then never builds the service in a request that does not need it.
+
+**Pattern:** [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests).
 
 ### `architecture.prefixedNames`
 
@@ -506,6 +532,8 @@ composition root.
 
 **Fix:** start the name with the prefix, or build it from the prefix
 constant.
+
+**Pattern:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares).
 
 ### `architecture.noSuppression`
 
@@ -572,3 +600,5 @@ root. A service added to it is checked without changing the test.
 
 **Fix:** bind what a service needs in the composition root, declare the
 services it depends on, and keep constructors to storing dependencies.
+
+**Pattern:** [I need to add a feature](patterns.md#i-need-to-add-a-feature).

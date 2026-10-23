@@ -46,6 +46,12 @@ Every technical decision is measured against
 [docs/design-principles.md](docs/design-principles.md). Read it before
 choosing between approaches.
 
+**Look up the need before the workaround.** When you are about to reach for
+something the principles rule out (a service locator, a singleton, a global,
+an `is_admin()` check around hooks), or when an architecture rule fails, find
+what you were trying to do in [docs/patterns.md](docs/patterns.md). Each
+pattern shows the scaffold's way, with code that passes the checks.
+
 **The core idea: complexity grows linearly.** Every concern is its own
 service, and each service decides in isolation where and when it acts in the
 WordPress lifecycle, by implementing small capability interfaces
