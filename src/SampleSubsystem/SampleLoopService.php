@@ -21,7 +21,6 @@ use MWPD\BasicScaffold\Infrastructure\{
 	Service,
 	ViewFactory
 };
-use WP_Post;
 
 /**
  * Sample loop service.
@@ -33,8 +32,9 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	use DefaultRegistrationPriority;
 
 	/**
-	 * We only want to register this service once the loop has been set up, as
-	 * we want to use smart injection to retrieve the current post.
+	 * We only want to register this service once WordPress has run the main
+	 * query, as is_needed() asks whether the request is for a singular view,
+	 * which only has an answer from then on.
 	 *
 	 * @var non-empty-string
 	 */
@@ -46,11 +46,9 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	private ViewFactory $view_factory;
 
 	/**
-	 * Post.
-	 *
-	 *  @var WP_Post
+	 * Main loop, asked which post is being rendered.
 	 */
-	private $post;
+	private MainLoop $main_loop;
 
 	/**
 	 * Check whether the conditional service is currently needed.
@@ -81,9 +79,10 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	 *
 	 * @param ViewFactory $view_factory View factory to use for instantiating
 	 *                                  the views.
-	 * @param WP_Post     $post         WordPress post object to use.
+	 * @param MainLoop    $main_loop    Main loop to ask which post is being
+	 *                                  rendered.
 	 */
-	public function __construct( ViewFactory $view_factory, WP_Post $post ) {
+	public function __construct( ViewFactory $view_factory, MainLoop $main_loop ) {
 		/*
 		 * We request a view factory from the injector so that we can create a
 		 * new view to be rendered when we want to show our sample notice.
@@ -91,15 +90,12 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		$this->view_factory = $view_factory;
 
 		/*
-		 * We also use the injector to retrieve the current post in the loop, to
-		 * demonstrate how delegation and delayed registration works.
-		 *
-		 * Although we use "up-front" dependency injection, we have our service
-		 * be registered in a delayed fashion to only do the actual injection
-		 * after the WordPress loop has been set up, a requirement for the
-		 * delegation to be able to retrieve the "current" post.
+		 * We do not ask for the current post here. The service is built once,
+		 * at the wp action, but the_content runs many times after that, and
+		 * not only for the queried post. So the service receives the main loop
+		 * instead, and asks it each time the filter runs.
 		 */
-		$this->post = $post;
+		$this->main_loop = $main_loop;
 	}
 
 	/**
@@ -114,17 +110,21 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	}
 
 	/**
-	 * Prepend a post header to the content.
+	 * Prepend a post header to the content of the queried post.
 	 *
-	 * The header shows the post of the main query, the one the service was
-	 * built with. Inside a secondary loop, the_content runs for other posts,
-	 * which still get this header; a real service would compare the post it
-	 * filters with its own.
+	 * WordPress also runs the_content for other posts on the page, such as
+	 * those of a related-posts block or a secondary loop, for the posts of a
+	 * feed, and to build an excerpt. Their content is returned unchanged.
 	 *
 	 * @param string $content The content to be filtered.
-	 * @return string Filtered content prepended with a post header.
+	 * @return string Filtered content, prepended with a post header when it is
+	 *                the content of the queried post.
 	 */
 	public function prepend_post_header( string $content ): string {
+		if ( ! $this->main_loop->is_rendering_queried_post() ) {
+			return $content;
+		}
+
 		/*
 		 * As we already have an instance of the view factory available, it is
 		 * now easy to create a new view and render it.
@@ -135,7 +135,7 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		 * SampleBackendService, this covers failures of the view only.
 		 */
 		$post_header = $this->view_factory->create( 'views/test-loop-service' )
-											->render( [ 'post' => $this->post ] );
+											->render( [ 'post' => $this->main_loop->queried_post() ] );
 
 		return $post_header . $content;
 	}

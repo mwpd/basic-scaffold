@@ -79,7 +79,7 @@ and activation stores the uninstall callback
 plugin is deleted. Everything else is decided per service.
 `SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
-(`src/SampleSubsystem/SampleLoopService.php:60-77`), and no other code has to
+(`src/SampleSubsystem/SampleLoopService.php:58-75`), and no other code has to
 know.
 
 The questions are static methods on purpose: the plugin can **decide before it
@@ -133,7 +133,7 @@ In the code:
   (`src/Infrastructure/ServiceBasedPlugin.php:270-302`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
-  (`src/BasicScaffoldPlugin.php:111`) and can be rebound the same way.
+  (`src/BasicScaffoldPlugin.php:128`) and can be rebound the same way.
 
 When improving infrastructure, keep the simple implementation simple. Add
 capability only when the scaffold's own use needs it, and keep the interface
@@ -169,7 +169,7 @@ A collaborator only has a default when there is an obvious one. Where the
 plugin root is has none the infrastructure could know: it is computed once
 in the composition root, next to the theme override directory, and handed to
 the view factories as a `ViewConfiguration`
-(`src/BasicScaffoldPlugin.php:216-219`). A `SimpleView` or a view factory
+(`src/BasicScaffoldPlugin.php:247-250`). A `SimpleView` or a view factory
 built by hand, outside the composition root, is passed one explicitly;
 without it, resolving a plugin-relative view or the default locations fails
 with `InvalidViewConfiguration` rather than guessing. A `TemplatedView` built
@@ -561,7 +561,7 @@ collaboration or synchronization between plugins.
 
 **Everything public carries the plugin's prefix**, so that several plugins
 built from this scaffold can run side by side without clashing. That covers
-hook names and service identifiers (`src/BasicScaffoldPlugin.php:282-284`, `:308-310`), as
+hook names and service identifiers (`src/BasicScaffoldPlugin.php:313-315`, `:339-343`), as
 well as option, meta and transient names, script and style handles, and the
 paths a theme uses to override the plugin's views. The prefixes prevent
 collisions; they are not a coordination protocol.

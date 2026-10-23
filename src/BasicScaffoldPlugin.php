@@ -13,9 +13,10 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold;
 
-use MWPD\BasicScaffold\Exception\FailedToFindPost;
+use MWPD\BasicScaffold\SampleSubsystem\MainLoop;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
+use MWPD\BasicScaffold\SampleSubsystem\WordPressMainLoop;
 use MWPD\BasicScaffold\Infrastructure\{
 	QueryMonitor\CollectorFactory,
 	QueryMonitor\OutputFactory,
@@ -29,7 +30,6 @@ use MWPD\BasicScaffold\Infrastructure\{
 	View\ViewConfiguration,
 	ViewFactory
 };
-use WP_Post;
 
 /**
  * The BasicScaffoldPlugin class is the composition root of the plugin.
@@ -143,6 +143,15 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 			CollectorFactory::class => RegistrationCollectorFactory::class,
 			OutputFactory::class    => RegistrationOutputFactory::class,
 
+			/*
+			 * SampleLoopService asks the main loop, each time the_content
+			 * runs, whether WordPress is rendering the queried post.
+			 * WordPressMainLoop answers from WordPress's query functions.
+			 * The post changes while the request runs, so the service asks
+			 * at call time rather than receiving a post when it is built.
+			 */
+			MainLoop::class         => WordPressMainLoop::class,
+
 			// Add your bindings here.
 		];
 	}
@@ -212,28 +221,17 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * The <callable> is basically a factory to provide custom instantiation
 	 * logic for the given <class>.
 	 *
+	 * A delegation runs when the injector builds an object that needs the
+	 * value, which for a service means once, when the service is built. So it
+	 * suits values that are fixed for the request, such as where the plugin
+	 * is. State that changes while the request runs, such as the post
+	 * WordPress is rendering, belongs behind an interface the service asks at
+	 * call time, as the MainLoop binding above shows.
+	 *
 	 * @return array<class-string,callable> Associative array of callables.
 	 */
 	protected function get_delegations(): array {
 		return [
-
-			/*
-			 * WordPress hands out the current post through get_post(). The
-			 * delegation turns that into an object the injector can provide,
-			 * so SampleLoopService only declares that it needs a WP_Post.
-			 *
-			 * get_post() returns null when there is no current post. Rather than
-			 * passing that on, the delegation fails with a dedicated exception.
-			 */
-			WP_Post::class           => static function (): WP_Post {
-				$post = \get_post();
-
-				if ( ! $post instanceof WP_Post ) {
-					throw FailedToFindPost::for_current_request();
-				}
-
-				return $post;
-			},
 
 			/*
 			 * The view factories need to know where the plugin's views are.

@@ -41,8 +41,6 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\UnprefixedServiceIdPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\SampleServiceIdPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\EmptyServicePrefixPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\PrefixedServiceIdPlugin;
-use stdClass;
-use WP_Post;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 
 /**
@@ -55,7 +53,6 @@ final class CompositionRootContractTest extends TestCase {
 		Monkey\setUp();
 
 		// WordPress functions the wiring calls, standing in for a request.
-		Functions\when( 'get_post' )->justReturn( new WP_Post( new stdClass() ) );
 		Functions\when( 'get_stylesheet_directory' )->justReturn( '/nonexistent/child-theme' );
 		Functions\when( 'get_template_directory' )->justReturn( '/nonexistent/parent-theme' );
 	}

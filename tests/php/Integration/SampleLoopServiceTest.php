@@ -6,10 +6,10 @@ namespace MWPD\BasicScaffold\Tests\Integration;
 
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\BasicScaffoldPlugin;
-use MWPD\BasicScaffold\Exception\FailedToFindPost;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View\TemplatedViewFactory;
+use MWPD\BasicScaffold\SampleSubsystem\MainLoop;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\Tests\ViewHelper;
 use stdClass;
@@ -22,6 +22,11 @@ use WP_Post;
  */
 final class SampleLoopServiceTest extends TestCase {
 
+	/**
+	 * ID of the post the main query asked for.
+	 */
+	private const QUERIED_POST_ID = 42;
+
 	protected function set_up() {
 		parent::set_up();
 
@@ -32,22 +37,21 @@ final class SampleLoopServiceTest extends TestCase {
 		Functions\when( 'did_action' )->alias( static fn( string $action ): bool => $action === 'wp' );
 		Functions\when( 'get_stylesheet_directory' )->justReturn( '/nonexistent/child-theme' );
 		Functions\when( 'get_template_directory' )->justReturn( '/nonexistent/parent-theme' );
+
+		// The main loop of a singular view, on the post the query asked for.
+		Functions\when( 'in_the_loop' )->justReturn( true );
+		Functions\when( 'is_main_query' )->justReturn( true );
+		Functions\when( 'is_feed' )->justReturn( false );
+		// Inside the_content, WordPress reports that filter as running.
+		Functions\when( 'doing_filter' )->alias( static fn( string $hook ): bool => $hook === 'the_content' );
+		Functions\when( 'get_the_ID' )->justReturn( self::QUERIED_POST_ID );
+		Functions\when( 'get_queried_object_id' )->justReturn( self::QUERIED_POST_ID );
+		Functions\when( 'get_queried_object' )->justReturn( $this->post( 'A <em>title</em>' ) );
 	}
 
-	public function test_it_prepends_an_escaped_header_to_the_content_of_the_current_post(): void {
-		$fields             = new stdClass();
-		$fields->post_title = 'A <em>title</em>';
-		$fields->post_date  = '2026-10-22 12:00:00';
-		Functions\when( 'get_post' )->justReturn( new WP_Post( $fields ) );
+	public function test_it_prepends_an_escaped_header_when_the_main_loop_renders_the_queried_post(): void {
+		$service = $this->registered_service();
 
-		$plugin = new BasicScaffoldPlugin();
-		$plugin->register_services();
-
-		$container = $plugin->get_container();
-		$this->assertTrue( $container->has( BasicScaffoldPlugin::SAMPLE_LOOP_SERVICE_ID ) );
-
-		$service = $container->get( BasicScaffoldPlugin::SAMPLE_LOOP_SERVICE_ID );
-		$this->assertInstanceOf( SampleLoopService::class, $service );
 		$this->assertNotFalse( has_filter( 'the_content', [ $service, 'prepend_post_header' ] ) );
 
 		$output = $service->prepend_post_header( '<p>Content.</p>' );
@@ -57,12 +61,55 @@ final class SampleLoopServiceTest extends TestCase {
 		$this->assertStringEndsWith( '<p>Content.</p>', $output );
 	}
 
-	public function test_it_fails_with_a_dedicated_exception_when_there_is_no_current_post(): void {
-		Functions\when( 'get_post' )->justReturn( null );
+	/**
+	 * The service is built once, at wp, but the_content runs for more than the
+	 * queried post: for other posts in a related-posts block or a secondary
+	 * loop, in feeds, and when WordPress builds an excerpt from the content.
+	 * Only asking at call time tells those apart from the queried post.
+	 *
+	 * @dataProvider other_renderings
+	 *
+	 * @param string   $telltale WordPress function that tells this rendering apart.
+	 * @param callable $answer   What it answers during this rendering.
+	 */
+	public function test_it_leaves_other_renderings_unchanged( string $telltale, callable $answer ): void {
+		$service = $this->registered_service();
 
-		$this->expectException( FailedToFindPost::class );
+		Functions\when( $telltale )->alias( $answer );
 
-		( new BasicScaffoldPlugin() )->register_services();
+		$this->assertSame( '<p>Other content.</p>', $service->prepend_post_header( '<p>Other content.</p>' ) );
+	}
+
+	/**
+	 * The renderings of the_content that are not the queried post in the main
+	 * loop, and the WordPress function each one shows in.
+	 *
+	 * @return array<string, array{string, callable}>
+	 */
+	public static function other_renderings(): array {
+		return [
+			'another post on the page' => [ 'get_the_ID', static fn(): int => 7 ],
+			'a feed'                   => [ 'is_feed', static fn(): bool => true ],
+			'an excerpt being built'   => [
+				'doing_filter',
+				static fn( string $hook ): bool => \in_array( $hook, [ 'get_the_excerpt', 'the_content' ], true ),
+			],
+		];
+	}
+
+	public function test_it_leaves_the_content_unchanged_when_the_main_loop_renders_something_else(): void {
+		$main_loop = $this->createMock( MainLoop::class );
+		$main_loop->method( 'is_rendering_queried_post' )->willReturn( false );
+		$main_loop->expects( $this->never() )->method( 'queried_post' );
+
+		$service = new SampleLoopService(
+			new TemplatedViewFactory( [ ViewHelper::VIEWS_FOLDER . 'failing' ], $this->debug_mode( true ) ),
+			$main_loop
+		);
+
+		// The failing template would throw in debug mode, so the content
+		// coming back unchanged also proves no header was rendered.
+		$this->assertSame( '<p>Content.</p>', $service->prepend_post_header( '<p>Content.</p>' ) );
 	}
 
 	/**
@@ -71,7 +118,7 @@ final class SampleLoopServiceTest extends TestCase {
 	public function test_a_failing_header_leaves_the_content_unchanged_in_production( string $location ): void {
 		$service = new SampleLoopService(
 			new TemplatedViewFactory( [ $location ], $this->debug_mode( false ) ),
-			$this->post()
+			$this->main_loop_rendering( $this->post( 'A title' ) )
 		);
 
 		$this->assertSame( '<p>Content.</p>', $service->prepend_post_header( '<p>Content.</p>' ) );
@@ -88,7 +135,7 @@ final class SampleLoopServiceTest extends TestCase {
 	): void {
 		$service = new SampleLoopService(
 			new TemplatedViewFactory( [ $location ], $this->debug_mode( true ) ),
-			$this->post()
+			$this->main_loop_rendering( $this->post( 'A title' ) )
 		);
 
 		try {
@@ -114,13 +161,46 @@ final class SampleLoopServiceTest extends TestCase {
 	}
 
 	/**
+	 * Register the plugin's services and get the sample loop service.
+	 *
+	 * @return SampleLoopService Service built from the composition root.
+	 */
+	private function registered_service(): SampleLoopService {
+		$plugin = new BasicScaffoldPlugin();
+		$plugin->register_services();
+
+		$container = $plugin->get_container();
+		$this->assertTrue( $container->has( BasicScaffoldPlugin::SAMPLE_LOOP_SERVICE_ID ) );
+
+		$service = $container->get( BasicScaffoldPlugin::SAMPLE_LOOP_SERVICE_ID );
+		$this->assertInstanceOf( SampleLoopService::class, $service );
+
+		return $service;
+	}
+
+	/**
+	 * Create a main loop that is rendering the given queried post.
+	 *
+	 * @param WP_Post $post Queried post.
+	 * @return MainLoop Main loop double.
+	 */
+	private function main_loop_rendering( WP_Post $post ): MainLoop {
+		$main_loop = $this->createMock( MainLoop::class );
+		$main_loop->method( 'is_rendering_queried_post' )->willReturn( true );
+		$main_loop->method( 'queried_post' )->willReturn( $post );
+
+		return $main_loop;
+	}
+
+	/**
 	 * Create a post for the sample to render a header for.
 	 *
+	 * @param string $title Title of the post.
 	 * @return WP_Post Post with a title and a date.
 	 */
-	private function post(): WP_Post {
+	private function post( string $title ): WP_Post {
 		$fields             = new stdClass();
-		$fields->post_title = 'A title';
+		$fields->post_title = $title;
 		$fields->post_date  = '2026-10-22 12:00:00';
 
 		return new WP_Post( $fields );

@@ -21,13 +21,14 @@ use RuntimeException;
 final class FailedToFindPost extends RuntimeException implements BasicScaffoldException {
 
 	/**
-	 * Create a new instance of the exception for a request that has no
-	 * current post.
+	 * Create a new instance of the exception for a main query that did not
+	 * ask for a post.
 	 */
-	public static function for_current_request(): self {
+	public static function for_main_query(): self {
 		return new self(
-			'There is no current post. A service that needs the current post has to wait for the main query, for'
-			. ' example by implementing Delayed with the "wp" action, and only be needed on singular views.'
+			'The main query did not ask for a post. A service that needs the queried post has to wait for the main'
+			. ' query, for example by implementing Delayed with the "wp" action, be needed only on singular views,'
+			. ' and ask for the post only while the main loop renders it.'
 		);
 	}
 }
