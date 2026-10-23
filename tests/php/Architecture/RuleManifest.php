@@ -450,8 +450,7 @@ final class RuleManifest {
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'pattern'          => 'i-need-to-hook-in-later',
-			'configuration'    => 'parameters.architecture.queryContextNeedsDelay.queryFunctions, '
-				. 'parameters.architecture.queryContextNeedsDelay.screenFunctions',
+			'configuration'    => 'parameters.architecture.queryContextNeedsDelay',
 			'checked_by'       => [
 				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\QueryContextNeedsDelayRule',
 			],
