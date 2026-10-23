@@ -7,15 +7,20 @@ namespace MWPD\BasicScaffold\Tests\Unit;
 use Brain\Monkey\Actions;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
+use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithCallback;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
+use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithFunctionNamedArguments;
 use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
 use MWPD\BasicScaffold\Tests\Fixture\ImmutableInjector;
+use MWPD\BasicScaffold\Tests\Fixture\Resolver;
 use MWPD\BasicScaffold\Tests\Fixture\TestInjectorConfigurationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServiceBasedPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServicesPlugin;
@@ -360,6 +365,175 @@ class ServiceBasedPluginTest extends TestCase {
 		$injector = $this->get_registered_injector( $plugin );
 
 		$this->assertSame( $injector->make( DummyClass::class ), $injector->make( DummyClass::class ) );
+	}
+
+	/**
+	 * Binding targets in each form deferred resolution accepts, and a plain
+	 * class name that it leaves alone.
+	 *
+	 * @return array<string,array{0:mixed}>
+	 */
+	public static function data_binding_targets(): array {
+		return [
+			'class name'           => [ DummyClassWithDependency::class ],
+			'closure'              => [
+				static function ( Injector $injector, ServiceContainer $container ): string {
+					Resolver::record( $injector, $container );
+
+					return DummyClassWithDependency::class;
+				},
+			],
+			'static method string' => [ Resolver::class . '::resolve_statically' ],
+			'callable array'       => [ [ new Resolver( DummyClassWithDependency::class ), 'resolve' ] ],
+			'invokable object'     => [ new Resolver( DummyClassWithDependency::class ) ],
+		];
+	}
+
+	/**
+	 * Test that a binding target is resolved with the injector and the service
+	 * container in every callable form other than a function name, and used as
+	 * it is when it is not callable.
+	 *
+	 * @dataProvider data_binding_targets
+	 *
+	 * @param mixed $target Binding target.
+	 */
+	public function test_a_binding_target_resolves_in_every_supported_form( $target ): void {
+		Resolver::$calls = [];
+
+		/** @var class-string|callable $target */
+		$plugin = new TestInjectorConfigurationPlugin( [ DummyInterface::class => $target ] );
+		$plugin->register_services();
+
+		$injector = $this->get_registered_injector( $plugin );
+
+		$this->assertInstanceOf( DummyClassWithDependency::class, $injector->make( DummyInterface::class ) );
+		$this->assertSame(
+			is_string( $target ) && ! is_callable( $target ) ? [] : [ [ $injector, $plugin->get_container() ] ],
+			Resolver::$calls
+		);
+	}
+
+	/**
+	 * Ways to spell the name of a function, which PHP all accepts as callable.
+	 *
+	 * @return array<string,array{0:string,1:string}> Function to define, and
+	 *                                                how the configuration
+	 *                                                names it.
+	 */
+	public static function data_function_names(): array {
+		return [
+			'global function'   => [ 'mwpd_basic_scaffold_test_resolver', 'mwpd_basic_scaffold_test_resolver' ],
+			'leading backslash' => [ 'mwpd_basic_scaffold_test_resolver', '\\mwpd_basic_scaffold_test_resolver' ],
+			'other case'        => [ 'mwpd_basic_scaffold_test_resolver', 'MWPD_Basic_Scaffold_Test_Resolver' ],
+			'namespaced'        => [ __NAMESPACE__ . '\\test_resolver', __NAMESPACE__ . '\\test_resolver' ],
+		];
+	}
+
+	/**
+	 * Test that a string naming a function is a literal value, not a resolver:
+	 * the function never runs, and the string is validated like any other
+	 * class name.
+	 *
+	 * @dataProvider data_function_names
+	 *
+	 * @param string $defined Function to define.
+	 * @param string $name    How the configuration names it.
+	 */
+	public function test_a_function_name_is_not_called_as_a_resolver( string $defined, string $name ): void {
+		Functions\expect( $defined )->never();
+
+		/**
+		 * Brain Monkey has just defined the function, so the name is callable.
+		 *
+		 * @var callable $function_name
+		 */
+		$function_name = $name;
+
+		$plugin = new TestInjectorConfigurationPlugin( [ DummyInterface::class => $function_name ] );
+		$plugin->register_services();
+
+		$this->expectException( FailedToMakeInstance::class );
+		$this->expectExceptionMessage( ltrim( $name, '\\' ) );
+
+		$this->get_registered_injector( $plugin )->make( DummyInterface::class );
+	}
+
+	/**
+	 * Test that argument names which are also function names are bound as the
+	 * names they are, without calling the functions.
+	 */
+	public function test_argument_names_that_name_functions_stay_literal(): void {
+		$arguments = [
+			'key'  => 'a key',
+			'date' => 'a date',
+			'trim' => 'a trim',
+		];
+
+		$plugin = new TestInjectorConfigurationPlugin(
+			[],
+			[],
+			[ DummyClassWithFunctionNamedArguments::class => $arguments ]
+		);
+		$plugin->register_services();
+
+		$object = $this->get_registered_injector( $plugin )->make( DummyClassWithFunctionNamedArguments::class );
+
+		$this->assertInstanceOf( DummyClassWithFunctionNamedArguments::class, $object );
+		$this->assertSame( $arguments, $object->get_arguments() );
+	}
+
+	/**
+	 * Test that a callable argument value reaches the constructor as it is,
+	 * including a function name, instead of being called.
+	 */
+	public function test_a_callable_argument_value_is_passed_as_is(): void {
+		$closure = static fn(): string => 'called';
+
+		foreach ( [ $closure, 'trim' ] as $callback ) {
+			$plugin = new TestInjectorConfigurationPlugin(
+				[],
+				[],
+				[ DummyClassWithCallback::class => [ 'callback' => $callback ] ]
+			);
+			$plugin->register_services();
+
+			$object = $this->get_registered_injector( $plugin )->make( DummyClassWithCallback::class );
+
+			$this->assertInstanceOf( DummyClassWithCallback::class, $object );
+			$this->assertSame( $callback, $object->get_callback() );
+		}
+	}
+
+	/**
+	 * Test that a delegation factory is handed to the injector as it is, as a
+	 * closure or as a function name, and runs only when the injector makes the
+	 * class.
+	 */
+	public function test_a_delegation_factory_is_passed_as_is(): void {
+		$made = new DummyClassWithDependency( new DummyClass() );
+
+		Functions\expect( 'mwpd_basic_scaffold_test_factory' )
+			->once()
+			->with( DummyInterface::class )
+			->andReturn( $made );
+
+		/**
+		 * Brain Monkey has just defined the function, so the name is callable.
+		 *
+		 * @var list<callable> $factories
+		 */
+		$factories = [
+			static fn(): DummyClassWithDependency => $made,
+			'mwpd_basic_scaffold_test_factory',
+		];
+
+		foreach ( $factories as $factory ) {
+			$plugin = new TestInjectorConfigurationPlugin( [], [], [], [ DummyInterface::class => $factory ] );
+			$plugin->register_services();
+
+			$this->assertSame( $made, $this->get_registered_injector( $plugin )->make( DummyInterface::class ) );
+		}
 	}
 
 	/**

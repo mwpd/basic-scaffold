@@ -839,10 +839,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			}
 
 			foreach ( $argument_map as $name => $value ) {
-				// We don't try to resolve the $value here, as we might want to
-				// pass a callable as-is.
-				$name = $this->maybe_resolve( $name );
-
+				// Neither the $name nor the $value is resolved here. The name is
+				// always literal, so an argument called 'key' or 'date' never
+				// runs a function. The value may be a callable that the
+				// constructor wants as-is.
 				if ( ! is_string( $name ) ) {
 					throw InvalidArgument::from_name( $name );
 				}
@@ -993,12 +993,26 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * Maybe resolve a value that is a callable instead of a scalar.
 	 *
 	 * Values that are passed through this method can optionally be provided as
-	 * callables instead of direct values and will be evaluated when needed.
+	 * callables instead of direct values and will be evaluated when needed,
+	 * with the injector and the service container as arguments.
+	 *
+	 * A deferred resolver can be a closure, a static method string
+	 * ('Class::method'), a callable array ([ $object, 'method' ]) or an
+	 * invokable object. A string that names a function is not a resolver: it
+	 * is returned unchanged, so that a value like 'key' or 'date' cannot run
+	 * the PHP function of the same name. To resolve a value through a
+	 * function, wrap it in a closure.
 	 *
 	 * @param mixed $value Value to potentially resolve.
 	 * @return mixed Resolved or unchanged value.
 	 */
 	protected function maybe_resolve( $value ) {
+		// Configuration can come through filters, so a plain string that
+		// happens to name a function stays a value (principle 9).
+		if ( is_string( $value ) && function_exists( $value ) ) {
+			return $value;
+		}
+
 		if ( is_callable( $value ) ) {
 			return $value( $this->injector, $this->service_container );
 		}

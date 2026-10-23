@@ -23,12 +23,31 @@ final class TestInjectorConfigurationPlugin extends ServiceBasedPlugin {
 	private array $shared_instances;
 
 	/**
+	 * @var array<array<string,mixed>>
+	 */
+	private array $arguments;
+
+	/**
+	 * @var array<class-string,callable>
+	 */
+	private array $delegations;
+
+	/**
 	 * @param array<class-string,class-string|callable> $bindings         Injector bindings.
 	 * @param array<class-string|callable>              $shared_instances Shared instances.
+	 * @param array<array<string,mixed>>                $arguments        Argument bindings.
+	 * @param array<class-string,callable>              $delegations      Delegations.
 	 */
-	public function __construct( array $bindings = [], array $shared_instances = [] ) {
+	public function __construct(
+		array $bindings = [],
+		array $shared_instances = [],
+		array $arguments = [],
+		array $delegations = []
+	) {
 		$this->bindings         = $bindings;
 		$this->shared_instances = $shared_instances;
+		$this->arguments        = $arguments;
+		$this->delegations      = $delegations;
 		parent::__construct();
 	}
 
@@ -38,5 +57,13 @@ final class TestInjectorConfigurationPlugin extends ServiceBasedPlugin {
 
 	protected function get_shared_instances(): array {
 		return $this->shared_instances;
+	}
+
+	protected function get_arguments(): array {
+		return $this->arguments;
+	}
+
+	protected function get_delegations(): array {
+		return $this->delegations;
 	}
 }

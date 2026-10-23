@@ -29,6 +29,19 @@ use WP_Post;
  * In here we assemble our infrastructure, configure it for the specific use
  * case the plugin is meant to solve and then kick off the services so that they
  * can hook themselves into the WordPress lifecycle.
+ *
+ * Where a configuration method below accepts a callable in place of a class
+ * name, the callable is called later with the injector and the service
+ * container, and must return the class name. It can be a closure, a static
+ * method string ('Class::method'), a callable array ([ $object, 'method' ])
+ * or an invokable object. A string naming a function, such as 'my_resolver',
+ * is used as it is and never called, so that a value cannot run a function
+ * by accident. To resolve through a function, wrap it in a closure:
+ * static fn( $injector, $container ) => my_resolver( $injector, $container ).
+ *
+ * Argument names are always used as they are. Argument values and
+ * delegation factories are handed to the injector as they are, so a
+ * callable there is passed on rather than called here.
  */
 final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	/*
@@ -131,7 +144,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * This effectively turns these FQCNs into a "singleton", without incurring
 	 * all the drawbacks of the Singleton design anti-pattern.
 	 *
-	 * @return array<class-string> Array of fully qualified class names.
+	 * @return array<class-string|callable> Array of fully qualified class names
+	 *                                      or callables that return one.
 	 */
 	protected function get_shared_instances(): array {
 		return [
