@@ -128,6 +128,10 @@ parameters:
                 - DateInterval
                 - ArrayIterator
                 - SplObjectStorage
+        constructorsOnlyAssign:
+            # Reviewed Class::__construct exceptions to storing dependencies
+            # only (design principle 7). Explain each allowance beside it.
+            allowed: []
         hooks:
             # The methods a feature service adds and removes hooks in, with
             # the interface each belongs to (design principle 7).

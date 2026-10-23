@@ -20,8 +20,8 @@ use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 /**
  * A factory to create templated views.
  *
- * If you don't provide the optional locations array, it will default to (in
- * this exact order):
+ * When no locations are provided, the first create() call resolves and keeps
+ * the defaults in this exact order:
  *  1. child theme folder
  *  2. parent theme folder
  *  3. plugin folder
@@ -29,7 +29,7 @@ use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 final class TemplatedViewFactory implements Service, ViewFactory {
 
 	/**
-	 * Array of locations to use.
+	 * Array of locations to use; empty until first use when no locations were passed.
 	 *
 	 * @var array<string>
 	 */
@@ -38,33 +38,35 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 	/**
 	 * Instantiate a TemplatedViewFactory object.
 	 *
-	 * @param array<string> $locations Array of locations to use.
+	 * @param array<string> $locations Locations to use unchanged, or empty for defaults on first use.
 	 */
 	public function __construct( array $locations = [] ) {
-		if ( $locations === [] ) {
-			$locations = $this->get_default_locations();
-		}
-
 		$this->locations = $locations;
 	}
 
 	/**
 	 * Create a new view object for a given relative path.
 	 *
+	 * Resolve default locations on the first call only, once theme state is needed.
+	 *
 	 * @param string $relative_path Relative path to create the view for.
 	 *
 	 * @return TemplatedView Instantiated view object.
 	 */
 	public function create( string $relative_path ): View {
+		if ( $this->locations === [] ) {
+			$this->locations = $this->get_default_locations();
+		}
+
 		return new TemplatedView( $relative_path, $this, $this->locations );
 	}
 
 	/**
 	 * Get the default locations for the templated view.
 	 *
-	 * The factory asks for them once, when it is created, and keeps them on
+	 * The factory asks for them once, on the first create() call, and keeps them on
 	 * the instance. They are not cached across instances, so every factory
-	 * reflects the theme that is active when it is created.
+	 * reflects the theme that is active when it first creates a view.
 	 *
 	 * @return array<string> Array of default locations.
 	 */

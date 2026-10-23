@@ -116,7 +116,7 @@ says which rules enforce each principle, and what stays with review.
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
 | [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
-| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `constructorsOnlyAssign`, `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
@@ -133,6 +133,7 @@ that names the fix. The fixtures and tests listed prove it.
 
 | Mistake | Fails with | Proven by |
 | --- | --- | --- |
+| A service constructor reading an option or branching | `constructorsOnlyAssign` | `tests/php/PHPStan/Fixture/ConstructorsOnlyAssign/CallService.php`, `BranchService.php` |
 | A hook added in a constructor | `noHooksInConstructor` | `tests/php/PHPStan/Fixture/Hooks/Feature/BadService.php` |
 | `new` of a service inside another service | `newOnlyWhereAllowed` | `tests/php/PHPStan/Fixture/Creation/Consumer.php` |
 | A class that is not `final` | `finalByDefault` | `tests/php/PHPStan/Fixture/FinalByDefault/classes.php` |
@@ -725,6 +726,40 @@ that can only be created later or are needed once per use. Add a class to
 `valueObjects` only if it represents a value rather than a collaborator.
 
 **Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need a default collaborator that can be replaced](patterns.md#i-need-a-default-collaborator-that-can-be-replaced), [I need WordPress state, such as the current post](patterns.md#i-need-wordpress-state-such-as-the-current-post), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime).
+
+### `architecture.constructorsOnlyAssign`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
+constructors only store dependencies.
+
+**Checks:** constructors of classes implementing `Service` contain only
+assignments of a constructor parameter to a property of `$this`, poka-yoke
+defaults and comments. Calls, computed assignments and control flow such as
+`if` are reported at the statement that does the work.
+
+**Allows:** `$this->property = $parameter` and
+`$this->property = $parameter ?? new Default()`, where the parameter is nullable
+and typed to an interface the default implements, as in
+`architecture.newOnlyWhereAllowed`. Calls to `parent::__construct()` with
+arguments are allowed so services can extend WordPress classes. Classes that
+do not implement `Service`, including value objects, exceptions and
+non-service infrastructure, are outside this rule's scope. Implementations of
+`Injector` are also outside its scope: that interface extends `Service` so the
+injector can be injected, but it bootstraps the object graph rather than acting
+as a lifecycle service. Other factories that implement `Service`, including
+`TemplatedViewFactory`, follow the same constructor rule as other services.
+
+**Configuration:** `constructorsOnlyAssign.allowed` lists reviewed
+`Class::__construct` exceptions. It is empty by default. The namespace of
+`Service` and `Injector` comes from `dependencyDirection.infrastructure`.
+
+**Fix:** keep the constructor to storing dependencies. Move the work into
+`register()` or a callback, or into a factory if it is construction logic.
+`TemplatedViewFactory` stores its optional locations in the constructor and
+resolves default theme directories on the first `create()` call, keeping them
+for later calls.
+
+**Pattern:** [I need to add hooks](patterns.md#i-need-to-add-hooks).
 
 ### `architecture.noHooksInConstructor`
 

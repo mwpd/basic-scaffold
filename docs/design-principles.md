@@ -223,7 +223,7 @@ There are exactly two ways to defer part of that tree:
   same category.
 - **Factories**: a factory's whole job is instantiation, and its internals are
   encapsulated, so it may create what it produces with `new`
-  (`src/Infrastructure/View/TemplatedViewFactory.php:59`). Going through the
+  (`src/Infrastructure/View/TemplatedViewFactory.php:61`). Going through the
   injector instead is allowed but not required: the factory is assumed to
   know best how to build its product. The same goes for managing instances:
   `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
