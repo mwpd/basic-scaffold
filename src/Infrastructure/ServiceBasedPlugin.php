@@ -311,7 +311,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * fail before an earlier unknown dependency. Injector setup and resolver
 	 * side effects are not rolled back if validation fails.
 	 *
-	 * @throws InvalidConfiguration If the services configuration is not an array.
+	 * @throws InvalidConfiguration If the services or injector configuration is invalid.
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function register_services(): void {
@@ -831,7 +831,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @param Injector $injector Injector instance to configure.
 	 * @return Injector Configured injector instance.
 	 * @throws InvalidArgument If an argument is not recognized.
-	 * @throws InvalidConfiguration If the injector configuration structure is invalid.
+	 * @throws InvalidConfiguration If the injector configuration is invalid or binds Injector.
 	 * @throws InvalidService If the injector configuration details are invalid.
 	 */
 	protected function configure_injector( Injector $injector ): Injector {
@@ -923,7 +923,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @param mixed    $bindings Associative array of fully qualified class names.
 	 * @param Injector $injector Injector instance to configure.
 	 * @return Injector Configured injector instance.
-	 * @throws InvalidConfiguration If the bindings configuration is invalid.
+	 * @throws InvalidConfiguration If the bindings configuration is invalid or binds Injector.
 	 * @throws InvalidService If the bindings configuration details are invalid.
 	 */
 	protected function parse_bindings( $bindings, Injector $injector ): Injector {
@@ -940,6 +940,12 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 			if ( ! is_string( $to ) ) {
 				throw InvalidService::from_invalid_identifier( $to );
+			}
+
+			// A binding would redirect resolution away from the plugin's own
+			// injector delegation, giving services a different injector.
+			if ( $from === Injector::class ) {
+				throw InvalidConfiguration::from_reserved_injector_binding( Injector::class );
 			}
 
 			/**

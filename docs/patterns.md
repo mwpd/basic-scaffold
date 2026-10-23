@@ -316,6 +316,16 @@ public function __construct( Injector $injector ) {
 $report = $this->injector->make( Report::class );
 ```
 
+Never bind `Injector` in the composition root's bindings or the plugin bindings
+filter: it is reserved, and either binding is rejected with
+`InvalidConfiguration`. Services must receive the plugin's own injector. To
+use a custom implementation, remove the binding and pass that injector to the
+plugin constructor instead:
+
+```php
+$plugin = new BasicScaffoldPlugin( true, $custom_injector );
+```
+
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:57-63`,
 bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
