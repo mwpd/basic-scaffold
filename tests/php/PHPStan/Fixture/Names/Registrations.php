@@ -41,5 +41,9 @@ final class Registrations {
 		add_action( 'wp_ajax_acme_plugin_save', $callback );
 		add_action( 'wp_ajax_nopriv_save', $callback );
 		add_action( 'wp_ajax_nopriv_acme_plugin_save', $callback );
+		register_setting( 'reading', 'acme_plugin_max_age' );
+		register_setting( 'reading', 'max_age' );
+		register_setting( 'discussion', 'acme_plugin_max_age' );
+		register_setting( 'reading', 'reading' );
 	}
 }

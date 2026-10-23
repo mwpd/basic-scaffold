@@ -1121,7 +1121,7 @@ with the prefix for their kind:
 | `restRoutes` | `register_rest_route` | namespace, the 1st argument | `mwpd/basic-scaffold` |
 | `cron` | `wp_schedule_event`; `wp_schedule_single_event`, `wp_unschedule_event`; `wp_next_scheduled`, `wp_clear_scheduled_hook` | hook: 3rd; 2nd; 1st argument, respectively | `mwpd_basic_scaffold_` |
 | `adminPages` | `add_menu_page`, `add_options_page`, `add_management_page`; `add_submenu_page` | menu slug: 4th; 5th argument, respectively | `mwpd-basic-scaffold-` |
-| `settings` | `register_setting` | option group and option name, the 1st and 2nd arguments | `mwpd_basic_scaffold_` |
+| `settings` | `register_setting` | option group, the 1st argument, is a read and may name a core settings page; option name, the 2nd argument, always needs the prefix | `mwpd_basic_scaffold_` |
 | `ajax` | `add_action` with a known `wp_ajax_` or `wp_ajax_nopriv_` action | the remainder after WordPress's action prefix | `mwpd_basic_scaffold_` |
 
 A name passes when PHPStan knows it starts with the prefix, or when it is built
@@ -1138,6 +1138,11 @@ length may be unknown.
 `wp_enqueue_script()` without a source, or firing a hook, the names WordPress
 owns that the kind lists as allowed. `wp_next_scheduled()` is also a read;
 scheduling and clearing cron events create or change the plugin's own names.
+The option group in `register_setting()` is a read: it may use the prefix or
+name a core settings page in `settings.allowed` (`general`, `writing`,
+`reading`, `discussion` and `media` by default). A field on a core page must
+join that page's option group. The option name is a write and always needs the
+prefix; `settings.allowed` does not exempt it.
 `add_filter()` and non-AJAX `add_action()` subscriptions are unchecked because
 they subscribe to names other code owns. Only `add_action()` names known to
 start with `wp_ajax_` or `wp_ajax_nopriv_` are checked, and their remainder

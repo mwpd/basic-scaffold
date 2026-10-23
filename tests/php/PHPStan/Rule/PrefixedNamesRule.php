@@ -53,7 +53,10 @@ final class PrefixedNamesRule implements Rule {
 
 	/**
 	 * The functions checked: kind of name, positions of the names, and whether
-	 * the call only reads a name, so that names WordPress owns may be allowed.
+	 * all names are only read (a boolean) or which positions only read a name
+	 * (a list), so that names WordPress owns may be allowed.
+	 *
+	 * @var array<string, array{string, list<int>, bool|list<int>}>
 	 */
 	private const FUNCTIONS = [
 		'do_action'                => [ 'hooks', [ 0 ], true ],
@@ -94,7 +97,7 @@ final class PrefixedNamesRule implements Rule {
 		'add_submenu_page'         => [ 'adminPages', [ 4 ], false ],
 		'add_options_page'         => [ 'adminPages', [ 3 ], false ],
 		'add_management_page'      => [ 'adminPages', [ 3 ], false ],
-		'register_setting'         => [ 'settings', [ 0, 1 ], false ],
+		'register_setting'         => [ 'settings', [ 0, 1 ], [ 0 ] ],
 		'add_action'               => [ 'ajax', [ 0 ], false ],
 	];
 
@@ -177,7 +180,8 @@ final class PrefixedNamesRule implements Rule {
 
 		$errors = [];
 		foreach ( $positions as $position ) {
-			$problem = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads );
+			$reads_name = is_array( $reads ) ? in_array( $position, $reads, true ) : $reads;
+			$problem    = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads_name );
 			if ( $problem === null ) {
 				continue;
 			}

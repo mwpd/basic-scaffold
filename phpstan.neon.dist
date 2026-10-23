@@ -313,7 +313,14 @@ parameters:
             settings:
                 prefix: mwpd_basic_scaffold_
                 constants: []
-                allowed: []
+                # Core settings pages use their page slug as the option group;
+                # a field on a core page must join that group.
+                allowed:
+                    - general
+                    - writing
+                    - reading
+                    - discussion
+                    - media
                 managed: []
             ajax:
                 prefix: mwpd_basic_scaffold_
