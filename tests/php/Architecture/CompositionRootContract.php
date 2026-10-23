@@ -30,6 +30,8 @@ use MWPD\BasicScaffold\Infrastructure\NetworkActivateable;
 use MWPD\BasicScaffold\Infrastructure\NetworkDeactivateable;
 use MWPD\BasicScaffold\Infrastructure\NetworkUninstallable;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
+use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationReport;
+use MWPD\BasicScaffold\Infrastructure\Registration\SimpleRegistrationLog;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use MWPD\BasicScaffold\Infrastructure\SiteActivateable;
@@ -651,6 +653,11 @@ final class CompositionRootContract {
 	 * may be a new instance, and resolves callables in its configuration with
 	 * it, so the check does the same.
 	 *
+	 * Registering also hands a RegistrationReport to the constructors that
+	 * ask for one, once a service observes the registration. The check
+	 * stands in an empty one, so that such a service, like the optional
+	 * Query Monitor panel, can be built and checked too.
+	 *
 	 * @param ServiceBasedPlugin $plugin Plugin whose injector to configure.
 	 * @return Injector Configured injector.
 	 */
@@ -663,6 +670,12 @@ final class CompositionRootContract {
 
 		$configured = self::call( $plugin, 'configure_injector', $injector );
 		assert( $configured instanceof Injector );
+
+		$report     = new SimpleRegistrationLog();
+		$configured = $configured->delegate(
+			RegistrationReport::class,
+			static fn(): RegistrationReport => $report
+		);
 
 		$property->setValue( $plugin, $configured );
 

@@ -103,12 +103,14 @@ final class RepositoryLayout {
 
 	/**
 	 * Directories with fixtures for the architecture rules, which break the
-	 * rules on purpose, and with stand-ins for WordPress classes, which live in
-	 * the global namespace like the classes they stand in for.
+	 * rules on purpose, and with stand-ins for WordPress and Query Monitor
+	 * classes, which live in the global namespace like the classes they stand
+	 * in for.
 	 */
 	public const RULE_FIXTURES = [
 		'tests/php/PHPStan/Fixture',
 		'tests/php/Fixture/WordPress',
+		'tests/php/Fixture/QueryMonitor',
 		'tests/php/Fixture/BootstrapContract',
 	];
 

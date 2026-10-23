@@ -57,6 +57,7 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\SiteUninitializable
                 - MWPD\BasicScaffold\Infrastructure\SiteUninstallable
                 - MWPD\BasicScaffold\Infrastructure\NetworkUninstallable
+                - MWPD\BasicScaffold\Infrastructure\Registration\ObservesRegistration
             delayed: MWPD\BasicScaffold\Infrastructure\Delayed
             registerable: MWPD\BasicScaffold\Infrastructure\Registerable
         finalByDefault:
@@ -161,6 +162,7 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkContext
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkSelection
+                - MWPD\BasicScaffold\Infrastructure\Registration\RegistrationRecord
                 - DateTimeImmutable
                 - DateInterval
                 - ArrayIterator

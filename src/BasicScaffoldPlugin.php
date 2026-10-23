@@ -17,6 +17,11 @@ use MWPD\BasicScaffold\Exception\FailedToFindPost;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\Infrastructure\{
+	QueryMonitor\CollectorFactory,
+	QueryMonitor\OutputFactory,
+	QueryMonitor\RegistrationCollectorFactory,
+	QueryMonitor\RegistrationOutputFactory,
+	QueryMonitor\RegistrationPanel,
 	Service\DebugMode,
 	Service\WordPressDebugMode,
 	ServiceBasedPlugin,
@@ -77,6 +82,18 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 			self::SAMPLE_BACKEND_SERVICE_ID => SampleBackendService::class,
 			self::SAMPLE_LOOP_SERVICE_ID    => SampleLoopService::class,
 
+			/*
+			 * To see in Query Monitor which services were registered in a
+			 * request, which were skipped, and which still wait for an action
+			 * or for their dependencies, add the optional panel:
+			 *
+			 * self::REGISTRATION_PANEL_ID => RegistrationPanel::class,
+			 *
+			 * It only does anything in requests where Query Monitor runs, and
+			 * the plugin only records the registration in those. The bindings
+			 * and arguments it needs are already configured below.
+			 */
+
 			// Add your service definitions here.
 		];
 	}
@@ -108,7 +125,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	protected function get_bindings(): array {
 		return [
 			// Map the ViewFactory interface to a concrete implementation.
-			ViewFactory::class => TemplatedViewFactory::class,
+			ViewFactory::class      => TemplatedViewFactory::class,
 
 			/*
 			 * Views fail loudly in debug mode and render nothing in
@@ -116,7 +133,15 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 			 * The view factory asks for it through its constructor, so the
 			 * injector needs to know which implementation to build.
 			 */
-			DebugMode::class   => WordPressDebugMode::class,
+			DebugMode::class        => WordPressDebugMode::class,
+
+			/*
+			 * The factories the optional Query Monitor panel creates its
+			 * collector and output with. They create nothing until the panel
+			 * is declared above and Query Monitor runs.
+			 */
+			CollectorFactory::class => RegistrationCollectorFactory::class,
+			OutputFactory::class    => RegistrationOutputFactory::class,
 
 			// Add your bindings here.
 		];
@@ -140,6 +165,14 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 			 * Example - add a scalar value to an argument for SampleService:
 			 * SampleService::class => [ 'argument_name' => 'value' ],
 			 */
+
+			/*
+			 * How the optional Query Monitor panel is named. Its identifier
+			 * carries the plugin's prefix, and its title names the plugin, so
+			 * the panels of two plugins built from this scaffold stay apart.
+			 */
+			RegistrationCollectorFactory::class => [ 'panel_id' => self::REGISTRATION_PANEL_SLUG ],
+			RegistrationOutputFactory::class    => [ 'panel_title' => self::REGISTRATION_PANEL_TITLE ],
 
 			// Add your argument mappings here.
 		];
@@ -308,4 +341,15 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	public const SAMPLE_BACKEND_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-backend-service';
 
 	public const SAMPLE_LOOP_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
+
+	public const REGISTRATION_PANEL_ID = self::SERVICE_PREFIX . 'query-monitor.registration-panel';
+
+	/*
+	 * Identifier and title of the optional Query Monitor panel. Query Monitor
+	 * uses the identifier in HTML IDs, so it is a slug, with the prefix the
+	 * plugin uses for such names.
+	 */
+	protected const REGISTRATION_PANEL_SLUG = 'mwpd-basic-scaffold-registration';
+
+	protected const REGISTRATION_PANEL_TITLE = 'Basic Scaffold services';
 }
