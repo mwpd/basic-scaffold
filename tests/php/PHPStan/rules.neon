@@ -21,6 +21,10 @@ parametersSchema:
         noStaticState: structure([
             allowed: listOf(string())
         ])
+        pluginFactoryOnlyAtEdges: structure([
+            factories: listOf(string())
+            bridges: listOf(string())
+        ])
         noGlobalState: structure([
             inputAdapters: listOf(string())
         ])
@@ -104,6 +108,16 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             allowed: %architecture.noStaticState.allowed%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\PluginFactoryOnlyAtEdgesRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            views: %architecture.dependencyDirection.views%
+            factories: %architecture.pluginFactoryOnlyAtEdges.factories%
+            bridges: %architecture.pluginFactoryOnlyAtEdges.bridges%
         tags:
             - phpstan.rules.rule
 

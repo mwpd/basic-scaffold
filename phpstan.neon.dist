@@ -53,6 +53,12 @@ parameters:
             # Methods allowed to keep static state (design principle 5).
             allowed:
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory::create
+        pluginFactoryOnlyAtEdges:
+            # Only WordPress entry points may obtain the graph statically.
+            factories:
+                - MWPD\BasicScaffold\BasicScaffoldPluginFactory
+            # Reviewed static callables that get the graph and delegate at once.
+            bridges: []
         noGlobalState:
             # Classes that read request input and sanitize and normalize it
             # into internal types (design principles 7 and 9). This never
