@@ -72,6 +72,8 @@ final class RuleManifest {
 
 	public const NO_STATIC_STATE = 'architecture.noStaticState';
 
+	public const NO_GLOBAL_STATE = 'architecture.noGlobalState';
+
 	public const NO_WORDPRESS_ERROR_MECHANISMS = 'architecture.noWordPressErrorMechanisms';
 
 	public const THROW_ONLY_PLUGIN_EXCEPTIONS = 'architecture.throwOnlyPluginExceptions';
@@ -144,6 +146,20 @@ final class RuleManifest {
 			],
 			'signatures'       => [
 				'keeps state outside any object',
+			],
+		],
+		self::NO_GLOBAL_STATE                       => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-wordpress-state-such-as-the-current-post',
+			'configuration'    => 'parameters.architecture.noGlobalState',
+			'checked_by'       => [
+				Rule\NoGlobalStateRule::class,
+			],
+			'signatures'       => [
+				'pulls state from globals',
+				'accesses global state',
+				'bypasses an input adapter',
 			],
 		],
 		self::NO_WORDPRESS_ERROR_MECHANISMS         => [
