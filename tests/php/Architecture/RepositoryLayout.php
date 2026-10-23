@@ -61,6 +61,22 @@ final class RepositoryLayout {
 	];
 
 	/**
+	 * Other core actions services may wait for. Their relative firing order
+	 * depends on the request or callbacks, so dependency ordering excludes them.
+	 */
+	public const ADDITIONAL_CORE_ACTIONS = [
+		'admin_menu',
+		'admin_init',
+		'current_screen',
+		'rest_api_init',
+		'wp_enqueue_scripts',
+		'admin_enqueue_scripts',
+		'wp_head',
+		'wp_footer',
+		'admin_notices',
+	];
+
+	/**
 	 * The plugin's main file, the only one with side effects.
 	 */
 	public const BOOTSTRAP = 'basic-scaffold.php';
@@ -159,6 +175,13 @@ final class RepositoryLayout {
 	private array $registration_actions;
 
 	/**
+	 * Core actions without a fixed relative firing order.
+	 *
+	 * @var list<string>
+	 */
+	private array $additional_core_actions;
+
+	/**
 	 * Instantiate a RepositoryLayout object.
 	 *
 	 * @param string        $root             Root of the repository.
@@ -170,6 +193,7 @@ final class RepositoryLayout {
 	 * @param array<string> $rule_fixtures    Rule fixture directories.
 	 * @param array<string, string> $services_built_elsewhere Classes built by other routes.
 	 * @param list<string> $registration_actions Registration actions in firing order.
+	 * @param list<string> $additional_core_actions Other core registration actions, without a fixed order.
 	 */
 	public function __construct(
 		string $root,
@@ -180,7 +204,8 @@ final class RepositoryLayout {
 		array $test_views,
 		array $rule_fixtures,
 		array $services_built_elsewhere = [],
-		array $registration_actions = self::REGISTRATION_ACTIONS
+		array $registration_actions = self::REGISTRATION_ACTIONS,
+		array $additional_core_actions = self::ADDITIONAL_CORE_ACTIONS
 	) {
 		$this->root                     = rtrim( $root, '/' );
 		$this->bootstrap                = $bootstrap;
@@ -191,6 +216,7 @@ final class RepositoryLayout {
 		$this->rule_fixtures            = $rule_fixtures;
 		$this->services_built_elsewhere = $services_built_elsewhere;
 		$this->registration_actions     = $registration_actions;
+		$this->additional_core_actions  = $additional_core_actions;
 	}
 
 	/**
@@ -208,7 +234,8 @@ final class RepositoryLayout {
 			self::TEST_VIEWS,
 			self::RULE_FIXTURES,
 			self::SERVICES_BUILT_ELSEWHERE,
-			self::REGISTRATION_ACTIONS
+			self::REGISTRATION_ACTIONS,
+			self::ADDITIONAL_CORE_ACTIONS
 		);
 	}
 
@@ -436,6 +463,15 @@ final class RepositoryLayout {
 	 */
 	public function get_registration_actions(): array {
 		return $this->registration_actions;
+	}
+
+	/**
+	 * Get core registration actions without assigning them a firing order.
+	 *
+	 * @return list<string> Additional core actions.
+	 */
+	public function get_additional_core_actions(): array {
+		return $this->additional_core_actions;
 	}
 
 	/**
