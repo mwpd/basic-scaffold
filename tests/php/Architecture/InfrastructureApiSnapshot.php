@@ -81,8 +81,8 @@ final class InfrastructureApiSnapshot {
 	}
 
 	/**
-	 * Inherited members are callable through the child too. Never enumerate
-	 * implemented interfaces: PHP 8 implicitly adds Stringable to some classes.
+	 * Inherited members are callable through the child too. Interfaces
+	 * provided by PHP itself are not enumerated.
 	 *
 	 * @param ReflectionClass<object> $reflection Type being listed.
 	 * @return list<string> Declaration and member lines.
@@ -94,6 +94,15 @@ final class InfrastructureApiSnapshot {
 			$kind = ( $reflection->isFinal() ? 'final ' : ( $reflection->isAbstract() ? 'abstract ' : '' ) ) . $kind;
 		}
 		$lines = [ $name . ' ' . $kind ];
+		// Dropping an interface breaks every caller that type-hints it, so the
+		// listing pins them. PHP's own interfaces are skipped: which ones a class
+		// gets implicitly (Stringable) differs between PHP versions.
+		$verb = $reflection->isInterface() ? ' extends ' : ' implements ';
+		foreach ( $reflection->getInterfaceNames() as $interface ) {
+			if ( ! ( new ReflectionClass( $interface ) )->isInternal() ) {
+				$lines[] = $name . $verb . $this->relative( $interface );
+			}
+		}
 		foreach ( $reflection->getMethods( ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED ) as $method ) {
 			// PHP owns internal signatures (ArrayObject, Countable, ArrayAccess),
 			// including their changes between runtimes. Only snapshot our API.

@@ -148,6 +148,31 @@ final class InfrastructureApiSnapshotTest extends TestCase {
 		);
 	}
 
+	public function test_implemented_and_extended_interfaces_are_listed_and_removing_one_changes_the_snapshot(): void {
+		$this->write_type( 'Beta', 'interface Beta {}' );
+		$this->write_type( 'Alpha', 'interface Alpha extends Beta {}' );
+		$this->write_type(
+			'Impl',
+			'final class Impl implements Alpha, \\Countable { public function count(): int { return 0; } }'
+		);
+		$with = $this->builder()->build();
+
+		$this->assertStringContainsString( "Engine\\Alpha extends Engine\\Beta\n", $with );
+		$this->assertStringContainsString( "Engine\\Impl implements Engine\\Alpha\n", $with );
+		$this->assertStringContainsString( "Engine\\Impl implements Engine\\Beta\n", $with );
+		$this->assertStringNotContainsString( 'Countable', $with );
+
+		// A snapshot taken before the interface was dropped no longer matches.
+		$this->repository->write(
+			InfrastructureApiSnapshot::PATH,
+			str_replace( "Engine\\Impl implements Engine\\Alpha\n", '', $with )
+		);
+		$problems = $this->builder()->check();
+
+		$this->assertCount( 1, $problems );
+		$this->assertStringContainsString( '+Engine\\Impl implements Engine\\Alpha', $problems[0] );
+	}
+
 	public function test_php_owned_members_do_not_pin_the_snapshot_to_a_php_version(): void {
 		$this->write_type( 'Collection', 'final class Collection extends \\ArrayObject {}' );
 

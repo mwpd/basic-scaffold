@@ -183,8 +183,9 @@ untyped, and uninitialized typed properties have no default.
 **Allows:** private members and final-class constants and properties can change
 without updating the snapshot. PHP-owned inherited methods are excluded: their
 signatures belong to the installed PHP version, not to this repository.
-Implemented interfaces are not enumerated, so PHP 8's implicit `Stringable`
-does not change the listing. Constants used as defaults are rendered as values,
+Every type also lists the interfaces it implements or extends, inherited ones
+included, so dropping one is visible. Interfaces that PHP provides itself are
+left out, so PHP 8's implicit `Stringable` does not change the listing. Constants used as defaults are rendered as values,
 strings and arrays stay on one line, and repository paths become `<root>/...`.
 Exceptions and the composition root are outside this check.
 

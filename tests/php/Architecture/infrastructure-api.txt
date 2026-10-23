@@ -14,6 +14,7 @@ Infrastructure\Delayed interface
 Infrastructure\Delayed::public abstract static function get_registration_action(): string
 Infrastructure\HasDependencies interface
 Infrastructure\HasDependencies::public abstract static function get_dependencies(): array
+Infrastructure\Injector extends Infrastructure\Service
 Infrastructure\Injector interface
 Infrastructure\Injector::public abstract function bind( string $from, string $to ): Infrastructure\Injector
 Infrastructure\Injector::public abstract function bind_argument( string $interface_or_class, string $argument_name, $value ): Infrastructure\Injector
@@ -28,6 +29,8 @@ Infrastructure\Injector\InjectionChain::public function get_class(): string
 Infrastructure\Injector\InjectionChain::public function get_resolutions(): array
 Infrastructure\Injector\InjectionChain::public function has_resolution( string $resolution ): bool
 Infrastructure\Injector\SimpleInjector final class
+Infrastructure\Injector\SimpleInjector implements Infrastructure\Injector
+Infrastructure\Injector\SimpleInjector implements Infrastructure\Service
 Infrastructure\Injector\SimpleInjector::public function __construct( ?Infrastructure\Instantiator $instantiator = null )
 Infrastructure\Injector\SimpleInjector::public function bind( string $from, string $to ): Infrastructure\Injector
 Infrastructure\Injector\SimpleInjector::public function bind_argument( string $interface_or_class, string $argument_name, $value ): Infrastructure\Injector
@@ -36,6 +39,9 @@ Infrastructure\Injector\SimpleInjector::public function make( string $interface_
 Infrastructure\Injector\SimpleInjector::public function share( string $interface_or_class ): Infrastructure\Injector
 Infrastructure\Instantiator interface
 Infrastructure\Instantiator::public abstract function instantiate( string $class_name, array $dependencies = [] ): object
+Infrastructure\Plugin extends Infrastructure\Activateable
+Infrastructure\Plugin extends Infrastructure\Deactivateable
+Infrastructure\Plugin extends Infrastructure\Registerable
 Infrastructure\Plugin interface
 Infrastructure\Plugin::public abstract function activate(): void
 Infrastructure\Plugin::public abstract function deactivate(): void
@@ -47,6 +53,10 @@ Infrastructure\Renderable interface
 Infrastructure\Renderable::public abstract function render( array $context = [] ): string
 Infrastructure\Service interface
 Infrastructure\ServiceBasedPlugin abstract class
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Activateable
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Deactivateable
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Plugin
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Registerable
 Infrastructure\ServiceBasedPlugin::protected Infrastructure\Injector $injector
 Infrastructure\ServiceBasedPlugin::protected Infrastructure\ServiceContainer $service_container
 Infrastructure\ServiceBasedPlugin::protected bool $enable_filters
@@ -86,16 +96,20 @@ Infrastructure\ServiceContainer::public abstract function get( string $id ): Inf
 Infrastructure\ServiceContainer::public abstract function has( string $id ): bool
 Infrastructure\ServiceContainer::public abstract function put( string $id, Infrastructure\Service $service ): void
 Infrastructure\ServiceContainer\LazilyInstantiatedService final class
+Infrastructure\ServiceContainer\LazilyInstantiatedService implements Infrastructure\Service
 Infrastructure\ServiceContainer\LazilyInstantiatedService::public function __construct( callable $instantiation )
 Infrastructure\ServiceContainer\LazilyInstantiatedService::public function instantiate(): Infrastructure\Service
 Infrastructure\ServiceContainer\SimpleServiceContainer final class
+Infrastructure\ServiceContainer\SimpleServiceContainer implements Infrastructure\ServiceContainer
 Infrastructure\ServiceContainer\SimpleServiceContainer::public function get( string $id ): Infrastructure\Service
 Infrastructure\ServiceContainer\SimpleServiceContainer::public function has( string $id ): bool
 Infrastructure\ServiceContainer\SimpleServiceContainer::public function put( string $id, Infrastructure\Service $service ): void
 Infrastructure\Service\DebugMode interface
 Infrastructure\Service\DebugMode::public abstract function is_debug_mode(): bool
 Infrastructure\Service\WordPressDebugMode final class
+Infrastructure\Service\WordPressDebugMode implements Infrastructure\Service\DebugMode
 Infrastructure\Service\WordPressDebugMode::public function is_debug_mode(): bool
+Infrastructure\View extends Infrastructure\Renderable
 Infrastructure\View interface
 Infrastructure\View::public abstract function __get( string $property )
 Infrastructure\View::public abstract function raw( $property )
@@ -104,6 +118,8 @@ Infrastructure\View::public abstract function render_partial( string $path, ?arr
 Infrastructure\ViewFactory interface
 Infrastructure\ViewFactory::public abstract function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\SimpleView class
+Infrastructure\View\SimpleView implements Infrastructure\Renderable
+Infrastructure\View\SimpleView implements Infrastructure\View
 Infrastructure\View\SimpleView::protected $_context_ = []
 Infrastructure\View\SimpleView::protected Infrastructure\ViewFactory $view_factory
 Infrastructure\View\SimpleView::protected const VIEW_EXTENSION = "php"
@@ -121,8 +137,12 @@ Infrastructure\View\SimpleView::public function raw( $property )
 Infrastructure\View\SimpleView::public function render( array $context = [] ): string
 Infrastructure\View\SimpleView::public function render_partial( string $path, ?array $context = null ): string
 Infrastructure\View\SimpleViewFactory final class
+Infrastructure\View\SimpleViewFactory implements Infrastructure\Service
+Infrastructure\View\SimpleViewFactory implements Infrastructure\ViewFactory
 Infrastructure\View\SimpleViewFactory::public function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\TemplatedView final class
+Infrastructure\View\TemplatedView implements Infrastructure\Renderable
+Infrastructure\View\TemplatedView implements Infrastructure\View
 Infrastructure\View\TemplatedView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, array $locations = [] )
 Infrastructure\View\TemplatedView::public function __get( string $property )
 Infrastructure\View\TemplatedView::public function __isset( string $property ): bool
@@ -131,6 +151,8 @@ Infrastructure\View\TemplatedView::public function raw( $property )
 Infrastructure\View\TemplatedView::public function render( array $context = [] ): string
 Infrastructure\View\TemplatedView::public function render_partial( string $path, ?array $context = null ): string
 Infrastructure\View\TemplatedViewFactory final class
+Infrastructure\View\TemplatedViewFactory implements Infrastructure\Service
+Infrastructure\View\TemplatedViewFactory implements Infrastructure\ViewFactory
 Infrastructure\View\TemplatedViewFactory::public function __construct( array $locations = [] )
 Infrastructure\View\TemplatedViewFactory::public function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\ViewLocations final class
