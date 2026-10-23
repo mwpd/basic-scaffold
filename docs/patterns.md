@@ -173,9 +173,10 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 **Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-72`.
 
 **Rules:** `architecture.noContextChecksInRegister`,
-`architecture.queryContextNeedsDelay`. Hook-timing checks such as
-`did_action()` in `register()` are reported; an action that never fires or
-runs too early for the condition is reported once #82 lands.
+`architecture.queryContextNeedsDelay`, `architecture.registrationActionKnown`.
+Hook-timing checks such as `did_action()` in `register()` are reported, as are
+unknown registration actions. Whether a known action fires in the service's
+request type or runs late enough for its condition remains a review concern.
 
 ## I need to set something up when the plugin is activated
 
