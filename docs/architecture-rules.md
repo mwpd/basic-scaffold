@@ -123,7 +123,7 @@ says which rules enforce each principle, and what stays with review.
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
-| [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run; `citationsResolve` | Whether comments explain why and cited lines still support the prose |
+| [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve` | Whether comments explain why and cited lines still support the prose |
 | [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength` | |
 
 ## Mistakes the checks catch
@@ -138,6 +138,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A class that is not `final` | `finalByDefault` | `tests/php/PHPStan/Fixture/FinalByDefault/classes.php` |
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
 | A public WordPress name without the plugin's prefix, or an overlong post type/taxonomy name | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php`, `Registrations.php`, `NameLengths.php` |
+| A sample class or production view without a test | `samplesAreTested` | `SamplesAreTestedTest::test_it_reports_an_untested_subsystem_class_with_the_fix`, `SamplesAreTestedTest::test_it_reports_an_untested_view_with_the_fix` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
 | A service calling the plugin factory as a static service locator | `pluginFactoryOnlyAtEdges` | `tests/php/PHPStan/Fixture/PluginFactoryOnlyAtEdges/Service.php` |
 | A documentation citation naming a missing file, an out-of-bounds line or a reversed range | `citationsResolve` | `RepositoryStructureTest::test_it_reports_broken_documentation_citations_with_full_messages` |
@@ -590,6 +591,37 @@ directory in `RepositoryLayout`.
 
 **Fix:** move the test into a suite directory and name its file after the
 class with a `Test.php` suffix, or add a suite for its directory.
+
+### `architecture.samplesAreTested`
+
+**Principle:** [14. The code teaches](design-principles.md#14-the-code-teaches):
+samples are copied into generated plugins, so they must have tests.
+
+**Checks:** every concrete class in a feature subsystem is referenced by
+`::class` or a fully qualified `@covers` annotation in a file discovered by
+the `unit` or `integration` suite. Class constants follow PHP's namespace and
+import rules, including aliases and grouped imports; `@covers Class::method`
+also references its class. Every production PHP view template is named in
+such a test by its path relative to the repository, with or without `.php`,
+for example `views/test-backend-service`. A test that renders through a service
+can name the template in its docblock.
+
+**Allows:** abstract classes, interfaces, traits, classes directly in the
+plugin's root namespace, infrastructure, exceptions, excluded namespaces and
+configured composition-root classes. Test templates are outside the check.
+References in other suites, fixtures, excluded paths or files without the
+suite's configured suffix do not count. This checks references, not coverage
+percentages, mutation testing or whether assertions are sufficient.
+
+**Configuration:** production classes and view directories come from
+`RepositoryLayout`; suite names, directories, suffixes and exclusions come
+from `phpunit.xml.dist`. The plugin namespace, `excludedNamespaces`,
+`dependencyDirection.infrastructure`, `dependencyDirection.compositionRoot`
+and `exceptions.namespace` come from `parameters.architecture` in
+`phpstan.neon.dist`, so generated plugins keep the check after renaming.
+
+**Fix:** add a unit or integration test that references the class with
+`::class` or `@covers`, or names the view path and exercises its output.
 
 ### `architecture.gatesAtStrength`
 

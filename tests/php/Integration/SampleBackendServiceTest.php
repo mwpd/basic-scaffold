@@ -26,6 +26,32 @@ final class SampleBackendServiceTest extends TestCase {
 		Functions\when( 'get_template_directory' )->justReturn( '/nonexistent/parent-theme' );
 	}
 
+	/**
+	 * @dataProvider request_contexts
+	 */
+	public function test_it_is_needed_only_in_admin_requests_outside_ajax(
+		bool $is_admin,
+		bool $doing_ajax,
+		bool $expected
+	): void {
+		Functions\when( 'is_admin' )->justReturn( $is_admin );
+		Functions\when( 'wp_doing_ajax' )->justReturn( $doing_ajax );
+
+		$this->assertSame( $expected, SampleBackendService::is_needed() );
+	}
+
+	/**
+	 * @return array<string, array{bool, bool, bool}>
+	 */
+	public static function request_contexts(): array {
+		return [
+			'admin'         => [ true, false, true ],
+			'frontend'      => [ false, false, false ],
+			'admin ajax'    => [ true, true, false ],
+			'frontend ajax' => [ false, true, false ],
+		];
+	}
+
 	public function test_it_renders_the_backend_notice_from_the_composition_root(): void {
 		$plugin = new BasicScaffoldPlugin();
 		$plugin->register_services();

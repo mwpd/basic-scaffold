@@ -170,6 +170,35 @@ final class PhpFile {
 	}
 
 	/**
+	 * Get the named concrete classes declared at the top level.
+	 *
+	 * @return array<int, array{name: string, line: int}> Class names and lines.
+	 */
+	public function get_concrete_classes(): array {
+		$namespace = '';
+		$classes   = [];
+		foreach ( $this->statements as $statement ) {
+			if ( $statement['kind'] === 'T_NAMESPACE' ) {
+				$namespace = self::read_name( $statement['tokens'], 1 );
+			}
+			if ( $statement['kind'] !== 'T_CLASS' ) {
+				continue;
+			}
+			$tokens = $statement['tokens'];
+			$offset = (int) array_search( 'T_CLASS', array_column( $tokens, 0 ), true );
+			if ( in_array( 'T_ABSTRACT', array_column( array_slice( $tokens, 0, $offset ), 0 ), true ) ) {
+				continue;
+			}
+			$classes[] = [
+				'name' => ltrim( $namespace . '\\' . self::read_name( $tokens, $offset + 1 ), '\\' ),
+				'line' => $statement['line'],
+			];
+		}
+
+		return $classes;
+	}
+
+	/**
 	 * Get the top-level statements that do something when the file is included.
 	 *
 	 * Everything but `declare` directives, `namespace`, `use` and class,

@@ -262,10 +262,11 @@ final class RepositoryLayout {
 	/**
 	 * Get the directories PHPUnit discovers tests in.
 	 *
+	 * @param array<string> $names Suite names, or an empty list for all suites.
 	 * @return array<int, array{directory: string, suffix: string, excluded: array<string>}> Absolute
 	 *         directory, file suffix and absolute excluded paths of each suite directory.
 	 */
-	public function get_suite_directories(): array {
+	public function get_suite_directories( array $names = [] ): array {
 		$path = $this->absolute( 'phpunit.xml.dist' );
 		if ( ! is_readable( $path ) ) {
 			return [];
@@ -275,6 +276,10 @@ final class RepositoryLayout {
 		$config      = new SimpleXMLElement( (string) file_get_contents( $path ) );
 		$suites      = $config->xpath( '//testsuite' );
 		foreach ( is_array( $suites ) ? $suites : [] as $suite ) {
+			if ( $names !== [] && ! in_array( (string) $suite['name'], $names, true ) ) {
+				continue;
+			}
+
 			$excluded = [];
 			foreach ( $suite->exclude as $exclude ) {
 				$excluded[] = $this->absolute( rtrim( (string) $exclude, '/' ) );
@@ -290,6 +295,31 @@ final class RepositoryLayout {
 		}
 
 		return $directories;
+	}
+
+	/**
+	 * Get the PHP files discovered in the named PHPUnit suites.
+	 *
+	 * @param array<string> $names Suite names.
+	 * @return array<string> Absolute paths.
+	 */
+	public function get_suite_files( array $names ): array {
+		$files = [];
+		foreach ( $this->get_suite_directories( $names ) as $suite ) {
+			foreach ( $this->find_php_files( $suite['directory'] ) as $path ) {
+				if ( substr( $path, -strlen( $suite['suffix'] ) ) !== $suite['suffix'] ) {
+					continue;
+				}
+				foreach ( $suite['excluded'] as $excluded ) {
+					if ( $path === $excluded || strpos( $path, $excluded . '/' ) === 0 ) {
+						continue 2;
+					}
+				}
+				$files[] = $path;
+			}
+		}
+
+		return array_values( array_unique( $files ) );
 	}
 
 	/**
@@ -329,6 +359,8 @@ final class RepositoryLayout {
 		$exceptions = $settings['exceptions'] ?? null;
 		assert( is_array( $direction ) && is_string( $direction['infrastructure'] ?? null ) );
 		assert( is_array( $exceptions ) && is_string( $exceptions['namespace'] ?? null ) );
+		$composition_roots = $direction['compositionRoot'] ?? [];
+		assert( is_array( $composition_roots ) );
 		$excluded = $settings['excludedNamespaces'] ?? [];
 		assert( is_array( $excluded ) );
 		$namespace = new PluginNamespace(
@@ -346,7 +378,8 @@ final class RepositoryLayout {
 				continue;
 			}
 			foreach ( $file->get_declarations() as $declaration ) {
-				if ( $namespace->contains( $declaration['name'] ) ) {
+				if ( $namespace->contains( $declaration['name'] )
+					&& ! in_array( $declaration['name'], $composition_roots, true ) ) {
 					$classes[] = $declaration['name'];
 				}
 			}
@@ -423,6 +456,20 @@ final class RepositoryLayout {
 		}
 
 		return $files;
+	}
+
+	/**
+	 * Get only the view templates that run in production.
+	 *
+	 * @return array<string> Absolute paths.
+	 */
+	public function get_production_view_files(): array {
+		return array_values(
+			array_filter(
+				$this->get_view_template_files(),
+				fn( string $path ): bool => $this->is_inside( $path, $this->production_views )
+			)
+		);
 	}
 
 	/**

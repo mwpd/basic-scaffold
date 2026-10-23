@@ -13,6 +13,13 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
+use PhpParser\Node\Expr\ClassConstFetch;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
+use PhpParser\NodeFinder;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\ParserFactory;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -333,6 +340,101 @@ final class RepositoryChecks {
 		}
 
 		return $problems;
+	}
+
+	/**
+	 * Every feature class and production template is named by a sample test.
+	 *
+	 * References prove the test exists, not how thoroughly it exercises the sample.
+	 *
+	 * @return array<string> Problems found.
+	 */
+	public function check_samples_are_tested(): array {
+		$problems   = [];
+		$references = [];
+		$sources    = [];
+		foreach ( $this->layout->get_suite_files( [ 'unit', 'integration' ] ) as $path ) {
+			if ( $this->layout->is_view_template( $path ) || $this->layout->is_rule_fixture( $path ) ) {
+				continue;
+			}
+			$source     = (string) file_get_contents( $path );
+			$sources[]  = $source;
+			$references = array_merge( $references, $this->get_class_references( $source ) );
+		}
+
+		$subsystems = $this->layout->get_subsystem_declarations();
+		foreach ( $this->layout->get_production_files() as $path ) {
+			foreach ( PhpFile::from_path( $path )->get_concrete_classes() as $class ) {
+				if ( ! in_array( $class['name'], $subsystems, true )
+					|| in_array( strtolower( $class['name'] ), $references, true ) ) {
+					continue;
+				}
+				$problems[] = $this->problem(
+					RuleManifest::SAMPLES_ARE_TESTED,
+					sprintf(
+						'Class %1$s in %2$s has no unit or integration test. Add a test in the unit or'
+						. ' integration suite that references it with ::class or @covers.',
+						$class['name'],
+						$this->layout->relative( $path )
+					)
+				);
+			}
+		}
+
+		foreach ( $this->layout->get_production_view_files() as $path ) {
+			$relative = $this->layout->relative( $path );
+			$view     = substr( $relative, 0, -4 );
+			// Match the whole view path, so notice-extra cannot stand in for notice.
+			$pattern = '~(?<![\w./-])' . preg_quote( $view, '~' ) . '(?:\.php)?(?![\w./-])~';
+			if ( preg_match( $pattern, implode( "\n", $sources ) ) === 1 ) {
+				continue;
+			}
+			$problems[] = $this->problem(
+				RuleManifest::SAMPLES_ARE_TESTED,
+				sprintf(
+					'View %1$s has no unit or integration test. Add a test in the unit or integration'
+					. ' suite that names %2$s and exercises its output.',
+					$relative,
+					$view
+				)
+			);
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Resolve class constants using PHP's namespace and import rules; only
+	 * actual docblocks count as coverage annotations, not comments or strings.
+	 *
+	 * @param string $source Source of a discovered test file.
+	 * @return array<string> Referenced fully qualified class names, lowercased.
+	 */
+	private function get_class_references( string $source ): array {
+		$parser    = ( new ParserFactory() )->createForNewestSupportedVersion();
+		$traverser = new NodeTraverser();
+		$traverser->addVisitor( new NameResolver() );
+		$nodes      = $traverser->traverse( $parser->parse( $source ) ?? [] );
+		$references = [];
+		foreach ( ( new NodeFinder() )->findInstanceOf( $nodes, ClassConstFetch::class ) as $node ) {
+			assert( $node instanceof ClassConstFetch );
+			if ( $node->class instanceof Name && $node->name instanceof Identifier
+				&& strtolower( $node->name->toString() ) === 'class' ) {
+				$references[] = strtolower( $node->class->toString() );
+			}
+		}
+		foreach ( token_get_all( $source ) as $token ) {
+			if ( ! is_array( $token ) || $token[0] !== T_DOC_COMMENT ) {
+				continue;
+			}
+			// PHPUnit @covers names are fully qualified, optionally followed by ::method.
+			preg_match_all( '/@covers\s+(\\\\?[a-zA-Z_][a-zA-Z0-9_\\\\]*)/', $token[1], $matches );
+			foreach ( $matches[1] as $name ) {
+				$references[] = strtolower( ltrim( $name, '\\' ) );
+			}
+		}
+
+		return $references;
 	}
 
 	/**
