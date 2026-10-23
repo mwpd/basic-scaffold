@@ -122,7 +122,7 @@ In the code:
   (`src/Infrastructure/ServiceBasedPlugin.php:152-171`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
-  (`src/BasicScaffoldPlugin.php:95`) and can be rebound the same way.
+  (`src/BasicScaffoldPlugin.php:110`) and can be rebound the same way.
 
 When improving infrastructure, keep the simple implementation simple. Add
 capability only when the scaffold's own use needs it, and keep the interface
@@ -143,7 +143,8 @@ the built-in implementation as the fallback:
   (`src/Infrastructure/ServiceBasedPlugin.php:152-171`). The code calls this a
   poka-yoke: a design that makes the easy path also the correct one.
 - `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
-  (`src/Infrastructure/View/SimpleView.php:76`).
+  (`src/Infrastructure/View/SimpleView.php:76`), and so do the view factories,
+  which hand theirs on to the views they create.
 
 The fallback is the only place the default is named. Callers never have to
 repeat it, and swapping it never requires touching the class.
@@ -223,7 +224,7 @@ There are exactly two ways to defer part of that tree:
   same category.
 - **Factories**: a factory's whole job is instantiation, and its internals are
   encapsulated, so it may create what it produces with `new`
-  (`src/Infrastructure/View/TemplatedViewFactory.php:61`). Going through the
+  (`src/Infrastructure/View/TemplatedViewFactory.php:75`). Going through the
   injector instead is allowed but not required: the factory is assumed to
   know best how to build its product. The same goes for managing instances:
   `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
@@ -257,7 +258,7 @@ locator. It depends on which side of the graph's edge the code is on:
   methods, as the activation hooks do (`basic-scaffold.php:119-131`). A bridge
   holds no state and no logic of its own, and it is where exceptions have to
   be caught before control goes back to WordPress (principle 10); the
-  activation hooks do not do that yet (#27).
+  activation hooks do not do that yet (#143).
 - **Outside the plugin**, in a theme or another plugin, there is no bridge.
   That code integrates through the plugin's hooks (principle 13), never by
   reaching into the graph. The plugin factory and `Plugin::get_container()`
@@ -373,7 +374,7 @@ delegation returns an instance of the class it was registered for
 
 **Output is escaped for the context it lands in.** The reverse direction gets
 the same care. Values a view reads as properties are escaped by default
-(`src/Infrastructure/View/SimpleView.php:251-282`). A value fetched with
+(`src/Infrastructure/View/SimpleView.php:266-297`). A value fetched with
 `raw()` is the explicit exception, and the template must then escape it for
 where it is printed: HTML text, an attribute, a URL or JavaScript each need
 their own escaping, using WordPress's matching `esc_*` function.
@@ -431,6 +432,22 @@ the code falls back to how WordPress works:
 - **With debug mode off**, the broken part degrades gracefully and the rest of
   the site keeps working. A view that fails renders nothing. That field or
   notice is still broken, but the page around it is not taken down with it.
+
+**Views already work this way; other callbacks do not yet.** A view that
+cannot be created or rendered is handled inside the view system itself. In
+debug mode, the view factories rethrow the original exception, and
+`SimpleView::render()` throws `FailedToLoadView` with the template's
+exception as its cause. In production, a factory returns an `EmptyView` and a
+failing template renders an empty string, after the view has restored the
+caller's output buffers (`src/Infrastructure/View/SimpleView.php:115-137`,
+`src/Infrastructure/View/TemplatedViewFactory.php:69-90`). The samples need no
+`try`/`catch` around rendering for that reason.
+
+Outside the view system, nothing stops an exception before it reaches
+WordPress yet. An exception thrown by a
+service's own code in a hook callback, or during registration, activation or
+deactivation, still reaches WordPress with debug mode on or off. How to catch
+those once, in the infrastructure, is open in #143.
 
 This is the same compromise as principle 4: clean, strict code inside, and the
 WordPress way at the edges, where forcing the clean approach would create more

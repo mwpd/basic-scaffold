@@ -327,8 +327,8 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 ```
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
-`:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:57-63`,
-bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
+`:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:32` and `:69-90`,
+bound at `src/BasicScaffoldPlugin.php:110`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:346-349`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:685-737`.
 
@@ -475,7 +475,7 @@ A bridge outside the main plugin file follows the same contract:
   before `plugins_loaded`, a `Conditional` service that is not registered in
   this request, or any other failure becomes a dedicated exception, caught
   before control goes back to WordPress. The activation hooks do not catch
-  yet; that is #27.
+  yet; that is open in #143.
 
 The uninstall bridge (#34) is the first bridge the scaffold itself adds.
 
@@ -700,6 +700,11 @@ In the template, values read as properties are escaped already. A value read
 with `raw()` is the explicit exception: escape it yourself, with the `esc_*`
 function for where it is printed.
 
+You do not need a `try`/`catch` around rendering. A view that cannot be
+created or rendered throws in debug mode and renders an empty string in
+production, so a broken template leaves its own place on the page empty and
+nothing else. See [I need to report a failure](#i-need-to-report-a-failure).
+
 ```php
 // views/test-loop-service.php
 $current_post = $this->raw( 'post' );
@@ -707,7 +712,7 @@ $current_post = $this->raw( 'post' );
 Post title: <?= esc_html( $current_post->post_title ) ?>
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:82-89` and
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:82-99` and
 `views/test-loop-service.php:7-17`.
 
 **Rules:** `architecture.outputOnlyThroughViews` requires direct method
@@ -729,6 +734,14 @@ a named constructor that states the cause, and pass a caught exception on as
 the previous one. Where control goes back to WordPress, catch it: loud with
 debug mode on, degrade gracefully with it off.
 
+The view system is where the scaffold does this today. The view catches a
+failing template, throws in debug mode and renders nothing in production; the
+view factories do the same for a view they cannot create, and hand out an
+`EmptyView` in production. An exception from anywhere else, such as a
+service's own code in a hook callback or its registration, is not caught yet:
+it reaches WordPress whether debug mode is on or off. That boundary is open in
+#143.
+
 ```php
 final class FailedToFindPost extends RuntimeException implements BasicScaffoldException {
 
@@ -745,13 +758,17 @@ final class FailedToFindPost extends RuntimeException implements BasicScaffoldEx
 try {
 	include $this->path;
 } catch ( Throwable $throwable ) {
-	// … discard the partial output, then pass the cause on.
-	throw FailedToLoadView::from_view_exception( $this->path, $throwable );
+	// … discard the partial output, then report or degrade.
+	if ( $this->is_debug_mode() ) {
+		throw FailedToLoadView::from_view_exception( $this->path, $throwable );
+	}
+
+	return '';
 }
 ```
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`,
-`src/Infrastructure/View/SimpleView.php:98-124` and
+`src/Infrastructure/View/SimpleView.php:99-137` and
 `src/Exception/FailedToLoadView.php:39`.
 
 **Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,
