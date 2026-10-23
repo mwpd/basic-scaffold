@@ -121,7 +121,7 @@ says which rules enforce each principle, and what stays with review.
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | Behaviour tests | Every new lifecycle step (#26) |
-| [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle (#21) |
+| [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run | Whether comments explain why |
 | [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered` | |

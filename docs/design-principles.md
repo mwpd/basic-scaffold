@@ -119,7 +119,7 @@ In the code:
   (`src/Infrastructure/ServiceContainer/SimpleServiceContainer.php:29`).
 - `ServiceBasedPlugin` accepts both through its constructor and only falls back
   to the simple versions when none is passed
-  (`src/Infrastructure/ServiceBasedPlugin.php:147-165`). Swapping in an adapter
+  (`src/Infrastructure/ServiceBasedPlugin.php:147-166`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
   (`src/BasicScaffoldPlugin.php:95`) and can be rebound the same way.
@@ -140,7 +140,7 @@ the built-in implementation as the fallback:
 
 - `ServiceBasedPlugin` accepts any `Injector` and `ServiceContainer`, and falls
   back to `SimpleInjector` and `SimpleServiceContainer`
-  (`src/Infrastructure/ServiceBasedPlugin.php:147-165`). The code calls this a
+  (`src/Infrastructure/ServiceBasedPlugin.php:147-166`). The code calls this a
   poka-yoke: a design that makes the easy path also the correct one.
 - `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
   (`src/Infrastructure/View/SimpleView.php:76`).
@@ -207,7 +207,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:632-636`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:643-647`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -336,7 +336,7 @@ At every boundary where data comes from WordPress:
 In the code: the service list passes through a filter that any plugin can
 hook, so `ServiceBasedPlugin` checks each identifier and class name before
 using it and throws `InvalidService` on anything unexpected
-(`src/Infrastructure/ServiceBasedPlugin.php:243-269`). Bindings, arguments,
+(`src/Infrastructure/ServiceBasedPlugin.php:254-280`). Bindings, arguments,
 shared instances and delegations receive the same treatment after their
 filters, raising `InvalidConfiguration`, `InvalidService` or `InvalidArgument`.
 
@@ -411,8 +411,8 @@ Registering, activating and deactivating are safe to run more than once.
 WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
-happened (`src/Infrastructure/ServiceBasedPlugin.php:217-220`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:587-590`).
+happened (`src/Infrastructure/ServiceBasedPlugin.php:218-221`), and never
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:598-601`).
 A step that runs a second time must leave the plugin exactly as the first run
 did.
 
@@ -422,9 +422,11 @@ Filters that let other code change the plugin, such as its services or its
 injector configuration, are applied on a WordPress action, never while the
 plugin file is being included. At include time, plugins loaded after this one
 have had no chance to add their callbacks, so an extension point that runs
-then only works for code that happens to load earlier. The `services` filter
-shows the right timing: it runs during registration at `plugins_loaded`
-(`src/Infrastructure/ServiceBasedPlugin.php:243-246`).
+then only works for code that happens to load earlier. So the plugin applies
+its filters during registration at `plugins_loaded`: the `services` filter
+(`src/Infrastructure/ServiceBasedPlugin.php:254-257`), and the injector
+filters, because the injector is configured there and not in the constructor
+(`src/Infrastructure/ServiceBasedPlugin.php:231`).
 
 ## 13. One plugin, to arbitrary complexity
 
