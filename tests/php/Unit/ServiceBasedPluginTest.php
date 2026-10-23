@@ -635,6 +635,54 @@ class ServiceBasedPluginTest extends TestCase {
 	}
 
 	/**
+	 * Test that registering the services a second time schedules and
+	 * registers each service only once, even when the container was passed
+	 * in already filled, so its contents cannot tell whether registration
+	 * has run.
+	 */
+	public function test_registering_twice_registers_each_service_once(): void {
+		$recorder  = new LifecycleRecorder();
+		$container = new SimpleServiceContainer();
+		$container->put( 'existing', new TestServiceA() );
+		$plugin = new TestServicesPlugin(
+			[ 'delayed' => DelayedLifecycleService::class ],
+			( new SimpleInjector() )->delegate( LifecycleRecorder::class, static fn(): LifecycleRecorder => $recorder ),
+			$container
+		);
+
+		$plugin->register_services();
+		$plugin->register_services();
+
+		$this->assertCount(
+			1,
+			$this->callbacks['init'][10] ?? [],
+			'The delayed service was not scheduled exactly once.'
+		);
+
+		$this->fire( 'init' );
+
+		$this->assertSame( [ 'construct:delayed', 'register:delayed' ], $recorder->events() );
+	}
+
+	/**
+	 * Test that a container passed in with an entry already in it still
+	 * receives the injector and the plugin's services.
+	 */
+	public function test_a_prefilled_container_still_receives_the_services(): void {
+		$container = new SimpleServiceContainer();
+		$existing  = new TestServiceA();
+		$container->put( 'existing', $existing );
+		$plugin = new TestServicesPlugin( [ 'service_b' => TestServiceB::class ], null, $container );
+
+		$plugin->register_services();
+
+		$this->assertTrue( $container->has( ServiceBasedPlugin::INJECTOR_ID ) );
+		$this->assertTrue( $container->has( 'service_b' ) );
+		$this->assertInstanceOf( TestServiceB::class, $container->get( 'service_b' ) );
+		$this->assertSame( $existing, $container->get( 'existing' ) );
+	}
+
+	/**
 	 * Test that a service whose constructor takes the Injector interface
 	 * receives the injector the plugin itself uses.
 	 */

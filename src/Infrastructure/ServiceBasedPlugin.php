@@ -133,6 +133,11 @@ abstract class ServiceBasedPlugin implements Plugin {
 	private array $resumption_actions = [];
 
 	/**
+	 * Whether register_services() has already run in this request.
+	 */
+	private bool $services_registered = false;
+
+	/**
 	 * Instantiate a Plugin object.
 	 *
 	 * @param bool                  $enable_filters    Optional. Whether to
@@ -303,10 +308,22 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function register_services(): void {
-		// Bail early so we don't instantiate services twice.
-		if ( count( $this->service_container ) > 0 ) {
+		/*
+		 * Bail early so we don't configure the injector or schedule services
+		 * twice (principle 11). Whether registration has run is tracked
+		 * explicitly: the container cannot tell, because one passed into the
+		 * constructor may hold entries before registration starts.
+		 *
+		 * The flag is set before any work, so a registration that throws
+		 * part-way is not retried by a later call either: the exception is
+		 * the report, and running the steps again on a half-configured
+		 * injector would not make the plugin whole.
+		 */
+		if ( $this->services_registered ) {
 			return;
 		}
+
+		$this->services_registered = true;
 
 		/*
 		 * The injector is configured here rather than in the constructor. The
