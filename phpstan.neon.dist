@@ -118,6 +118,13 @@ parameters:
             # Directories of the view templates that run in production.
             views:
                 - %currentWorkingDirectory%/views
+        noServiceLocator:
+            # Feature subsystems receive collaborators; only the composition
+            # root configures the graph (design principle 5).
+            container: MWPD\BasicScaffold\Infrastructure\ServiceContainer
+            injector: MWPD\BasicScaffold\Infrastructure\Injector
+            allowedInjectorMethods:
+                - make
         newOnlyWhereAllowed:
             # Interfaces whose implementations create objects for a living, on
             # top of classes named ...Factory (design principle 5).

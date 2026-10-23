@@ -1,0 +1,193 @@
+<?php
+/**
+ * MWPD Basic Plugin Scaffold.
+ *
+ * @package   MWPD\BasicScaffold
+ * @author    Alain Schlesser <alain.schlesser@gmail.com>
+ * @license   MIT
+ * @link      https://www.mwpd.io/
+ * @copyright 2019 Alain Schlesser
+ */
+
+declare( strict_types=1 );
+
+namespace MWPD\BasicScaffold\Tests\PHPStan\Rule;
+
+use PHPStan\Rules\Rule;
+use PHPStan\Testing\RuleTestCase;
+use PHPStan\Type\FileTypeMapper;
+
+/**
+ * @extends RuleTestCase<NoServiceLocatorRule>
+ */
+final class NoServiceLocatorRuleTest extends RuleTestCase {
+
+	private const FIXTURES  = __DIR__ . '/../Fixture/NoServiceLocator/';
+	private const ROOT      = 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\NoServiceLocator';
+	private const CONTAINER = 'MWPD\BasicScaffold\Infrastructure\ServiceContainer';
+	private const INJECTOR  = 'MWPD\BasicScaffold\Infrastructure\Injector';
+	private const TIP       = 'Principle 5: One composition root builds the object graph, see '
+		. 'docs/design-principles.md#5-one-composition-root-builds-the-object-graph. '
+		. 'Pattern: docs/patterns.md#i-need-a-service-locator. '
+		. 'Rule: docs/architecture-rules.md#architecturenoservicelocator';
+
+	/** @var array<string> */
+	private array $allowed    = [ 'make' ];
+	private string $container = self::CONTAINER;
+	private string $injector  = self::INJECTOR;
+
+	protected function getRule(): Rule {
+		return new NoServiceLocatorRule(
+			new DependencyContext(
+				self::ROOT,
+				[ self::ROOT . '\TestDouble' ],
+				self::ROOT . '\Exception',
+				self::ROOT . '\Infrastructure',
+				[ self::ROOT . '\Plugin' ],
+				[ (string) realpath( self::FIXTURES . 'views' ) ],
+				$this->createReflectionProvider(),
+				self::getContainer()->getByType( FileTypeMapper::class )
+			),
+			$this->container,
+			$this->injector,
+			$this->allowed
+		);
+	}
+
+	/** @dataProvider container_positions */
+	public function test_it_rejects_the_container_in_every_dependency_position( string $owner, int $line ): void {
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/' . $owner . '.php' ],
+			[ [ $this->container_message( 'Feature\\' . $owner ), $line, self::TIP ] ]
+		);
+	}
+
+	/** @return array<string, array{string, int}> */
+	public function container_positions(): array {
+		return [
+			'constructor parameter'   => [ 'Constructor', 8 ],
+			'group import'            => [ 'Imported', 7 ],
+			'property type'           => [ 'Property', 8 ],
+			'return type'             => [ 'Returned', 8 ],
+			'code reference'          => [ 'Code', 9 ],
+			'docblock property'       => [ 'Documented', 7 ],
+			'docblock parameter'      => [ 'DocumentedMethod', 8 ],
+			'aliased docblock method' => [ 'Aliased', 9 ],
+			'template bound'          => [ 'Templated', 7 ],
+			'assertion tag'           => [ 'Asserted', 8 ],
+			'interface inheritance'   => [ 'Inherited', 7 ],
+			'loose code'              => [ 'Loose', 7 ],
+			'docblock return'         => [ 'DocumentedReturn', 8 ],
+			'docblock var'            => [ 'DocumentedVar', 8 ],
+			'docblock throws'         => [ 'DocumentedThrows', 8 ],
+			'first repeated mention'  => [ 'Repeated', 7 ],
+		];
+	}
+
+	public function test_it_checks_anonymous_classes(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/Anonymous.php' ],
+			[ [ $this->container_message( 'Feature\class@anonymous' ), 10, self::TIP ] ]
+		);
+	}
+
+	public function test_it_reports_every_injector_configuration_method_with_guidance(): void {
+		$errors = [];
+		foreach ( [ 'bind', 'share', 'delegate', 'bind_argument' ] as $offset => $method ) {
+			$errors[] = [ $this->injector_message( $method ), 9 + $offset, self::TIP ];
+		}
+		$this->analyse( [ self::FIXTURES . 'Feature/Reconfigures.php' ], $errors );
+	}
+
+	public function test_it_resolves_a_known_dynamic_method_name(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/Dynamic.php' ],
+			[ [ $this->injector_message( 'bind' ), 10, self::TIP ] ]
+		);
+	}
+
+	public function test_it_allows_on_demand_creation_and_unrelated_methods(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/Creates.php', self::FIXTURES . 'Feature/Unrelated.php' ],
+			[]
+		);
+	}
+
+	public function test_it_only_checks_feature_subsystems(): void {
+		$this->analyse(
+			array_map(
+				static fn( string $file ): string => self::FIXTURES . $file . '.php',
+				[
+					'Infrastructure/Wiring',
+					'Plugin',
+					'TopLevel',
+					'Exception/Failure',
+					'TestDouble/Fake',
+					'outside',
+					'views/notice',
+				]
+			),
+			[]
+		);
+	}
+
+	public function test_it_respects_the_allowed_methods_configuration_case_insensitively(): void {
+		$this->allowed = [ 'MAKE', 'BIND', 'SHARE', 'DELEGATE', 'BIND_ARGUMENT' ];
+		$this->analyse( [ self::FIXTURES . 'Feature/Reconfigures.php', self::FIXTURES . 'Feature/Creates.php' ], [] );
+	}
+
+	public function test_it_can_remove_make_from_the_allowlist(): void {
+		$this->allowed = [];
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/Creates.php' ],
+			[ [ $this->injector_message( 'MaKe' ), 13, self::TIP ] ]
+		);
+	}
+
+	public function test_it_respects_the_configured_container_and_injector(): void {
+		$this->container = '\\STDCLASS';
+		$this->injector  = '\\ARRAYOBJECT';
+		$this->allowed   = [ 'append' ];
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/Custom.php' ],
+			[ [ $this->container_message( 'Feature\Custom', 'stdClass' ), 8, self::TIP ] ]
+		);
+	}
+
+	public function test_it_restricts_methods_on_the_configured_injector(): void {
+		$this->container = 'stdClass';
+		$this->injector  = 'ArrayObject';
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/Custom.php' ],
+			[
+				[ $this->container_message( 'Feature\Custom', 'stdClass' ), 8, self::TIP ],
+				[ str_replace( self::INJECTOR, 'ArrayObject', $this->injector_message( 'append' ) ), 9, self::TIP ],
+			]
+		);
+	}
+
+	public function test_it_checks_nullable_union_and_inherited_injector_types_and_unknown_methods(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'Feature/TypedCalls.php', self::FIXTURES . 'Feature/AnonymousCall.php' ],
+			[
+				[ $this->injector_message( 'bind' ), 9, self::TIP ],
+				[ $this->injector_message( 'share' ), 13, self::TIP ],
+				[ $this->injector_message( 'bind_argument' ), 16, self::TIP ],
+				[ $this->injector_message( '{dynamic}' ), 19, self::TIP ],
+				[ $this->injector_message( 'share' ), 11, self::TIP ],
+			]
+		);
+	}
+
+	private function container_message( string $owner, string $container = self::CONTAINER ): string {
+		return self::ROOT . '\\' . $owner . ' depends on the service container ' . $container . '.'
+			. ' Receive the collaborator through the constructor instead of looking it up in the container.';
+	}
+
+	private function injector_message( string $method ): string {
+		return 'Calls ' . self::INJECTOR . '::' . $method . '() in a feature subsystem.'
+			. ' Configure bindings, sharing and delegations in the composition root;'
+			. ' receive collaborators through the constructor or use the allowed injector methods'
+			. ' for on-demand creation.';
+	}
+}

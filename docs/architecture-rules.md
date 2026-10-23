@@ -120,7 +120,7 @@ says which rules enforce each principle, and what stays with review.
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
-| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
+| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `noServiceLocator`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
 | [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `constructorsOnlyAssign`, `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `registrationActionKnown`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | `namesWithoutTypeKind`; PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own; whether implementation names describe their distinguishing behaviour |
@@ -153,6 +153,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A service pulling a collaborator or request input from globals | `noGlobalState` | `tests/php/PHPStan/Fixture/NoGlobalState/Service.php` |
 | HTML or a string printed directly by a service | `outputOnlyThroughViews` | `tests/php/PHPStan/Fixture/OutputOnlyThroughViews/Service.php` |
 | A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
+| A subsystem receiving the container or configuring the injector | `noServiceLocator` | `tests/php/PHPStan/Fixture/NoServiceLocator/Feature/Constructor.php`, `Reconfigures.php` |
 | A sample service depending on a concrete infrastructure class | `dependencyDirection` | `tests/php/PHPStan/Fixture/Layers/Feature/Service.php` |
 | A lifecycle capability on a class that is not a service | `capabilitiesOnServices` | `tests/php/PHPStan/Fixture/Capabilities/RegisterableOnly.php` |
 | A delayed service with nothing to register | `capabilitiesOnServices` | `tests/php/PHPStan/Fixture/Capabilities/DelayedService.php` |
@@ -289,7 +290,8 @@ creation, receive a factory or the injector. A static callable that WordPress
 invokes belongs in a listed bridge: get the graph through the plugin factory
 and delegate immediately to instance services, nothing else. The bridge holds
 no state or feature logic; reviewing that contract remains a human check.
-See [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback).
+See [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback)
+and [I need a service locator](patterns.md#i-need-a-service-locator).
 
 ### `architecture.noGlobalState`
 
@@ -760,6 +762,42 @@ in the composition root, or receive what you need through the constructor. In
 the infrastructure, add an interface the other class implements.
 
 **Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime), [I need to add a feature](patterns.md#i-need-to-add-a-feature).
+
+### `architecture.noServiceLocator`
+
+**Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph).
+
+**Checks:** feature subsystems never depend on the configured service container,
+including imports, native types, code references and documentation tags. The
+positions, attribution to classes and deduplication are shared with
+`architecture.dependencyDirection`: each source/container pair is reported at
+its first mention. Calls on a value typed as the configured injector, including
+implementations and nullable or union types, must use an allowed method.
+Runtime method names are checked against their possible constant strings; an
+unknown name is reported because it cannot be proved to use only allowed methods.
+
+**Allows:** receiving `Injector` and calling `make()` for on-demand creation.
+Unrelated objects may have methods named `bind()` or `share()`. Infrastructure,
+exceptions, configured composition-root classes, classes directly in the root
+namespace, excluded test namespaces and production view templates are outside
+this rule's scope. Feature subsystems are the other namespaces below the plugin
+root, exactly as defined by `dependencyDirection`.
+
+**Configuration:** `noServiceLocator.container` defaults to
+`MWPD\BasicScaffold\Infrastructure\ServiceContainer`, `noServiceLocator.injector`
+to `MWPD\BasicScaffold\Infrastructure\Injector`, and
+`noServiceLocator.allowedInjectorMethods` to `[make]`. Method names are matched
+without regard to case, and configured class names without regard to case or a
+leading backslash. Layer boundaries reuse `namespace`, `excludedNamespaces`,
+`exceptions.namespace` and `dependencyDirection` settings.
+
+**Fix:** receive a known collaborator through the constructor. For objects
+created later or per use, receive a typed factory or the injector and call
+`make()`. Configure bindings, sharing and delegations in the composition root.
+For a choice by a runtime value, inject a typed factory or registry for that
+concept.
+
+**Patterns:** [I need a service locator](patterns.md#i-need-a-service-locator), [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime).
 
 ### `architecture.newOnlyWhereAllowed`
 
