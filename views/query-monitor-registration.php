@@ -11,9 +11,9 @@
  */
 
 use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationRecord;
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 
 /** @var list<RegistrationRecord> $records */
 $records = $this->raw( 'records' );

@@ -18,6 +18,8 @@ use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Exception\InvalidViewConfiguration;
+use Closure;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
@@ -117,12 +119,7 @@ class SimpleView extends stdClass implements View {
 		\ob_start();
 
 		try {
-			/**
-			 * This include cannot be followed to be statically analyzed.
-			 *
-			 * @psalm-suppress UnresolvableInclude
-			 */
-			include $this->path;
+			$this->include_template( new SimpleTemplateScope( $this ) );
 
 			// Buffers the template opened and left open hold part of its
 			// output, so they are flushed into the view's own buffer rather
@@ -164,6 +161,41 @@ class SimpleView extends stdClass implements View {
 		$buffer = \ob_get_clean();
 
 		return false === $buffer ? '' : $buffer;
+	}
+
+	/**
+	 * Include the template in its own scope.
+	 *
+	 * Included inline, a template would run with the view's class scope and
+	 * the local variables of render(): a context key named like one of the
+	 * view's properties would read that property instead, and an assignment
+	 * to `$this` would skip escaping and outlive the render. The closure is
+	 * bound to the template scope without a class scope, so `$this` reaches
+	 * only the scope's public methods, and the template's only variable is
+	 * `$template`, the path being included.
+	 *
+	 * @param TemplateScope $scope Scope to render the template in.
+	 */
+	private function include_template( TemplateScope $scope ): void {
+		$include = Closure::bind(
+			function ( string $template ): void {
+				/**
+				 * This include cannot be followed to be statically analyzed.
+				 *
+				 * @psalm-suppress UnresolvableInclude
+				 */
+				include $template;
+			},
+			$scope,
+			null
+		);
+
+		// Binding fails only for a closure that cannot be rebound, which this
+		// one can. Should it fail anyway, the call below throws, and render()
+		// handles that like any other template failure.
+		\assert( $include instanceof Closure );
+
+		$include( $this->path );
 	}
 
 	/**

@@ -1,7 +1,7 @@
 <?php
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 
 /**
  * This fixture exists to exercise empty() on a magic context property.

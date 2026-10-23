@@ -780,14 +780,15 @@ static facade, no template-tag functions file, no generic service lookup and
 no hook that hands an API object over. `BasicScaffoldPluginFactory::create()`
 and `Plugin::get_container()` stay public because the main file, the listed
 bridges and the tests need them; that makes them callable, not supported for
-other code. Two investigations are open, and neither is approved:
+other code. One investigation is open and not approved, and one addition is planned:
 
 - #144 looks at an API for extensions that need more than hooks, including
   the order in which several extensions register. It waits for a concrete
   extension that hooks cannot serve.
-- #145 looks at helpers that a template calls through `$this` while the
-  plugin renders it. They would only reach the plugin's own views, including
-  a theme's overrides of them, never a theme's other files or another plugin.
+- #173 adds presenters: objects a service passes with a render, whose
+  declared methods a template calls through `$this`. They only reach the
+  plugin's own views, including a theme's overrides of them, never a theme's
+  other files or another plugin.
 
 **Proven by:** the configuration filters at
 `src/Infrastructure/ServiceBasedPlugin.php:1230-1233` and `:1691-1772`, and
@@ -922,7 +923,7 @@ public function __construct(
 }
 ```
 
-**Proven by:** `src/Infrastructure/View/SimpleView.php:86-97`, and the
+**Proven by:** `src/Infrastructure/View/SimpleView.php:88-99`, and the
 injector and container defaults of `ServiceBasedPlugin`
 (`src/Infrastructure/ServiceBasedPlugin.php:270-302`).
 
@@ -968,6 +969,16 @@ output is escaped for the context it lands in.
 In the template, values read as properties are escaped already. A value read
 with `raw()` is the explicit exception: escape it yourself, with the `esc_*`
 function for where it is printed.
+
+Inside a template, `$this` is a `TemplateScope`, not the view: it offers
+escaped properties, `isset()` and `empty()`, `raw()` and `render_partial()`,
+and nothing else. A context key can therefore use any name, `path` included,
+and `$this` gives no access to the view's internals. This guards against
+accidents, not against the template: it is trusted PHP code, and reflection
+can still get around the scope. Assigning to `$this` fails
+the view like any other template error, because the value would skip escaping;
+pass what the template needs in the context instead. Annotate templates with
+`/** @var TemplateScope $this */` so static analysis knows what `$this` offers.
 
 You do not need a `try`/`catch` around rendering. A view that cannot be
 created or rendered throws in debug mode and renders an empty string in
@@ -1039,7 +1050,7 @@ try {
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`, thrown at
 `src/SampleSubsystem/WordPressMainLoop.php:62`,
-`src/Infrastructure/View/SimpleView.php:119-155` and
+`src/Infrastructure/View/SimpleView.php:121-152` and
 `src/Exception/FailedToLoadView.php:39`.
 
 **Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,

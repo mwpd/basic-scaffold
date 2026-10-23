@@ -35,4 +35,20 @@ final class InvalidContextProperty extends InvalidArgumentException implements B
 
 		return new self( $message );
 	}
+
+	/**
+	 * Create a new instance of the exception for a template that assigns a
+	 * property to the scope it renders in.
+	 *
+	 * @param string $property Name of the property the template assigned.
+	 */
+	public static function for_assignment( string $property ): self {
+		$message = \sprintf(
+			'The template assigned the property "%s". Templates cannot set properties;'
+			. ' pass the value in the context of the view instead.',
+			$property
+		);
+
+		return new self( $message );
+	}
 }
