@@ -72,6 +72,7 @@ parametersSchema:
         ])
         queryContextNeedsDelay: structure([
             queryFunctions: listOf(string())
+            screenFunctions: listOf(string())
         ])
         # An open map keeps every kind optional, including postTypes, taxonomies,
         # shortcodes, restRoutes, cron, adminPages, settings and ajax.
@@ -390,6 +391,7 @@ services:
             plugin_namespace: @architecturePluginNamespace
             infrastructure: %architecture.dependencyDirection.infrastructure%
             query_functions: %architecture.queryContextNeedsDelay.queryFunctions%
+            screen_functions: %architecture.queryContextNeedsDelay.screenFunctions%
             reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule
