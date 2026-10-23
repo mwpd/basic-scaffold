@@ -71,12 +71,19 @@ final class CompositionRootContract {
 	private string $plugin_class;
 
 	/**
+	 * Repository configuration, including the known registration-action order.
+	 */
+	private RepositoryLayout $layout;
+
+	/**
 	 * Instantiate a CompositionRootContract object.
 	 *
 	 * @param class-string<ServiceBasedPlugin> $plugin_class Composition root to check.
+	 * @param RepositoryLayout|null           $layout       Repository configuration, or the plugin's defaults.
 	 */
-	public function __construct( string $plugin_class ) {
+	public function __construct( string $plugin_class, ?RepositoryLayout $layout = null ) {
 		$this->plugin_class = $plugin_class;
+		$this->layout       = $layout ?? RepositoryLayout::of_plugin();
 	}
 
 	/**
@@ -109,6 +116,7 @@ final class CompositionRootContract {
 		$declared = self::call( $plugin, 'get_service_classes' );
 		$services = is_array( $declared ) ? $declared : [];
 		$problems = [];
+		$resolved = [];
 
 		foreach ( $services as $id => $declaration ) {
 			$id = (string) $id;
@@ -147,14 +155,101 @@ final class CompositionRootContract {
 				continue;
 			}
 
-			$problems = array_merge(
+			$resolved[ $id ] = $class_name;
+			$problems        = array_merge(
 				$problems,
 				$this->check_capabilities( $id, $class_name, array_keys( $services ) ),
 				$this->check_construction( $id, $class_name, $injector, $calls, $before )
 			);
 		}
 
+		return array_merge( $problems, $this->check_dependency_graph( $resolved ) );
+	}
+
+	/**
+	 * Check dependency cycles and the registration order of resolved services.
+	 *
+	 * @param array<string, class-string<Service>> $services Resolved declarations.
+	 * @return array<string> Problems found.
+	 */
+	private function check_dependency_graph( array $services ): array {
+		$graph   = [];
+		$actions = [];
+		foreach ( $services as $id => $class_name ) {
+			$dependencies = is_a( $class_name, HasDependencies::class, true ) ? $class_name::get_dependencies() : [];
+			// Missing or invalid declarations already have their own diagnostic.
+			$graph[ $id ]   = array_values( array_unique( array_intersect( $dependencies, array_keys( $services ) ) ) );
+			$actions[ $id ] = is_a( $class_name, Delayed::class, true )
+				? $class_name::get_registration_action()
+				: 'plugins_loaded';
+		}
+
+		$order    = array_flip( $this->layout->get_registration_actions() );
+		$problems = [];
+		foreach ( $graph as $id => $dependencies ) {
+			$id = strval( $id );
+			foreach ( $this->find_cycles( $id, $graph, [ $id ] ) as $cycle ) {
+				$problems[] = $this->problem(
+					$id,
+					$services[ $id ],
+					'has a dependency cycle: ' . implode( ' -> ', $cycle )
+					. '. Remove a dependency from the cycle so services can register.'
+				);
+			}
+			foreach ( $dependencies as $dependency ) {
+				$action          = $actions[ $id ];
+				$dependency_hook = $actions[ $dependency ];
+				// Unknown actions belong to the registration-action check (#82).
+				if ( ! isset( $order[ $action ], $order[ $dependency_hook ] )
+					|| $order[ $action ] >= $order[ $dependency_hook ] ) {
+					continue;
+				}
+				$problems[] = $this->problem(
+					$id,
+					$services[ $id ],
+					sprintf(
+						'registers at "%s" before its dependency "%s" at "%s".'
+						. ' Delay this service until the dependency\'s action or later,'
+						. ' or register the dependency earlier.',
+						$action,
+						$dependency,
+						$dependency_hook
+					)
+				);
+			}
+		}
+
 		return $problems;
+	}
+
+	/**
+	 * Find each simple directed cycle from its lexically smallest identifier.
+	 *
+	 * Starting only at that identifier avoids reporting rotations of a cycle.
+	 * Keeping the path local preserves distinct cycles that share services.
+	 *
+	 * @param string                      $start Starting service identifier.
+	 * @param array<string, list<string>> $graph Declared dependency edges.
+	 * @param non-empty-list<string>      $path  Path from the starting service.
+	 * @return list<list<string>> Cycles, each closed by its starting identifier.
+	 */
+	private function find_cycles( string $start, array $graph, array $path ): array {
+		$cycles = [];
+		foreach ( $graph[ $path[ count( $path ) - 1 ] ] as $dependency ) {
+			if ( $dependency === $start ) {
+				$cycles[] = array_merge( $path, [ $start ] );
+				continue;
+			}
+			if ( strcmp( $dependency, $start ) < 0 || in_array( $dependency, $path, true ) ) {
+				continue;
+			}
+			$cycles = array_merge(
+				$cycles,
+				$this->find_cycles( $start, $graph, array_merge( $path, [ $dependency ] ) )
+			);
+		}
+
+		return $cycles;
 	}
 
 	/**

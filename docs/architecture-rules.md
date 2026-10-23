@@ -1010,6 +1010,10 @@ through the plugin's own injector configuration:
   implementing `Service`;
 - a `Delayed` service names an action to wait for, and a `HasDependencies`
   service only depends on services the root declares;
+- dependencies contain no cycles, including self-dependencies; each cycle is
+  reported once with the service identifiers along its path;
+- a service registers at the same action as its dependencies or later, using
+  its `Delayed` action or `plugins_loaded` for an undelayed service;
 - the plugin accepts its own injector configuration, which it validates as
   it applies it, for example that each binding points to a subtype;
 - the plugin can build every service from its own bindings, arguments and
@@ -1037,13 +1041,27 @@ Actions and filters share hook entries, and fired hooks retain their call
 history. This does not check the plugin's own
 `register_services()` orchestration (#26), which services activation and
 deactivation reach (`tests/php/Unit/ServiceBasedPluginTest.php` covers that),
-or database and filesystem effects Brain Monkey cannot see.
+or database and filesystem effects Brain Monkey cannot see. Dependency graph
+checks skip missing or invalid declarations already reported by the contract.
+Ordering checks silently skip an edge if either action is outside the known
+order; validating unknown actions belongs to #82. They do not evaluate whether
+a `Conditional` dependency is needed in a particular request.
 
 **Configuration:** `RepositoryLayout::COMPOSITION_ROOT` names the composition
 root. A service added to it is checked without changing the test.
+`RepositoryLayout::REGISTRATION_ACTIONS` lists core actions in firing order,
+from `plugins_loaded` through bootstrap and front-end routing to `shutdown`,
+following the [WordPress action reference](https://developer.wordpress.org/apis/hooks/action-reference/).
+Hooks inside other callbacks, repeatable query hooks and theme-controlled
+hooks are omitted because their relative order is not fixed. A layout can
+override the list through its optional `registration_actions` constructor
+argument; the contract accepts an optional layout and otherwise uses
+`RepositoryLayout::of_plugin()`.
 
 **Fix:** bind what a service needs in the composition root, declare the
-services it depends on, and keep constructors to storing dependencies. Guard
+services it depends on, remove dependency cycles, and delay a service until
+its dependencies' actions or later (or register the dependencies earlier).
+Keep constructors to storing dependencies. Guard
 each lifecycle step so a second run does nothing, or make it set rather than
 add.
 
