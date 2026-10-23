@@ -30,7 +30,9 @@ Read [the GitHub skill](../github/SKILL.md), `AGENTS.md` and
 ## Establish readiness
 
 Read the issue, all comments, its epic and links. Check the task against
-`docs/design-principles.md`; a conflict is a `needs: decision` gap. Verify every `file:line`
+`docs/design-principles.md`; a conflict is a `needs: decision` gap. When the
+task meets a need `docs/patterns.md` covers, build it that way, and look there
+first when an architecture rule fails. Verify every `file:line`
 citation against the fetched source. Repair drift that the source settles,
 folding corrections into the body with a dated note.
 
