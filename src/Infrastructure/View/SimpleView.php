@@ -171,20 +171,24 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Validate a path.
 	 *
+	 * The path is relative to the plugin root, and the file it resolves to
+	 * must stay inside it (see ViewLocations).
+	 *
 	 * @param string $path Path to validate.
 	 *
-	 * @return string Validated path.
+	 * @return string Validated path, in its canonical form.
 	 * @throws InvalidPath If an invalid path was passed into the View.
 	 */
 	protected function validate( string $path ): string {
-		$path = $this->check_extension( $path, static::VIEW_EXTENSION );
-		$path = $this->ensure_trailing_slash( \dirname( __DIR__, 3 ) ) . $path;
+		$plugin_root = \dirname( __DIR__, 3 );
+		$path        = $this->check_extension( $path, static::VIEW_EXTENSION );
+		$path        = $this->ensure_trailing_slash( $plugin_root ) . $path;
 
 		if ( ! \is_readable( $path ) ) {
 			throw InvalidPath::from_path( $path );
 		}
 
-		return $path;
+		return ( new ViewLocations( [ $plugin_root ] ) )->confine( $path );
 	}
 
 	/**
@@ -279,7 +283,11 @@ class SimpleView extends stdClass implements View {
 			throw FailedToEscapeValue::from_value( $value );
 		}
 
-		return htmlspecialchars( $value, ENT_COMPAT, 'UTF-8' );
+		// ENT_QUOTES escapes single quotes as well as double quotes, so the
+		// value is safe inside an attribute whichever quote character the
+		// template uses. ENT_SUBSTITUTE replaces invalid UTF-8 with U+FFFD
+		// instead of discarding the whole value.
+		return htmlspecialchars( $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 	}
 
 	/**

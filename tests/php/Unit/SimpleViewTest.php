@@ -20,9 +20,21 @@ final class SimpleViewTest extends TestCase {
 	/** @var MockObject&DebugMode */
 	private MockObject $debug_mode;
 
+	/**
+	 * View file created outside the plugin root by a test, if any.
+	 */
+	private ?string $outside_view = null;
+
 	protected function setUp(): void {
 		$this->view_factory = $this->createMock( ViewFactory::class );
 		$this->debug_mode   = $this->createMock( DebugMode::class );
+	}
+
+	protected function tearDown(): void {
+		if ( null !== $this->outside_view && \file_exists( $this->outside_view ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- Unit tests run without WordPress.
+			\unlink( $this->outside_view );
+		}
 	}
 
 	public function test_it_can_render_static_view(): void {
@@ -103,6 +115,44 @@ final class SimpleViewTest extends TestCase {
 		$this->expectException( InvalidPath::class );
 
 		new SimpleView( 'non/existent/path', $this->view_factory );
+	}
+
+	public function test_it_escapes_single_quotes_in_context_values(): void {
+		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+
+		$result = $view->render( [ 'some_value' => "It's a 'quote'" ] );
+
+		$this->assertStringContainsString( 'It&#039;s a &#039;quote&#039;', $result );
+		$this->assertStringNotContainsString( "'", $result );
+	}
+
+	public function test_it_substitutes_invalid_code_units_in_context_values(): void {
+		$view = new SimpleView( 'tests/php/Fixture/views/plugin/dynamic-view.php', $this->view_factory );
+
+		$result = $view->render( [ 'some_value' => "broken \xC3\x28 byte" ] );
+
+		$this->assertStringContainsString( "broken \u{FFFD}( byte", $result );
+	}
+
+	public function test_it_rejects_a_path_that_leaves_the_plugin_root(): void {
+		$plugin_root = (string) \realpath( \dirname( __DIR__, 3 ) );
+		$outside     = $this->create_outside_view();
+
+		$this->expectException( InvalidPath::class );
+
+		new SimpleView(
+			\str_repeat( '../', \substr_count( $plugin_root, '/' ) ) . \ltrim( $outside, '/' ),
+			$this->view_factory
+		);
+	}
+
+	public function test_it_accepts_parent_segments_that_stay_inside_the_plugin_root(): void {
+		$view = new SimpleView(
+			'tests/php/Fixture/views/child_theme/../plugin/static-view',
+			$this->view_factory
+		);
+
+		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
 	}
 
 	public function test_it_throws_on_failed_view_load(): void {
@@ -187,6 +237,29 @@ final class SimpleViewTest extends TestCase {
 		$result  = $view->render( $context );
 
 		$this->assertStringContainsString( 'shared context', $result );
+	}
+
+	/**
+	 * Create a readable view file outside the plugin root.
+	 *
+	 * Every fixture lives inside the plugin root, so the file that must stay
+	 * out of reach is created in the system's temporary directory.
+	 *
+	 * @return string Canonical path of the created file.
+	 */
+	private function create_outside_view(): string {
+		$file = \tempnam( \sys_get_temp_dir(), 'outside-view-' );
+		$this->assertIsString( $file );
+
+		$view = $file . '.php';
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Unit tests run without WordPress.
+		\rename( $file, $view );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Unit tests run without WordPress.
+		\file_put_contents( $view, '<p>Outside the plugin.</p>' );
+
+		$this->outside_view = (string) \realpath( $view );
+
+		return $this->outside_view;
 	}
 
 	/**

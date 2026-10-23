@@ -62,17 +62,23 @@ final class TemplatedView extends SimpleView {
 	/**
 	 * Validate a path.
 	 *
+	 * The path is looked up in each location in turn, and the first readable
+	 * match wins. A path that matches no location is accepted as it is. Either
+	 * way, the file must lie inside one of the locations (see ViewLocations),
+	 * so `..` segments cannot reach a file the locations do not cover.
+	 *
 	 * @param string $path Path to validate.
 	 *
-	 * @return string Validated Path.
+	 * @return string Validated path, in its canonical form.
 	 * @throws InvalidPath If an invalid path was passed into the View.
 	 */
 	protected function validate( string $path ): string {
-		$path = $this->check_extension( $path, self::VIEW_EXTENSION );
+		$path      = $this->check_extension( $path, self::VIEW_EXTENSION );
+		$locations = new ViewLocations( $this->locations );
 
-		foreach ( $this->get_locations( $path ) as $location ) {
-			if ( \is_readable( $location ) ) {
-				return $location;
+		foreach ( $this->locations as $location ) {
+			if ( \is_readable( $location . $path ) ) {
+				return $locations->confine( $location . $path );
 			}
 		}
 
@@ -80,20 +86,6 @@ final class TemplatedView extends SimpleView {
 			throw InvalidPath::from_path( $path );
 		}
 
-		return $path;
-	}
-
-	/**
-	 * Get the possible locations for the view.
-	 *
-	 * @param string $path Path of the view to get the locations for.
-	 *
-	 * @return array<string> Array of possible locations.
-	 */
-	private function get_locations( string $path ): array {
-		return array_map(
-			fn( string $location ): string => $location . $path,
-			$this->locations
-		);
+		return $locations->confine( $path );
 	}
 }

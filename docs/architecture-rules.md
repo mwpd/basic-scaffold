@@ -442,8 +442,8 @@ is a value object or throwable.
 **Configuration:** `newOnlyWhereAllowed.factories` lists the factory
 interfaces: the scaffold lists `Injector` and `Instantiator`.
 `newOnlyWhereAllowed.valueObjects` lists the value objects: the scaffold lists
-`LazilyInstantiatedService` and PHP's `DateTimeImmutable`, `DateInterval`,
-`ArrayIterator` and `SplObjectStorage`.
+`LazilyInstantiatedService`, `ViewLocations` and PHP's `DateTimeImmutable`,
+`DateInterval`, `ArrayIterator` and `SplObjectStorage`.
 
 **Fix:** receive the object through the constructor, typed to its interface,
 and bind the implementation in the composition root. Ask a factory for objects

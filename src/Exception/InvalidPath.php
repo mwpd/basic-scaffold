@@ -35,4 +35,21 @@ final class InvalidPath extends InvalidArgumentException implements BasicScaffol
 
 		return new self( $message );
 	}
+
+	/**
+	 * Create a new instance of the exception for a view path that resolves to
+	 * a file outside of the locations views may be loaded from.
+	 *
+	 * @param string        $path      Path of the view as it was requested.
+	 * @param array<string> $locations Locations the view is confined to.
+	 */
+	public static function for_path_outside_locations( string $path, array $locations ): self {
+		$message = \sprintf(
+			'The view path "%s" resolves to a file outside of the allowed view locations: "%s".',
+			$path,
+			\implode( '", "', $locations )
+		);
+
+		return new self( $message );
+	}
 }

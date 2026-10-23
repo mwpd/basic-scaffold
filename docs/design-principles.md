@@ -342,7 +342,7 @@ filters, raising `InvalidConfiguration`, `InvalidService` or `InvalidArgument`.
 
 **Output is escaped for the context it lands in.** The reverse direction gets
 the same care. Values a view reads as properties are escaped by default
-(`src/Infrastructure/View/SimpleView.php:230-250`). A value fetched with
+(`src/Infrastructure/View/SimpleView.php:234-254`). A value fetched with
 `raw()` is the explicit exception, and the template must then escape it for
 where it is printed: HTML text, an attribute, a URL or JavaScript each need
 their own escaping, using WordPress's matching `esc_*` function.
