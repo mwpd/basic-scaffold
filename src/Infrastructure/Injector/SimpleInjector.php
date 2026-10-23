@@ -262,10 +262,13 @@ final class SimpleInjector implements Injector {
 		InjectionChain $injection_chain,
 		string $interface_or_class
 	): InjectionChain {
+		// The chain only holds the ancestry of the current branch, so meeting
+		// a resolution again here means a real cycle, whether through
+		// constructors or through bindings.
 		if ( $injection_chain->has_resolution( $interface_or_class ) ) {
-			// Circular reference detected, aborting.
 			throw FailedToMakeInstance::for_circular_reference(
-				$interface_or_class
+				$interface_or_class,
+				$injection_chain->get_resolutions()
 			);
 		}
 
