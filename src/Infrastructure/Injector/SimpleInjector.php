@@ -104,14 +104,7 @@ final class SimpleInjector implements Injector {
 		}
 
 		if ( $this->has_delegate( $class_name ) ) {
-			$delegate = $this->get_delegate( $class_name );
-			$object   = $delegate( $class_name );
-
-			if ( ! is_object( $object ) ) {
-				throw FailedToMakeInstance::for_invalid_delegate( $class_name );
-			}
-
-			return $object;
+			return $this->make_with_delegate( $class_name );
 		}
 
 		$reflection = $this->get_class_reflection( $class_name );
@@ -222,14 +215,7 @@ final class SimpleInjector implements Injector {
 		}
 
 		if ( $this->has_delegate( $class_name ) ) {
-			$delegate = $this->get_delegate( $class_name );
-			$object   = $delegate( $class_name );
-
-			if ( ! is_object( $object ) ) {
-				throw FailedToMakeInstance::for_invalid_delegate( $class_name );
-			}
-
-			return $object;
+			return $this->make_with_delegate( $class_name );
 		}
 
 		$reflection = $this->get_class_reflection( $class_name );
@@ -495,6 +481,29 @@ final class SimpleInjector implements Injector {
 		}
 
 		return $this->delegates[ $class_name ];
+	}
+
+	/**
+	 * Make an object instance through the delegate of a given class.
+	 *
+	 * The delegate is configuration from outside, so what it returns is
+	 * checked: whoever asked for the class relies on getting an instance of it
+	 * (principle 9).
+	 *
+	 * @param class-string $class_name Class to make an object instance out of.
+	 * @return object Instance of the class.
+	 * @throws FailedToMakeInstance If the delegate returns no instance of the
+	 *                              class.
+	 */
+	private function make_with_delegate( string $class_name ): object {
+		$delegate = $this->get_delegate( $class_name );
+		$object   = $delegate( $class_name );
+
+		if ( ! $object instanceof $class_name ) {
+			throw FailedToMakeInstance::for_invalid_delegate_result( $class_name, $object );
+		}
+
+		return $object;
 	}
 
 	/**

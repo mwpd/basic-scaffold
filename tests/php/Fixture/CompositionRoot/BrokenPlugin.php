@@ -26,9 +26,9 @@ final class BrokenPlugin extends ServiceBasedPlugin {
 		];
 	}
 
-	protected function get_bindings(): array {
+	protected function get_delegations(): array {
 		return [
-			BoundToSomethingElse::class => NotAService::class,
+			BoundToSomethingElse::class => static fn(): NotAService => new NotAService(),
 		];
 	}
 }

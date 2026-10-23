@@ -180,23 +180,25 @@ final class SimpleInjectorTest extends TestCase {
 	}
 
 	public function test_it_can_delegate_instantiation(): void {
+		$made     = new DummyClassWithDependency( new DummyClass() );
+		$received = null;
 		$injector = ( new SimpleInjector() )
 			->delegate(
 				DummyInterface::class,
-				function ( string $class_name ): stdClass {
-					$object             = new stdClass();
-					$object->class_name = $class_name;
-					return $object;
+				function ( string $class_name ) use ( $made, &$received ): DummyInterface {
+					$received = $class_name;
+					return $made;
 				}
 			);
 		$object   = $injector->make( DummyInterface::class );
 
-		$this->assertInstanceOf( stdClass::class, $object );
-		$this->assertObjectHasProperty( 'class_name', $object );
-		$this->assertEquals( DummyInterface::class, $object->class_name );
+		$this->assertSame( $made, $object );
+		$this->assertEquals( DummyInterface::class, $received );
 	}
 
 	public function test_delegation_works_across_resolution(): void {
+		$made     = new DummyClassWithDependency( new DummyClass() );
+		$received = null;
 		$injector = ( new SimpleInjector() )
 			->bind(
 				DummyInterface::class,
@@ -204,17 +206,59 @@ final class SimpleInjectorTest extends TestCase {
 			)
 			->delegate(
 				DummyClassWithDependency::class,
-				function ( string $class_name ): stdClass {
-					$object             = new stdClass();
-					$object->class_name = $class_name;
-					return $object;
+				function ( string $class_name ) use ( $made, &$received ): DummyClassWithDependency {
+					$received = $class_name;
+					return $made;
 				}
 			);
 		$object   = $injector->make( DummyInterface::class );
 
-		$this->assertInstanceOf( stdClass::class, $object );
-		$this->assertObjectHasProperty( 'class_name', $object );
-		$this->assertEquals( DummyClassWithDependency::class, $object->class_name );
+		$this->assertSame( $made, $object );
+		$this->assertEquals( DummyClassWithDependency::class, $received );
+	}
+
+	/**
+	 * @return array<string,array{0:mixed}> What a broken delegate returns.
+	 */
+	public static function data_invalid_delegate_results(): array {
+		return [
+			'object of another class' => [ new stdClass() ],
+			'no object'               => [ 'not an object' ],
+			'nothing'                 => [ null ],
+		];
+	}
+
+	/**
+	 * @dataProvider data_invalid_delegate_results
+	 *
+	 * @param mixed $result What the delegate returns.
+	 */
+	public function test_it_throws_if_a_delegate_returns_no_instance_of_the_class( $result ): void {
+		$injector = ( new SimpleInjector() )
+			->delegate( DummyInterface::class, static fn() => $result );
+
+		$this->expectException( FailedToMakeInstance::class );
+		$this->expectExceptionCode( FailedToMakeInstance::INVALID_DELEGATE );
+		$type = is_object( $result ) ? get_class( $result ) : gettype( $result );
+
+		$this->expectExceptionMessage(
+			'The delegate for "' . DummyInterface::class . '" returned ' . $type . ', not an instance of that class.'
+		);
+
+		$injector->make( DummyInterface::class );
+	}
+
+	public function test_it_throws_if_a_delegate_for_a_dependency_returns_no_instance_of_the_class(): void {
+		$injector = ( new SimpleInjector() )
+			->delegate( DummyClass::class, static fn(): stdClass => new stdClass() );
+
+		$this->expectException( FailedToMakeInstance::class );
+		$this->expectExceptionCode( FailedToMakeInstance::INVALID_DELEGATE );
+		$this->expectExceptionMessage(
+			'The delegate for "' . DummyClass::class . '" returned stdClass, not an instance of that class.'
+		);
+
+		$injector->make( DummyClassWithDependency::class );
 	}
 
 	public function test_arguments_can_be_bound(): void {

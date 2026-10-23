@@ -86,8 +86,25 @@ final class CompositionRootContract {
 	public function check(): array {
 		// Composition roots keep the constructor of ServiceBasedPlugin, so the
 		// injector it takes is the one the plugin configures.
-		$plugin   = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, new SimpleInjector() );
-		$injector = $this->configure_injector( $plugin );
+		$plugin = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, new SimpleInjector() );
+
+		// The plugin validates its injector configuration as it applies it.
+		// Without a configured injector, no service can be checked.
+		try {
+			$injector = $this->configure_injector( $plugin );
+		} catch ( Throwable $throwable ) {
+			return [
+				sprintf(
+					'[%1$s] The injector configuration of %2$s is invalid: %3$s Correct get_bindings(),'
+					. ' get_arguments(), get_shared_instances() or get_delegations(). %4$s.',
+					RuleManifest::COMPOSITION_ROOT_CONTRACTS,
+					$this->plugin_class,
+					$throwable->getMessage(),
+					RuleManifest::get_explanation( RuleManifest::COMPOSITION_ROOT_CONTRACTS )
+				),
+			];
+		}
+
 		$declared = self::call( $plugin, 'get_service_classes' );
 		$services = is_array( $declared ) ? $declared : [];
 		$problems = [];

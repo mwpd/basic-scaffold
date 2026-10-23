@@ -155,6 +155,23 @@ final class FailedToMakeInstance extends RuntimeException implements BasicScaffo
 	}
 
 	/**
+	 * Create a new instance of the exception for a delegate that returned
+	 * something other than an instance of the class it was registered for.
+	 *
+	 * @param string $class_name Class the delegate was registered for.
+	 * @param mixed  $result     What the delegate returned instead.
+	 */
+	public static function for_invalid_delegate_result( string $class_name, $result ): self {
+		$message = \sprintf(
+			'The delegate for "%s" returned %s, not an instance of that class.',
+			$class_name,
+			\is_object( $result ) ? \get_class( $result ) : \gettype( $result )
+		);
+
+		return new self( $message, self::INVALID_DELEGATE );
+	}
+
+	/**
 	 * Create a new instance of the exception for a reflection that is not valid.
 	 *
 	 * @param string $class_name Class that was reflected upon.
