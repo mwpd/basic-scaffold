@@ -230,6 +230,19 @@ abstract class ServiceBasedPlugin implements Plugin {
 		 */
 		$this->injector = $this->configure_injector( $this->injector );
 
+		/*
+		 * A constructor parameter typed Injector receives the plugin's own
+		 * injector, whichever implementation was passed in, instead of a
+		 * static service locator (principle 5). Set up after the composition
+		 * root's configuration, it reaches every plugin and replaces any
+		 * delegation for Injector. The callable reads the property, so it
+		 * also holds for an injector whose methods return a configured copy.
+		 */
+		$this->injector = $this->injector->delegate(
+			Injector::class,
+			fn(): Injector => $this->injector
+		);
+
 		// Add the injector as the very first service.
 		$this->service_container->put(
 			static::SERVICE_PREFIX . static::INJECTOR_ID,

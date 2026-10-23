@@ -204,15 +204,27 @@ final class TemplatedViewFactory implements Service, ViewFactory {
 }
 ```
 
-When writing a dedicated factory is overkill, a service will be able to
-receive the `Injector` and call `make()` once #22 lands; today the injector
-cannot be injected. A service only
-ever calls `make()` on it: bindings, sharing and delegations stay in the
-composition root (#92).
+When writing a dedicated factory is overkill, receive the `Injector` itself
+and call `make()` on it. A constructor parameter typed `Injector` gets the
+plugin's own injector, whichever implementation the plugin was given; the
+infrastructure sets that up, so the composition root needs no configuration
+for it. A service only ever calls `make()` on the injector: bindings, sharing
+and delegations stay in the composition root (#92).
+
+```php
+public function __construct( Injector $injector ) {
+	$this->injector = $injector;
+}
+
+// … later, once per use:
+$report = $this->injector->make( Report::class );
+```
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:58-60`,
-bound at `src/BasicScaffoldPlugin.php:95`.
+bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
+`src/Infrastructure/ServiceBasedPlugin.php:241-244`, proven by
+`tests/php/Unit/ServiceBasedPluginTest.php:457-505`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`; `architecture.dependencyDirection`
 keeps the consumer on the interface.
@@ -402,7 +414,7 @@ Calling a WordPress function inside an implementation detail is still fine
 ([principle 4](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges)).
 The delegation is for values a service depends on.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:159-182` and
+**Proven by:** `src/BasicScaffoldPlugin.php:159-192` and
 `src/SampleSubsystem/SampleLoopService.php:81`.
 
 **Rules:** `architecture.newOnlyWhereAllowed` (WordPress classes such as
@@ -573,7 +585,7 @@ protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
 public const SAMPLE_LOOP_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-loop-service';
 ```
 
-**Proven by:** `src/BasicScaffoldPlugin.php:196-208`.
+**Proven by:** `src/BasicScaffoldPlugin.php:206-218`.
 
 **Rules:** `architecture.prefixedNames`. Post types, taxonomies, shortcodes,
 REST routes, cron hooks and admin pages are covered once #85 lands.

@@ -177,6 +177,16 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 				return $post;
 			},
 
+			/*
+			 * The injector itself needs no delegation. The infrastructure
+			 * hands the plugin's own injector to any constructor parameter
+			 * typed Injector. A service that has to make objects on demand
+			 * takes the Injector and only ever calls make() on it. That is
+			 * the supported alternative to a static service locator, such as
+			 * Services::get( 'injector' ): the dependency stays visible in
+			 * the constructor, and nothing static is involved.
+			 */
+
 			// Add your delegations here.
 		];
 	}
