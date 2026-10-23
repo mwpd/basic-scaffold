@@ -44,6 +44,23 @@ final class RepositoryLayout {
 	public const SERVICES_BUILT_ELSEWHERE = [];
 
 	/**
+	 * Core actions with a defined order, from bootstrap through front-end routing
+	 * to shutdown. Theme callbacks and repeatable query hooks have no fixed place.
+	 *
+	 * @see https://developer.wordpress.org/apis/hooks/action-reference/
+	 */
+	public const REGISTRATION_ACTIONS = [
+		'plugins_loaded',
+		'after_setup_theme',
+		'init',
+		'wp_loaded',
+		'parse_request',
+		'wp',
+		'template_redirect',
+		'shutdown',
+	];
+
+	/**
 	 * The plugin's main file, the only one with side effects.
 	 */
 	public const BOOTSTRAP = 'basic-scaffold.php';
@@ -131,6 +148,13 @@ final class RepositoryLayout {
 	private array $services_built_elsewhere;
 
 	/**
+	 * Registration actions in firing order.
+	 *
+	 * @var list<string>
+	 */
+	private array $registration_actions;
+
+	/**
 	 * Instantiate a RepositoryLayout object.
 	 *
 	 * @param string        $root             Root of the repository.
@@ -141,6 +165,7 @@ final class RepositoryLayout {
 	 * @param array<string> $test_views       View directories of the tests.
 	 * @param array<string> $rule_fixtures    Rule fixture directories.
 	 * @param array<string, string> $services_built_elsewhere Classes built by other routes.
+	 * @param list<string> $registration_actions Registration actions in firing order.
 	 */
 	public function __construct(
 		string $root,
@@ -150,7 +175,8 @@ final class RepositoryLayout {
 		string $tests,
 		array $test_views,
 		array $rule_fixtures,
-		array $services_built_elsewhere = []
+		array $services_built_elsewhere = [],
+		array $registration_actions = self::REGISTRATION_ACTIONS
 	) {
 		$this->root                     = rtrim( $root, '/' );
 		$this->bootstrap                = $bootstrap;
@@ -160,6 +186,7 @@ final class RepositoryLayout {
 		$this->view_templates           = array_merge( $production_views, $test_views );
 		$this->rule_fixtures            = $rule_fixtures;
 		$this->services_built_elsewhere = $services_built_elsewhere;
+		$this->registration_actions     = $registration_actions;
 	}
 
 	/**
@@ -176,7 +203,8 @@ final class RepositoryLayout {
 			self::TESTS,
 			self::TEST_VIEWS,
 			self::RULE_FIXTURES,
-			self::SERVICES_BUILT_ELSEWHERE
+			self::SERVICES_BUILT_ELSEWHERE,
+			self::REGISTRATION_ACTIONS
 		);
 	}
 
@@ -395,6 +423,15 @@ final class RepositoryLayout {
 	 */
 	public function get_services_built_elsewhere(): array {
 		return $this->services_built_elsewhere;
+	}
+
+	/**
+	 * Get the registration actions whose firing order is known.
+	 *
+	 * @return list<string> Actions in firing order.
+	 */
+	public function get_registration_actions(): array {
+		return $this->registration_actions;
 	}
 
 	/**
