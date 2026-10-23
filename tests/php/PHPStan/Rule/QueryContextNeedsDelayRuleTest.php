@@ -35,6 +35,13 @@ final class QueryContextNeedsDelayRuleTest extends RuleTestCase {
 	private array $query_functions = [ 'IS_SINGULAR' ];
 
 	/**
+	 * Screen-dependent functions, including a mixed-case configuration entry.
+	 *
+	 * @var array<string>
+	 */
+	private array $screen_functions = [ 'GET_CURRENT_SCREEN' ];
+
+	/**
 	 * Namespaces outside the rule's scope.
 	 *
 	 * @var array<string>
@@ -46,6 +53,7 @@ final class QueryContextNeedsDelayRuleTest extends RuleTestCase {
 			new PluginNamespace( $this->root, $this->excluded ),
 			$this->root . '\Infrastructure',
 			$this->query_functions,
+			$this->screen_functions,
 			$this->createReflectionProvider()
 		);
 	}
@@ -75,10 +83,52 @@ final class QueryContextNeedsDelayRuleTest extends RuleTestCase {
 		);
 	}
 
+	public function test_screen_conditions_require_delayed(): void {
+		$this->query_functions = [];
+
+		$this->analyse(
+			[
+				self::FIXTURES . 'Feature/ScreenConditional.php',
+				self::FIXTURES . 'Feature/DelayedScreenConditional.php',
+			],
+			[ $this->screen_error( 'get_current_screen', 'ScreenConditional' ) ]
+		);
+	}
+
+	public function test_only_configured_screen_functions_require_delayed(): void {
+		$this->screen_functions = [ 'IS_ADMIN' ];
+
+		$this->analyse(
+			[
+				self::FIXTURES . 'Feature/ScreenConditional.php',
+				self::FIXTURES . 'Feature/AdminConditional.php',
+			],
+			[ $this->screen_error( 'is_admin', 'AdminConditional' ) ]
+		);
+	}
+
+	public function test_an_empty_screen_functions_list_disables_the_screen_check(): void {
+		$this->screen_functions = [];
+
+		$this->analyse(
+			[
+				self::FIXTURES . 'Feature/ScreenConditional.php',
+				self::FIXTURES . 'Feature/QueryConditional.php',
+			],
+			[ $this->error( 'is_singular', 'QueryConditional' ) ]
+		);
+	}
+
 	public function test_excluded_namespaces_are_not_checked(): void {
 		$this->excluded = [ self::HOOKS . '\Feature' ];
 
-		$this->analyse( [ self::FIXTURES . 'Feature/QueryConditional.php' ], [] );
+		$this->analyse(
+			[
+				self::FIXTURES . 'Feature/QueryConditional.php',
+				self::FIXTURES . 'Feature/ScreenConditional.php',
+			],
+			[]
+		);
 	}
 
 	public function test_the_sample_loop_service_passes(): void {
@@ -97,6 +147,22 @@ final class QueryContextNeedsDelayRuleTest extends RuleTestCase {
 			$called . '() in ' . self::HOOKS . '\\Feature\\' . $class_name . '::is_needed() asks about the query before'
 				. ' it is available. Implement Delayed and return "wp" or a later action from'
 				. ' get_registration_action(), so the plugin waits for the query before checking is_needed().',
+			12,
+			'Principle 7: Show the alternative to WordPress anti-patterns, see'
+				. ' docs/design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns.'
+				. ' Pattern: docs/patterns.md#i-need-to-hook-in-later.'
+				. ' Rule: docs/architecture-rules.md#architecturequerycontextneedsdelay',
+		];
+	}
+
+	/**
+	 * @return array{string, int, string}
+	 */
+	private function screen_error( string $called, string $class_name ): array {
+		return [
+			$called . '() in ' . self::HOOKS . '\\Feature\\' . $class_name . '::is_needed() asks about the admin screen'
+				. ' before WordPress has set it. Implement Delayed and return "current_screen" or a later admin action'
+				. ' from get_registration_action(), so the plugin waits for the screen before checking is_needed().',
 			12,
 			'Principle 7: Show the alternative to WordPress anti-patterns, see'
 				. ' docs/design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns.'

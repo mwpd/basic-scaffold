@@ -1071,8 +1071,8 @@ and the capability interfaces of [the core idea](design-principles.md#how-servic
 the plugin waits until a service's condition can answer before building it.
 
 **Checks:** when `is_needed()` of a class implementing `Conditional` calls a
-configured query-dependent function directly, the class also implements
-`Delayed`.
+configured query- or screen-dependent function directly, the class also
+implements `Delayed`.
 
 **Allows:** a `Conditional` that only calls request checks such as
 `is_admin()`, classes that do not implement `Conditional`, and calls in other
@@ -1084,13 +1084,21 @@ Neither proves that the action runs late enough for the condition.
 **Configuration:** `queryContextNeedsDelay.queryFunctions` lists the
 query-dependent functions: `is_singular`, `is_single`, `is_page`,
 `is_front_page`, `is_home`, `is_archive`, `is_search`, `is_404`,
-`is_attachment`, `is_feed` and `is_main_query`. The capability interfaces'
-namespace comes from `dependencyDirection.infrastructure`.
+`is_attachment`, `is_feed` and `is_main_query`.
+`queryContextNeedsDelay.screenFunctions` lists the screen-dependent functions:
+`get_current_screen`. Set `screenFunctions: []` to disable the screen check.
+The capability interfaces' namespace comes from
+`dependencyDirection.infrastructure`.
 
-**Fix:** implement `Delayed` and return `wp` or a later action from
-`get_registration_action()`. The plugin waits for that action before asking
-`is_needed()`, so the query has run when the condition reads it. See
-[I need to hook in later](patterns.md#i-need-to-hook-in-later) and
+**Fix:** for query-dependent conditions, implement `Delayed` and return `wp`
+or a later action from `get_registration_action()`. The plugin waits for that
+action before asking `is_needed()`, so the query has run when the condition
+reads it.
+
+For screen-dependent conditions, return `current_screen` or a later admin action:
+WordPress has not set the admin screen when services are normally checked at
+`plugins_loaded`. The two checks have separate messages under the same
+identifier. See [I need to hook in later](patterns.md#i-need-to-hook-in-later) and
 [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests).
 
 ### `architecture.registrationActionKnown`

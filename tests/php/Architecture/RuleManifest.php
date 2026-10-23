@@ -450,12 +450,14 @@ final class RuleManifest {
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'pattern'          => 'i-need-to-hook-in-later',
-			'configuration'    => 'parameters.architecture.queryContextNeedsDelay.queryFunctions',
+			'configuration'    => 'parameters.architecture.queryContextNeedsDelay.queryFunctions, '
+				. 'parameters.architecture.queryContextNeedsDelay.screenFunctions',
 			'checked_by'       => [
 				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\QueryContextNeedsDelayRule',
 			],
 			'signatures'       => [
 				'asks about the query before it is available',
+				'asks about the admin screen before WordPress has set it',
 			],
 		],
 		self::REGISTRATION_ACTION_KNOWN             => [

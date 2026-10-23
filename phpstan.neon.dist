@@ -227,6 +227,9 @@ parameters:
                 - is_attachment
                 - is_feed
                 - is_main_query
+            # The admin screen is available from current_screen onward.
+            screenFunctions:
+                - get_current_screen
         # The prefix of each kind of name the plugin creates, and the class
         # constants that hold it (design principle 13). Rename the prefixes
         # together with the plugin.

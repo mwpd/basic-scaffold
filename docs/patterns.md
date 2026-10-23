@@ -150,6 +150,11 @@ When the answer depends on the query, such as `is_singular()`, also implement
 `Delayed` and wait for `wp` or a later action as shown in
 [I need to hook in later](#i-need-to-hook-in-later).
 
+When the answer depends on the admin screen, such as `get_current_screen()`,
+also implement `Delayed` and wait for `current_screen` or a later admin
+action. WordPress has not set the screen at `plugins_loaded`, when the
+plugin normally asks `is_needed()`.
+
 **Rules:** `architecture.noContextChecksInRegister`,
 `architecture.queryContextNeedsDelay`.
 

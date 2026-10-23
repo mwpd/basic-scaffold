@@ -23,12 +23,12 @@ use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
 
 /**
- * Query-dependent conditions wait until WordPress has run the query.
+ * Conditions wait until WordPress has run the query or set the admin screen.
  *
  * Conditional::is_needed() runs before the service is built. Delayed lets
- * the plugin wait before asking it, so query-dependent answers are meaningful.
- * Only direct calls count: helpers and deferred callbacks are outside this
- * check, just as they are for NoContextChecksInRegisterRule.
+ * the plugin wait before asking it, so query- and screen-dependent answers
+ * are meaningful. Only direct calls count: helpers and deferred callbacks are
+ * outside this check, just as they are for NoContextChecksInRegisterRule.
  *
  * @implements Rule<FuncCall>
  */
@@ -52,6 +52,13 @@ final class QueryContextNeedsDelayRule implements Rule {
 	private array $query_functions;
 
 	/**
+	 * Screen-dependent functions, in lowercase.
+	 *
+	 * @var array<string>
+	 */
+	private array $screen_functions;
+
+	/**
 	 * Reflection, to tell which function a call refers to.
 	 */
 	private ReflectionProvider $reflection;
@@ -63,6 +70,7 @@ final class QueryContextNeedsDelayRule implements Rule {
 	 * @param string             $infrastructure   Namespace of the capability
 	 *                                             interfaces.
 	 * @param array<string>      $query_functions  Query-dependent functions.
+	 * @param array<string>      $screen_functions Screen-dependent functions.
 	 * @param ReflectionProvider $reflection       Reflection, to tell which
 	 *                                             function a call refers to.
 	 */
@@ -70,11 +78,13 @@ final class QueryContextNeedsDelayRule implements Rule {
 		PluginNamespace $plugin_namespace,
 		string $infrastructure,
 		array $query_functions,
+		array $screen_functions,
 		ReflectionProvider $reflection
 	) {
 		$this->plugin_namespace = $plugin_namespace;
 		$this->infrastructure   = trim( $infrastructure, '\\' );
 		$this->query_functions  = array_map( 'strtolower', $query_functions );
+		$this->screen_functions = array_map( 'strtolower', $screen_functions );
 		$this->reflection       = $reflection;
 	}
 
@@ -88,7 +98,7 @@ final class QueryContextNeedsDelayRule implements Rule {
 	}
 
 	/**
-	 * Report a query-dependent function called directly in is_needed().
+	 * Report a query- or screen-dependent function called directly in is_needed().
 	 *
 	 * @param FuncCall $node  Function call to inspect.
 	 * @param Scope    $scope Scope of the call.
@@ -110,16 +120,27 @@ final class QueryContextNeedsDelayRule implements Rule {
 
 		$called = CalledFunction::name_of( $node, $scope, $this->reflection );
 
-		if ( $called === null || ! in_array( $called, $this->query_functions, true ) ) {
+		if ( $called === null ) {
+			return [];
+		}
+
+		if ( in_array( $called, $this->query_functions, true ) ) {
+			$message = '%1$s() in %2$s asks about the query before it is available. Implement Delayed and return'
+				. ' "wp" or a later action from get_registration_action(), so the plugin waits for the query'
+				. ' before checking is_needed().';
+		} elseif ( in_array( $called, $this->screen_functions, true ) ) {
+			$message = '%1$s() in %2$s asks about the admin screen before WordPress has set it.'
+				. ' Implement Delayed and return "current_screen" or a later admin action'
+				. ' from get_registration_action(),'
+				. ' so the plugin waits for the screen before checking is_needed().';
+		} else {
 			return [];
 		}
 
 		return [
 			RuleErrorBuilder::message(
 				sprintf(
-					'%1$s() in %2$s asks about the query before it is available. Implement Delayed and return'
-					. ' "wp" or a later action from get_registration_action(), so the plugin waits for the query'
-					. ' before checking is_needed().',
+					$message,
 					$called,
 					CalledFunction::describe_location( $scope )
 				)
