@@ -25,15 +25,15 @@ final class DependencyRegistry {
 	/**
 	 * @return _WP_Dependency|false
 	 */
-	public function query( string $handle, string $status = 'registered' ) {
+	public function query( string $handle ) {
 		return $this->registered[ $handle ] ?? false;
 	}
 
 	/**
-	 * @param string|false     $src  Source URL.
-	 * @param array<string>    $deps Dependencies.
-	 * @param string|bool|null $ver  Version.
-	 * @param mixed            $args Media of a style.
+	 * @param mixed        $src  Source URL, or false.
+	 * @param array<mixed> $deps Dependencies.
+	 * @param mixed        $ver  Version.
+	 * @param mixed        $args Media of a style.
 	 */
 	public function add( string $handle, $src, array $deps, $ver, $args = null ): bool {
 		if ( isset( $this->registered[ $handle ] ) ) {

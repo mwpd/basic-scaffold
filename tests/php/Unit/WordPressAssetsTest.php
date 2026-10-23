@@ -54,7 +54,8 @@ final class WordPressAssetsTest extends TestCase {
 		Functions\when( 'wp_scripts' )->justReturn( $this->scripts );
 
 		Functions\when( 'wp_register_style' )->alias(
-			fn( string $handle, $src, array $deps, $ver, string $media ): bool => $this->styles->add( $handle, $src, $deps, $ver, $media )
+			fn( string $handle, $src, array $deps, $ver, string $media ): bool
+				=> $this->styles->add( $handle, $src, $deps, $ver, $media )
 		);
 		Functions\when( 'wp_add_inline_style' )->alias(
 			function ( string $handle, string $css ): bool {
@@ -92,7 +93,11 @@ final class WordPressAssetsTest extends TestCase {
 	}
 
 	public function test_a_stylesheet_is_registered_from_the_plugin_url_and_enqueued(): void {
-		$this->enqueue( Style::file( 'acme-notice', 'assets/css/notice.css' )->depends_on( 'wp-components' )->for_media( 'screen' ) );
+		$this->enqueue(
+			Style::file( 'acme-notice', 'assets/css/notice.css' )
+				->depends_on( 'wp-components' )
+				->for_media( 'screen' )
+		);
 
 		$style = $this->styles->registered['acme-notice'];
 		$this->assertSame( 'https://example.com/wp-content/plugins/acme/assets/css/notice.css', $style->src );
@@ -135,7 +140,9 @@ final class WordPressAssetsTest extends TestCase {
 		$this->enqueue( Style::file( 'acme-notice', 'assets/css/notice.css' ) );
 
 		$this->expectException( InvalidAsset::class );
-		$this->expectExceptionMessage( 'The asset "acme-notice" is already registered with a different source or options.' );
+		$this->expectExceptionMessage(
+			'The asset "acme-notice" is already registered with a different source or options.'
+		);
 
 		$this->enqueue( $other );
 	}
@@ -146,7 +153,9 @@ final class WordPressAssetsTest extends TestCase {
 	public static function conflicting_styles(): array {
 		return [
 			'other file'         => [ Style::file( 'acme-notice', 'assets/css/other.css' ) ],
-			'other dependencies' => [ Style::file( 'acme-notice', 'assets/css/notice.css' )->depends_on( 'wp-components' ) ],
+			'other dependencies' => [
+				Style::file( 'acme-notice', 'assets/css/notice.css' )->depends_on( 'wp-components' ),
+			],
 			'other version'      => [ Style::file( 'acme-notice', 'assets/css/notice.css' )->with_version( '2' ) ],
 			'other media'        => [ Style::file( 'acme-notice', 'assets/css/notice.css' )->for_media( 'print' ) ],
 			'inline instead'     => [ Style::inline( 'acme-notice', 'p { margin: 0; }' ) ],
@@ -170,13 +179,21 @@ final class WordPressAssetsTest extends TestCase {
 	}
 
 	public function test_a_script_is_registered_with_its_footer_flag_and_strategy(): void {
-		$this->enqueue( Script::file( 'acme-copy', 'assets/js/copy.js' )->depends_on( 'wp-i18n' )->in_footer()->async() );
+		$this->enqueue(
+			Script::file( 'acme-copy', 'assets/js/copy.js' )->depends_on( 'wp-i18n' )->in_footer()->async()
+		);
 
 		$script = $this->scripts->registered['acme-copy'];
 		$this->assertSame( 'https://example.com/wp-content/plugins/acme/assets/js/copy.js', $script->src );
 		$this->assertSame( [ 'wp-i18n' ], $script->deps );
 		$this->assertSame( '1.2.3', $script->ver );
-		$this->assertSame( [ 'in_footer' => true, 'strategy' => 'async' ], $this->script_arguments );
+		$this->assertSame(
+			[
+				'in_footer' => true,
+				'strategy'  => 'async',
+			],
+			$this->script_arguments
+		);
 		$this->assertSame( [ 'acme-copy' ], $this->scripts->queue );
 	}
 

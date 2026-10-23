@@ -20,6 +20,7 @@ use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Infrastructure\Asset\AssetLocation;
 use MWPD\BasicScaffold\Infrastructure\Asset\Script;
 use MWPD\BasicScaffold\Infrastructure\Asset\Style;
+use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\AdminScreenScriptService;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\AssetRequests;
@@ -71,7 +72,7 @@ final class AssetLoadingTest extends TestCase {
 		$this->callbacks = [];
 		$this->ran       = [];
 
-		Functions\when( 'did_action' )->alias( fn( string $action ): int => isset( $this->ran[ $action ] ) ? 1 : 0 );
+		Functions\when( 'did_action' )->alias( fn( string $action ): int => $this->has_run( $action ) ? 1 : 0 );
 		Functions\when( 'plugins_url' )->justReturn( 'https://example.com/wp-content/plugins/acme' );
 		Functions\when( 'get_file_data' )->justReturn( [ 'Version' => '1.2.3' ] );
 
@@ -87,16 +88,16 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_plugin_without_asset_services_hooks_into_no_enqueue_action(): void {
-		$plugin = new TestAssetPlugin( [ 'a' => TestServiceA::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'a' => TestServiceA::class ] );
 		$plugin->register_services();
 
 		foreach ( self::ENQUEUE_ACTIONS as $action ) {
-			$this->assertArrayNotHasKey( $action, $this->callbacks, "No asset service, so nothing hooks into $action." );
+			$this->assertArrayNotHasKey( $action, $this->callbacks, "Nothing hooks into $action." );
 		}
 	}
 
 	public function test_a_plugin_with_an_asset_service_hooks_into_each_enqueue_action_once(): void {
-		$plugin = new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ] );
 		$plugin->register_services();
 		$plugin->register_services();
 
@@ -106,7 +107,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_service_gets_its_assets_only_at_the_enqueue_point_it_declares_them_for(): void {
-		$plugin = new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ] );
 		$plugin->register_services();
 
 		$this->run_action( 'admin_enqueue_scripts', 'index.php' );
@@ -146,8 +147,7 @@ final class AssetLoadingTest extends TestCase {
 		);
 
 		// Debug mode lets the assertions made while loading surface.
-		$plugin = ( new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets ) )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], true );
 		$plugin->register_services();
 
 		$this->run_action( 'wp_enqueue_scripts' );
@@ -158,7 +158,10 @@ final class AssetLoadingTest extends TestCase {
 		$this->assertInstanceOf( Style::class, $style );
 		$path = $style->get_path();
 		$this->assertNotNull( $path );
-		$this->assertSame( 'https://example.com/wp-content/plugins/acme/assets/front-end.css', $location->get_url( $path ) );
+		$this->assertSame(
+			'https://example.com/wp-content/plugins/acme/assets/front-end.css',
+			$location->get_url( $path )
+		);
 		$this->assertSame( '1.2.3', $location->get_version( null ) );
 		$this->assertSame( $location, $this->assets->locations[1], 'The location is made once.' );
 		$this->assertSame( 1, $reads, 'The main file is read once.' );
@@ -172,8 +175,7 @@ final class AssetLoadingTest extends TestCase {
 		);
 
 		// Debug mode lets the assertions made while loading surface.
-		$plugin = ( new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets ) )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], true );
 		$plugin->register_services();
 
 		$this->run_action( 'admin_enqueue_scripts', 'index.php' );
@@ -183,20 +185,19 @@ final class AssetLoadingTest extends TestCase {
 	public function test_a_main_file_without_a_version_header_fails_in_debug_mode(): void {
 		Functions\when( 'get_file_data' )->justReturn( [ 'Version' => '' ] );
 
-		$plugin = ( new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets ) )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], true );
 		$plugin->register_services();
 
 		$this->expectException( InvalidAsset::class );
-		$this->expectExceptionMessage( 'The main plugin file "' . TestAssetPlugin::MAIN_FILE . '" has no "Version" header' );
+		$this->expectExceptionMessage(
+			'The main plugin file "' . TestAssetPlugin::MAIN_FILE . '" has no "Version" header'
+		);
 
 		$this->run_action( 'wp_enqueue_scripts' );
 	}
 
 	public function test_a_plugin_without_a_main_file_fails_to_locate_its_assets_in_debug_mode(): void {
-		$plugin = ( new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets ) )
-			->without_main_file()
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], true )->without_main_file();
 		$plugin->register_services();
 
 		$this->expectException( InvalidConfiguration::class );
@@ -212,9 +213,7 @@ final class AssetLoadingTest extends TestCase {
 		);
 
 		$location = new AssetLocation( 'https://cdn.example.com/acme', '9' );
-		$plugin   = ( new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets ) )
-			->with_location( $location )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin   = $this->plugin( [ 'style' => FrontEndStyleService::class ], true )->with_location( $location );
 		$plugin->register_services();
 
 		$this->run_action( 'wp_enqueue_scripts' );
@@ -223,7 +222,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_an_asset_only_service_is_built_the_first_time_it_is_asked(): void {
-		$plugin = new TestAssetPlugin( [ 'script' => AdminScreenScriptService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'script' => AdminScreenScriptService::class ] );
 		$plugin->register_services();
 
 		$this->assertSame( [], $this->requests->events, 'Registering does not build a service that only has assets.' );
@@ -247,7 +246,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_an_asset_only_service_is_not_built_in_a_request_without_an_enqueue_point(): void {
-		$plugin = new TestAssetPlugin( [ 'script' => AdminScreenScriptService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'script' => AdminScreenScriptService::class ] );
 		$plugin->register_services();
 
 		$this->assertSame( [], $this->requests->events );
@@ -255,7 +254,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_service_registered_after_its_enqueue_points_gets_its_assets_at_once(): void {
-		$plugin = new TestAssetPlugin( [ 'late' => LateFooterStyleService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'late' => LateFooterStyleService::class ] );
 		$plugin->register_services();
 
 		$this->run_action( 'admin_enqueue_scripts', 'edit.php' );
@@ -276,7 +275,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_service_registered_before_an_enqueue_point_is_asked_there_once(): void {
-		$plugin = new TestAssetPlugin( [ 'late' => LateFooterStyleService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'late' => LateFooterStyleService::class ] );
 		$plugin->register_services();
 
 		$this->run_action( 'wp_footer' );
@@ -289,7 +288,7 @@ final class AssetLoadingTest extends TestCase {
 		$container = new SimpleServiceContainer();
 		$container->put( 'style', new FrontEndStyleService( $this->requests ) );
 
-		$plugin = new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets, $container );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], null, $container );
 		$plugin->register_services();
 
 		$this->run_action( 'wp_enqueue_scripts' );
@@ -298,8 +297,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_failing_service_surfaces_in_debug_mode(): void {
-		$plugin = ( new TestAssetPlugin( [ 'failing' => FailingAssetService::class ], $this->requests, $this->assets ) )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'failing' => FailingAssetService::class ], true );
 		$plugin->register_services();
 
 		$this->expectException( RuntimeException::class );
@@ -309,14 +307,13 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_failing_service_loads_none_of_its_assets_in_production_and_the_others_still_load(): void {
-		$plugin = ( new TestAssetPlugin(
+		$plugin = $this->plugin(
 			[
 				'failing' => FailingAssetService::class,
 				'style'   => FrontEndStyleService::class,
 			],
-			$this->requests,
-			$this->assets
-		) )->with_debug_mode( $this->debug_mode( false ) );
+			false
+		);
 		$plugin->register_services();
 
 		$this->run_action( 'wp_enqueue_scripts' );
@@ -330,8 +327,7 @@ final class AssetLoadingTest extends TestCase {
 
 	public function test_a_conflicting_asset_surfaces_in_debug_mode(): void {
 		$this->assets->conflicting( FrontEndStyleService::HANDLE );
-		$plugin = ( new TestAssetPlugin( [ 'style' => FrontEndStyleService::class ], $this->requests, $this->assets ) )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], true );
 		$plugin->register_services();
 
 		$this->expectException( InvalidAsset::class );
@@ -342,14 +338,13 @@ final class AssetLoadingTest extends TestCase {
 
 	public function test_a_conflicting_asset_is_skipped_in_production_and_the_others_still_load(): void {
 		$this->assets->conflicting( FrontEndStyleService::HANDLE );
-		$plugin = ( new TestAssetPlugin(
+		$plugin = $this->plugin(
 			[
 				'style' => FrontEndStyleService::class,
 				'late'  => LateFooterStyleService::class,
 			],
-			$this->requests,
-			$this->assets
-		) )->with_debug_mode( $this->debug_mode( false ) );
+			false
+		);
 		$plugin->register_services();
 		$this->run_action( 'wp_footer' );
 
@@ -359,8 +354,7 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_a_declaration_that_is_not_an_asset_surfaces_in_debug_mode(): void {
-		$plugin = ( new TestAssetPlugin( [ 'broken' => NonAssetService::class ], $this->requests, $this->assets ) )
-			->with_debug_mode( $this->debug_mode( true ) );
+		$plugin = $this->plugin( [ 'broken' => NonAssetService::class ], true );
 		$plugin->register_services();
 
 		$this->expectException( InvalidAsset::class );
@@ -370,12 +364,40 @@ final class AssetLoadingTest extends TestCase {
 	}
 
 	public function test_the_admin_hook_suffix_is_normalized(): void {
-		$plugin = new TestAssetPlugin( [ 'script' => AdminScreenScriptService::class ], $this->requests, $this->assets );
+		$plugin = $this->plugin( [ 'script' => AdminScreenScriptService::class ] );
 		$plugin->register_services();
 
 		$this->run_action( 'admin_enqueue_scripts', [ 'not a hook suffix' ] );
 
 		$this->assertSame( [ 'built admin script', 'asked admin script at admin ' ], $this->requests->events );
+	}
+
+	/**
+	 * Create a plugin with services, the recording asset loader and, if given,
+	 * a debug mode that is on or off.
+	 *
+	 * @param array<string,class-string> $services      Services, in registration order.
+	 * @param bool|null                  $is_debug_mode Optional. Whether debug mode is on; null for the
+	 *                                                  plugin's default.
+	 * @param ServiceContainer|null      $container     Optional. Service container to use.
+	 */
+	private function plugin(
+		array $services,
+		?bool $is_debug_mode = null,
+		?ServiceContainer $container = null
+	): TestAssetPlugin {
+		$plugin = new TestAssetPlugin( $services, $this->requests, $this->assets, $container );
+
+		return null === $is_debug_mode ? $plugin : $plugin->with_debug_mode( $this->debug_mode( $is_debug_mode ) );
+	}
+
+	/**
+	 * Check whether an action has run.
+	 *
+	 * @param string $action Action to check.
+	 */
+	private function has_run( string $action ): bool {
+		return isset( $this->ran[ $action ] );
 	}
 
 	/**

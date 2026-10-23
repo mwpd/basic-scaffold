@@ -588,7 +588,11 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 			[ self::FIXTURES . 'AssetDeclarations.php' ],
 			[
 				[ $this->unprefixed( 'Style::file', 'asset handle', 'notice', $how, 'assets' ), 14, self::TIP ],
-				[ $this->unprefixed( 'Style::inline', 'asset handle', 'inline-notice', $how, 'assets' ), 15, self::TIP ],
+				[
+					$this->unprefixed( 'Style::inline', 'asset handle', 'inline-notice', $how, 'assets' ),
+					15,
+					self::TIP,
+				],
 				[ $this->unprefixed( 'Script::file', 'asset handle', 'copy', $how, 'assets' ), 16, self::TIP ],
 				[
 					"Script::file() gets an asset handle name the rule cannot check. Use {$how}, so the name is"

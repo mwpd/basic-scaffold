@@ -14,10 +14,10 @@ use MWPD\BasicScaffold\Infrastructure\Service;
 final class NonAssetService implements Service, HasAssets {
 
 	/**
-	 * @psalm-suppress InvalidReturnType, InvalidReturnStatement It breaks the contract on purpose.
-	 * @phpstan-ignore return.type (It breaks the contract on purpose.)
+	 * @psalm-suppress InvalidReturnType It breaks the contract on purpose.
+	 * @psalm-suppress InvalidReturnStatement It breaks the contract on purpose.
 	 */
 	public function get_assets( AssetContext $context ): iterable {
-		return [ 'assets/not-an-asset.css' ];
+		return [ 'assets/not-an-asset.css' ]; // @phpstan-ignore return.type (It breaks the contract on purpose.)
 	}
 }

@@ -47,7 +47,11 @@ final class AssetDeclarationsTest extends TestCase {
 		$this->assertSame( [ 'wp-components', 'acme-base' ], $changed->get_dependencies() );
 		$this->assertSame( '2', $changed->get_version() );
 		$this->assertSame( 'print', $changed->get_media() );
-		$this->assertSame( [ 'acme-base' ], $changed->depends_on( 'acme-base' )->get_dependencies(), 'Dependencies are replaced.' );
+		$this->assertSame(
+			[ 'acme-base' ],
+			$changed->depends_on( 'acme-base' )->get_dependencies(),
+			'Dependencies are replaced.'
+		);
 	}
 
 	public function test_an_inline_style_has_css_and_no_path(): void {
@@ -74,13 +78,13 @@ final class AssetDeclarationsTest extends TestCase {
 	/**
 	 * @dataProvider invalid_declarations
 	 *
-	 * @param callable(): mixed $declare Declaration that must fail.
+	 * @param callable(): mixed $declaration Declaration that must fail.
 	 */
-	public function test_an_invalid_declaration_is_rejected( callable $declare, string $message ): void {
+	public function test_an_invalid_declaration_is_rejected( callable $declaration, string $message ): void {
 		$this->expectException( InvalidAsset::class );
 		$this->expectExceptionMessage( $message );
 
-		$declare();
+		$declaration();
 	}
 
 	/**
@@ -90,25 +94,64 @@ final class AssetDeclarationsTest extends TestCase {
 		$path = 'must be relative to the plugin root';
 
 		return [
-			'empty style handle'     => [ static fn() => Style::file( '', 'a.css' ), 'An asset handle cannot be empty.' ],
-			'empty script handle'    => [ static fn() => Script::file( '', 'a.js' ), 'An asset handle cannot be empty.' ],
-			'empty path'             => [ static fn() => Style::file( 'acme-a', '' ), $path ],
-			'absolute path'          => [ static fn() => Style::file( 'acme-a', '/etc/a.css' ), $path ],
-			'URL'                    => [ static fn() => Script::file( 'acme-a', 'https://cdn.example.com/a.js' ), $path ],
-			'parent directory'       => [ static fn() => Style::file( 'acme-a', 'assets/../../a.css' ), $path ],
-			'backslash'              => [ static fn() => Style::file( 'acme-a', 'assets\\a.css' ), $path ],
-			'query string'           => [ static fn() => Style::file( 'acme-a', 'a.css?ver=1' ), $path ],
-			'null byte'              => [ static fn() => Style::file( 'acme-a', "a.css\0" ), $path ],
-			'empty CSS'              => [ static fn() => Style::inline( 'acme-a', " \n" ), 'The inline style "acme-a" has no CSS.' ],
-			'style tag'              => [ static fn() => Style::inline( 'acme-a', '<style>p{}</style>' ), 'contains a <style> tag' ],
-			'closing style tag'      => [ static fn() => Style::inline( 'acme-a', 'p{}</STYLE><script>' ), 'contains a <style> tag' ],
-			'media on inline style'  => [ static fn() => Style::inline( 'acme-a', 'p{}' )->for_media( 'print' ), 'Wrap the CSS in an @media rule' ],
-			'empty media'            => [ static fn() => Style::file( 'acme-a', 'a.css' )->for_media( '' ), 'The media of the asset "acme-a"' ],
-			'empty style version'    => [ static fn() => Style::file( 'acme-a', 'a.css' )->with_version( '' ), 'The version of the asset' ],
-			'empty script version'   => [ static fn() => Script::file( 'acme-a', 'a.js' )->with_version( '' ), 'The version of the asset' ],
-			'empty style dependency' => [ static fn() => Style::file( 'acme-a', 'a.css' )->depends_on( 'x', '' ), 'The dependency of the asset' ],
-			'empty script dependency' => [ static fn() => Script::file( 'acme-a', 'a.js' )->depends_on( '' ), 'The dependency of the asset' ],
-			'empty default version'  => [ static fn() => new AssetLocation( 'https://example.com', '' ), 'need a default version' ],
+			'empty style handle'      => [
+				static fn() => Style::file( '', 'a.css' ),
+				'An asset handle cannot be empty.',
+			],
+			'empty script handle'     => [
+				static fn() => Script::file( '', 'a.js' ),
+				'An asset handle cannot be empty.',
+			],
+			'empty path'              => [ static fn() => Style::file( 'acme-a', '' ), $path ],
+			'absolute path'           => [ static fn() => Style::file( 'acme-a', '/etc/a.css' ), $path ],
+			'URL'                     => [
+				static fn() => Script::file( 'acme-a', 'https://cdn.example.com/a.js' ),
+				$path,
+			],
+			'parent directory'        => [ static fn() => Style::file( 'acme-a', 'assets/../../a.css' ), $path ],
+			'backslash'               => [ static fn() => Style::file( 'acme-a', 'assets\\a.css' ), $path ],
+			'query string'            => [ static fn() => Style::file( 'acme-a', 'a.css?ver=1' ), $path ],
+			'null byte'               => [ static fn() => Style::file( 'acme-a', "a.css\0" ), $path ],
+			'empty CSS'               => [
+				static fn() => Style::inline( 'acme-a', " \n" ),
+				'The inline style "acme-a" has no CSS.',
+			],
+			'style tag'               => [
+				static fn() => Style::inline( 'acme-a', '<style>p{}</style>' ),
+				'contains a <style> tag',
+			],
+			'closing style tag'       => [
+				static fn() => Style::inline( 'acme-a', 'p{}</STYLE><script>' ),
+				'contains a <style> tag',
+			],
+			'media on inline style'   => [
+				static fn() => Style::inline( 'acme-a', 'p{}' )->for_media( 'print' ),
+				'Wrap the CSS in an @media rule',
+			],
+			'empty media'             => [
+				static fn() => Style::file( 'acme-a', 'a.css' )->for_media( '' ),
+				'The media of the asset "acme-a"',
+			],
+			'empty style version'     => [
+				static fn() => Style::file( 'acme-a', 'a.css' )->with_version( '' ),
+				'The version of the asset',
+			],
+			'empty script version'    => [
+				static fn() => Script::file( 'acme-a', 'a.js' )->with_version( '' ),
+				'The version of the asset',
+			],
+			'empty style dependency'  => [
+				static fn() => Style::file( 'acme-a', 'a.css' )->depends_on( 'x', '' ),
+				'The dependency of the asset',
+			],
+			'empty script dependency' => [
+				static fn() => Script::file( 'acme-a', 'a.js' )->depends_on( '' ),
+				'The dependency of the asset',
+			],
+			'empty default version'   => [
+				static fn() => new AssetLocation( 'https://example.com', '' ),
+				'need a default version',
+			],
 		];
 	}
 
@@ -120,8 +163,12 @@ final class AssetDeclarationsTest extends TestCase {
 	public function test_the_location_joins_the_plugin_url_and_path_with_one_slash(): void {
 		$path = AssetPath::for_asset( 'acme-a', 'assets/a.css' );
 
-		$this->assertSame( 'https://example.com/acme/assets/a.css', ( new AssetLocation( 'https://example.com/acme/', '1' ) )->get_url( $path ) );
-		$this->assertSame( 'https://example.com/acme/assets/a.css', ( new AssetLocation( 'https://example.com/acme', '1' ) )->get_url( $path ) );
+		foreach ( [ 'https://example.com/acme/', 'https://example.com/acme' ] as $base_url ) {
+			$this->assertSame(
+				'https://example.com/acme/assets/a.css',
+				( new AssetLocation( $base_url, '1' ) )->get_url( $path )
+			);
+		}
 	}
 
 	public function test_the_location_supplies_the_default_version(): void {

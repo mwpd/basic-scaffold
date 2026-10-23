@@ -28,6 +28,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need to add hooks](#i-need-to-add-hooks)
 - [I need a service only in some requests](#i-need-a-service-only-in-some-requests)
 - [I need to hook in later](#i-need-to-hook-in-later)
+- [I need to load a script or style](#i-need-to-load-a-script-or-style)
 - [I need to set something up when the plugin is activated](#i-need-to-set-something-up-when-the-plugin-is-activated)
 - [I need to clean up when the plugin is uninstalled](#i-need-to-clean-up-when-the-plugin-is-uninstalled)
 - [I need to create objects on demand](#i-need-to-create-objects-on-demand)
@@ -227,6 +228,80 @@ it: PHP reports a fatal error for a class that does not implement every
 interface method. Add `use DefaultRegistrationPriority;` (from the
 `Infrastructure` namespace) to each of them to keep the priority of 10 they
 were registered at before, or implement the method to choose another one.
+
+## I need to load a script or style
+
+**What people reach for:** `add_action( 'wp_enqueue_scripts', … )` in the
+service, with `wp_enqueue_style()` and a `plugins_url( 'css/x.css', __FILE__ )`
+or a `MY_PLUGIN_URL` constant inside it, and an `is_singular()` or
+`get_current_screen()` check to keep the file off pages that do not need it.
+
+**Why not here:** [the core idea](design-principles.md#how-services-map-to-it):
+when and where a service acts is the infrastructure's job, so every service
+wiring its own enqueue hooks spreads lifecycle logic again.
+[Principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
+rules out the constant, and [principle 1](design-principles.md#1-runs-on-php-and-wordpress-alone)
+any build step to produce the files.
+
+**Instead:** implement `HasAssets` and return what the service needs from
+`get_assets()`. The plugin hooks the enqueue actions once, asks every
+registered service at each of them, and loads what they return. `Style` and
+`Script` are immutable values that a service creates itself, through their
+named constructors and chained options:
+
+```php
+public function get_assets( AssetContext $context ): iterable {
+	if ( ! $context->is_front_end() ) {
+		return [];
+	}
+
+	return [ Style::file( 'mwpd-basic-scaffold-post-header', 'assets/css/sample-loop-service.css' ) ];
+}
+```
+
+Most of "where" is already decided: a service that `Conditional` rules out,
+or that `Delayed` has not registered yet, is never asked. `get_assets()` only
+picks among the enqueue points of a request it exists in:
+
+| Context | WordPress action |
+| --- | --- |
+| `AssetContext::front_end()` | `wp_enqueue_scripts` |
+| `AssetContext::admin( $hook_suffix )` | `admin_enqueue_scripts`; `is_admin( 'settings_page_x' )` checks the screen |
+| `AssetContext::block_editor()` | `enqueue_block_editor_assets`, for the editor's own interface |
+| `AssetContext::login()` | `login_enqueue_scripts` |
+
+Several of them can run in one request: the block editor fires its own action
+and then the admin one. Because the plugin asks at the action, the answer can
+also depend on the state of the request, such as whether the post being shown
+is outdated.
+
+- **Where the files are served from** comes from the main file: its directory
+  URL, and its `Version` header as the version of every asset that sets none
+  with `with_version()`. A missing header is an `InvalidAsset`, never a silent
+  fallback. To serve the assets from elsewhere, delegate `AssetLocation` in
+  the composition root.
+- **A few lines of CSS** can be printed inline with `Style::inline()`, which
+  saves a request and can still be dequeued by its handle.
+- **Scripts** can be `in_footer()`, `deferred()` or `async()`. WordPress before
+  6.3 ignores the strategy and loads the script the classic way.
+- **A service registered late**, after an enqueue point has run, is asked for
+  it at once. WordPress then prints a style in the footer, or not at all once
+  the footer has been printed, so register a service with assets no later than
+  it needs them.
+- **Two services may declare the same asset.** Declaring a handle again with
+  another file or other options is a conflict: debug mode throws, production
+  skips the service's assets for that enqueue point and loads the others.
+
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:116-132` (a style on
+singular views) and `src/SampleSubsystem/SampleBackendService.php:75-93` (a
+deferred script on admin screens), the orchestration in
+`src/Infrastructure/ServiceBasedPlugin.php:1936-2140`, and
+`tests/php/Unit/AssetLoadingTest.php` with `tests/php/Integration/SampleAssetsTest.php`.
+
+**Rules:** `architecture.prefixedNames` checks the handle where a service
+declares it, in `Style::file()`, `Style::inline()` and `Script::file()`.
+`architecture.capabilitiesOnServices` accepts a `Delayed` service whose only
+work is its assets.
 
 ## I need to set something up when the plugin is activated
 

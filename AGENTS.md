@@ -17,6 +17,7 @@ material.
 | `src/Infrastructure/` | What generated plugins build on: service container, injector, views, autoloader. |
 | `src/Exception/` | The scaffold's exception types. |
 | `src/SampleSubsystem/`, `views/` | Example services and templates that a generated plugin replaces, apart from `views/query-monitor-registration.php`, the template of the optional Query Monitor panel in `src/Infrastructure/QueryMonitor/`. |
+| `assets/` | The sample services' stylesheet and script, shipped as they are, without a build step. |
 | `tests/php/Unit`, `tests/php/Integration` | PHPUnit suites. Both use Brain Monkey; neither needs a WordPress install. |
 | `tests/php/Fixture/` | Test doubles and view fixtures. |
 | `tests/php/Architecture/`, `tests/php/PHPStan/` | Architecture rules: the `architecture` suite, PHPStan rules, their tests and fixtures. |

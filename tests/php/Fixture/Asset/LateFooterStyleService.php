@@ -34,6 +34,8 @@ final class LateFooterStyleService implements Service, Delayed, HasAssets {
 	public function get_assets( AssetContext $context ): iterable {
 		$this->requests->asked( 'late style', $context );
 
-		return [ Style::inline( self::HANDLE . '-' . ( $context->is_admin() ? $context->get_hook_suffix() : 'page' ), 'p { margin: 0; }' ) ];
+		$where = $context->is_admin() ? $context->get_hook_suffix() : 'page';
+
+		return [ Style::inline( self::HANDLE . '-' . $where, 'p { margin: 0; }' ) ];
 	}
 }

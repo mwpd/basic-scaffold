@@ -70,10 +70,11 @@ final class TestAssetPlugin extends ServiceBasedPlugin {
 	}
 
 	protected function get_delegations(): array {
-		$requests    = $this->requests;
+		$requests = $this->requests;
+		/** @var array<class-string,callable> $delegations */
 		$delegations = [ AssetRequests::class => static fn(): AssetRequests => $requests ];
 
-		$debug_mode = $this->debug_mode;
+		$debug_mode  = $this->debug_mode;
 		if ( null !== $debug_mode ) {
 			$delegations[ DebugMode::class ] = static fn(): DebugMode => $debug_mode;
 		}

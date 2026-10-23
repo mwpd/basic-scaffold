@@ -16,17 +16,17 @@ final class _WP_Dependency {
 	public $handle;
 
 	/**
-	 * @var string|false
+	 * @var mixed
 	 */
 	public $src;
 
 	/**
-	 * @var array<string>
+	 * @var array<mixed>
 	 */
 	public $deps;
 
 	/**
-	 * @var string|bool|null
+	 * @var mixed
 	 */
 	public $ver;
 
@@ -41,11 +41,11 @@ final class _WP_Dependency {
 	public $extra = [];
 
 	/**
-	 * @param string           $handle Handle.
-	 * @param string|false     $src    Source URL.
-	 * @param array<string>    $deps   Dependencies.
-	 * @param string|bool|null $ver    Version.
-	 * @param mixed            $args   Media of a style.
+	 * @param string       $handle Handle.
+	 * @param mixed        $src    Source URL, or false.
+	 * @param array<mixed> $deps   Dependencies.
+	 * @param mixed        $ver    Version.
+	 * @param mixed        $args   Media of a style.
 	 */
 	public function __construct( string $handle, $src, array $deps, $ver, $args = null ) {
 		$this->handle = $handle;

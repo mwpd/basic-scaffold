@@ -61,7 +61,28 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 				$this->createReflectionProvider(),
 				self::getContainer()->getByType( FileTypeMapper::class )
 			),
-			$this->createReflectionProvider()
+			$this->createReflectionProvider(),
+			[ self::LAYERS . '\Infrastructure\Amount' ]
+		);
+	}
+
+	/**
+	 * A value object is not a collaborator that could be bound instead, so a
+	 * subsystem may name it, while a concrete collaborator stays an error.
+	 */
+	public function test_a_subsystem_may_use_a_value_object_of_the_infrastructure(): void {
+		$this->analyse(
+			$this->fixtures( 'Feature/UsesValue' ),
+			[
+				$this->error(
+					8,
+					'Feature\UsesValue',
+					'the Feature subsystem',
+					'Infrastructure\Concrete',
+					'the infrastructure',
+					self::CONTRACT_FIX
+				),
+			]
 		);
 	}
 

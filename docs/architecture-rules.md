@@ -852,7 +852,7 @@ native types and in any documentation tag, such as `@var`, `@throws` or
 | --- | --- |
 | the exceptions (`src/Exception/`) | other exceptions |
 | the infrastructure (`src/Infrastructure/`) | the infrastructure and the exceptions |
-| a feature subsystem (any other top-level namespace, such as `src/SampleSubsystem/`) | the infrastructure's interfaces (and traits that only fulfil them), the exceptions and the subsystems |
+| a feature subsystem (any other top-level namespace, such as `src/SampleSubsystem/`) | the infrastructure's interfaces (and traits that only fulfil them), its value objects, the exceptions and the subsystems |
 | the composition root | everything |
 | any other class directly in the root namespace | the infrastructure's interfaces and the exceptions |
 | a view template (`views/`) | everything but the tests |
@@ -866,12 +866,17 @@ whose methods all belong to infrastructure interfaces the class implements,
 such as `DefaultRegistrationPriority` for `Delayed`: the trait only fulfils a
 contract the class already depends on, and is not an object the composition
 root could bind instead. A trait that brings any other method is reported.
+A subsystem may also name the infrastructure's value objects, the classes
+listed in `newOnlyWhereAllowed.valueObjects`, such as the `Style` a service
+declares in `get_assets()`: a value is not a collaborator the composition root
+could bind instead, which is what the interfaces are for.
 
 **Configuration:** `dependencyDirection.infrastructure` names the
 infrastructure's namespace, and `dependencyDirection.compositionRoot` lists the
 classes of the composition root: `BasicScaffoldPlugin`,
 `BasicScaffoldPluginFactory` and the uninstall bridge
-`BasicScaffoldUninstallHook`, an edge like the main file. `dependencyDirection.views` lists the
+`BasicScaffoldUninstallHook`, an edge like the main file. The value objects come from
+`newOnlyWhereAllowed.valueObjects`. `dependencyDirection.views` lists the
 directories of the view templates that run in production. The exceptions' namespace comes from
 `exceptions.namespace`, the tests' from `excludedNamespaces`.
 
@@ -1163,6 +1168,11 @@ with the prefix for their kind:
 | `settings` | `register_setting` | option group, the 1st argument, is a read and may name a core settings page; option name, the 2nd argument, always needs the prefix | `mwpd_basic_scaffold_` |
 | `ajax` | `add_action` with a known `wp_ajax_` or `wp_ajax_nopriv_` action | the remainder after WordPress's action prefix | `mwpd_basic_scaffold_` |
 
+The same check applies where a name is created by a static method rather than
+a WordPress function: the handle, the 1st argument, of the asset declarations
+`Style::file()`, `Style::inline()` and `Script::file()`. A service declares its
+asset there, and the infrastructure passes the handle on to WordPress later.
+
 A name passes when PHPStan knows it starts with the prefix, or when it is built
 from one of the kind's prefix constants of the class itself, as in
 `static::HOOK_PREFIX . static::SERVICES_FILTER`. A name the rule cannot work
@@ -1189,7 +1199,9 @@ must carry the AJAX prefix. A known AJAX wrapper with an unresolved remainder
 fails with the usual "cannot check" message. A name WordPress owns that the
 plugin also has to write passes, reads and writes alike, when the kind lists it
 as `managed`: a reviewed exception for state WordPress keeps on the plugin's
-behalf, such as its entry in the `uninstall_plugins` option.
+behalf, such as its entry in the `uninstall_plugins` option. A class listed as
+a forwarder of a kind, `WordPressAssets` for asset handles, is not checked: it
+only passes on handles that were checked where they were declared.
 
 **Configuration:** `prefixedNames.<kind>` sets the kind's `prefix`, its
 prefix `constants`, the `allowed` names it may read and the `managed` names it
@@ -1202,7 +1214,10 @@ use the shorter `mwpd_bs_` so the prefix leaves room for a name within their
 limits; the option prefix alone is already 20 characters. Hooks retain
 `mwpd.basic_scaffold.` and the `HOOK_PREFIX` constant. A plugin generated from
 the scaffold renames these settings together with `HOOK_PREFIX` and
-`SERVICE_PREFIX` in its composition root.
+`SERVICE_PREFIX` in its composition root. `prefixedDeclarations.methods.<kind>`
+lists the static methods, as `Class::method`, whose 1st argument creates a name
+of the kind, and `prefixedDeclarations.forwarders.<kind>` the classes that only
+pass such names on; both are renamed with the plugin's namespace.
 
 **Fix:** start the name with the prefix, or build it from the prefix
 constant. Shorten overlong post type and taxonomy names, including the prefix,
@@ -1210,7 +1225,7 @@ to the WordPress limit. Writing a name WordPress owns needs a reviewed
 `managed` entry; add one only for state WordPress keeps for the plugin itself,
 and say why beside it.
 
-**Patterns:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares), [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins).
+**Patterns:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares), [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins), [I need to load a script or style](patterns.md#i-need-to-load-a-script-or-style).
 
 ### `architecture.suppressionsAreNamed`
 
@@ -1387,8 +1402,9 @@ one of the eight scoped lifecycle interfaces (`SiteActivateable`,
 `NetworkActivateable`, `SiteDeactivateable`, `NetworkDeactivateable`,
 `SiteInitializable`, `SiteUninitializable`, `SiteUninstallable`,
 `NetworkUninstallable`) also implements `Service`.
-A `Delayed` class also implements `Registerable`: waiting for an action only
-makes sense when the service has hooks to register. Inherited interfaces count,
+A `Delayed` class also implements `Registerable` or `HasAssets`: waiting for an
+action only makes sense when the service has hooks to register or assets to
+load. Inherited interfaces count,
 including on abstract classes.
 
 **Allows:** interfaces and traits, ordinary classes with no lifecycle
@@ -1397,18 +1413,19 @@ infrastructure and the configured composition-root classes orchestrate services
 and are outside this check.
 
 **Configuration:** `capabilitiesOnServices.service` names the service marker,
-`capabilities` lists the lifecycle interfaces, and `delayed` and `registerable`
-name the two interfaces whose combination is checked. All are fully qualified
+`capabilities` lists the lifecycle interfaces, and `delayed`, `registerable`
+and `hasAssets` name the interfaces whose combination is checked. All are fully qualified
 names, renamed together with the plugin's namespace. The orchestration
 exclusions come from `dependencyDirection.infrastructure` and
 `dependencyDirection.compositionRoot`.
 
 **Fix:** implement `Service` so the plugin can orchestrate the class; for a
-`Delayed` class, implement `Registerable` and add its hooks in `register()`.
+`Delayed` class, implement `Registerable` and add its hooks in `register()`, or
+`HasAssets` if all it does is load scripts or styles.
 Declare the service in the composition root as shown in
 [I need to add a feature](patterns.md#i-need-to-add-a-feature).
 
-**Patterns:** [I need to add a feature](patterns.md#i-need-to-add-a-feature), [I need to see why a service did not run](patterns.md#i-need-to-see-why-a-service-did-not-run).
+**Patterns:** [I need to add a feature](patterns.md#i-need-to-add-a-feature), [I need to see why a service did not run](patterns.md#i-need-to-see-why-a-service-did-not-run), [I need to load a script or style](patterns.md#i-need-to-load-a-script-or-style).
 
 ### `architecture.servicesDeclared`
 

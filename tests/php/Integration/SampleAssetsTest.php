@@ -44,21 +44,32 @@ final class SampleAssetsTest extends TestCase {
 
 		// Read the header from the real main file, as WordPress would.
 		Functions\when( 'get_file_data' )->alias(
+			/**
+			 * @param array<string,string> $headers Headers to read, by key.
+			 * @return array<string,string> Header values, by key.
+			 */
 			static function ( string $file, array $headers ): array {
-				$contents = (string) file_get_contents( $file );
+				$contents = implode( '', (array) file( $file ) );
 				$values   = [];
 
 				foreach ( $headers as $key => $name ) {
-					$values[ $key ] = preg_match( '/^[ \t\/*#@]*' . preg_quote( $name, '/' ) . ':(.*)$/mi', $contents, $match )
-						? trim( $match[1] )
-						: '';
+					$header         = preg_quote( is_string( $name ) ? $name : '', '/' );
+					$pattern        = '/^[ \t\/*#@]*' . $header . ':(.*)$/mi';
+					$values[ $key ] = preg_match( $pattern, $contents, $match ) ? trim( $match[1] ) : '';
 				}
 
 				return $values;
 			}
 		);
 
-		foreach ( [ 'wp_enqueue_scripts', 'admin_enqueue_scripts', 'enqueue_block_editor_assets', 'login_enqueue_scripts' ] as $action ) {
+		$actions = [
+			'wp_enqueue_scripts',
+			'admin_enqueue_scripts',
+			'enqueue_block_editor_assets',
+			'login_enqueue_scripts',
+		];
+
+		foreach ( $actions as $action ) {
 			Actions\expectAdded( $action )
 				->zeroOrMoreTimes()
 				->whenHappen(
