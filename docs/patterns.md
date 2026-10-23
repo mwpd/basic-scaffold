@@ -655,9 +655,10 @@ may do on include is checked once #73 lands.
 several plugins built from this scaffold run side by side, and a name without
 the plugin's prefix can clash with any of them.
 
-**Instead:** start every hook, option, transient, meta key, asset handle and
-service identifier with the plugin's prefix, and build hook names and service
-identifiers from the prefix constants.
+**Instead:** start every hook, option, transient, meta key, asset handle,
+post type, taxonomy, shortcode, REST namespace, cron hook, admin page slug,
+setting group/name, AJAX action and service identifier with the plugin's
+prefix. Build hook names and service identifiers from the prefix constants.
 
 ```php
 protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
@@ -667,5 +668,7 @@ public const SAMPLE_LOOP_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.s
 
 **Proven by:** `src/BasicScaffoldPlugin.php:206-218`.
 
-**Rules:** `architecture.prefixedNames`. Post types, taxonomies, shortcodes,
-REST routes, cron hooks and admin pages are covered once #85 lands.
+**Rules:** `architecture.prefixedNames` covers hooks, stored keys, asset
+handles, post types, taxonomies, shortcodes, REST namespaces, cron hooks,
+admin pages, settings and AJAX actions. Service identifiers and theme
+override paths remain tracked in #29.

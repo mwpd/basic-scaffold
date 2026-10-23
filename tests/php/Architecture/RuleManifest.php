@@ -372,6 +372,7 @@ final class RuleManifest {
 			'signatures'       => [
 				'without the plugin\'s prefix',
 				'name the rule cannot check',
+				'which exceeds the WordPress limit of',
 			],
 		],
 		self::STRICT_TYPES                          => [
