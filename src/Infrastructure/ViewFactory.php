@@ -27,6 +27,12 @@ interface ViewFactory {
 	/**
 	 * Create a new view object for a given relative path.
 	 *
+	 * The result is always a View. When the view cannot be created, for
+	 * example because its template is missing, debug mode surfaces the
+	 * failure as an exception. In production, the built-in factories return a
+	 * view that renders nothing instead (EmptyView), so the code that renders
+	 * it does not change.
+	 *
 	 * @param string $relative_path Relative path to create the view for.
 	 * @return View Instantiated view object.
 	 */

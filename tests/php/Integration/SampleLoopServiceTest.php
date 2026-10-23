@@ -7,8 +7,13 @@ namespace MWPD\BasicScaffold\Tests\Integration;
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\BasicScaffoldPlugin;
 use MWPD\BasicScaffold\Exception\FailedToFindPost;
+use MWPD\BasicScaffold\Exception\FailedToLoadView;
+use MWPD\BasicScaffold\Exception\InvalidPath;
+use MWPD\BasicScaffold\Infrastructure\View\TemplatedViewFactory;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
+use MWPD\BasicScaffold\Tests\ViewHelper;
 use stdClass;
+use Throwable;
 use WP_Post;
 
 /**
@@ -58,5 +63,66 @@ final class SampleLoopServiceTest extends TestCase {
 		$this->expectException( FailedToFindPost::class );
 
 		( new BasicScaffoldPlugin() )->register_services();
+	}
+
+	/**
+	 * @dataProvider failing_templates
+	 */
+	public function test_a_failing_header_leaves_the_content_unchanged_in_production( string $location ): void {
+		$service = new SampleLoopService(
+			new TemplatedViewFactory( [ $location ], $this->debug_mode( false ) ),
+			$this->post()
+		);
+
+		$this->assertSame( '<p>Content.</p>', $service->prepend_post_header( '<p>Content.</p>' ) );
+	}
+
+	/**
+	 * @dataProvider failing_templates
+	 *
+	 * @param class-string<Throwable> $expected Exception the failure surfaces as.
+	 */
+	public function test_a_failing_header_surfaces_with_its_cause_in_debug_mode(
+		string $location,
+		string $expected
+	): void {
+		$service = new SampleLoopService(
+			new TemplatedViewFactory( [ $location ], $this->debug_mode( true ) ),
+			$this->post()
+		);
+
+		try {
+			$service->prepend_post_header( '<p>Content.</p>' );
+			$this->fail( 'A failing header should throw in debug mode.' );
+		} catch ( Throwable $exception ) {
+			$this->assertInstanceOf( $expected, $exception );
+			$this->assert_sample_template_cause( $exception );
+		}
+	}
+
+	/**
+	 * The two ways the header's view can fail: its template is missing from
+	 * every location, or it throws while rendering.
+	 *
+	 * @return array<string, array{string, class-string<Throwable>}>
+	 */
+	public static function failing_templates(): array {
+		return [
+			'missing template'  => [ ViewHelper::CHILD_THEME_FOLDER, InvalidPath::class ],
+			'throwing template' => [ ViewHelper::VIEWS_FOLDER . 'failing', FailedToLoadView::class ],
+		];
+	}
+
+	/**
+	 * Create a post for the sample to render a header for.
+	 *
+	 * @return WP_Post Post with a title and a date.
+	 */
+	private function post(): WP_Post {
+		$fields             = new stdClass();
+		$fields->post_title = 'A title';
+		$fields->post_date  = '2026-10-22 12:00:00';
+
+		return new WP_Post( $fields );
 	}
 }

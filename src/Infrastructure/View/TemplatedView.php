@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
 use MWPD\BasicScaffold\Exception\InvalidPath;
+use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
 
 /**
@@ -37,14 +38,17 @@ final class TemplatedView extends SimpleView {
 	 * @param string        $path         Path to the view file to render.
 	 * @param ViewFactory   $view_factory View factory instance to use.
 	 * @param array<string> $locations    Optional. Array of locations to use.
+	 * @param ?DebugMode    $debug_mode   Debug mode instance to use. Optional, defaults to WordPressDebugMode.
+	 * @throws InvalidPath If an invalid Path was passed into the View.
 	 */
 	public function __construct(
 		string $path,
 		ViewFactory $view_factory,
-		array $locations = []
+		array $locations = [],
+		?DebugMode $debug_mode = null
 	) {
 		$this->locations = array_map( [ $this, 'ensure_trailing_slash' ], $locations );
-		parent::__construct( $path, $view_factory );
+		parent::__construct( $path, $view_factory, $debug_mode );
 	}
 
 	/**

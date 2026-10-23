@@ -81,8 +81,9 @@ class SimpleView extends stdClass implements View {
 	 *
 	 * @param array<string, mixed> $context Context in which to render.
 	 *
-	 * @return string Rendered HTML.
-	 * @throws FailedToLoadView If the View path could not be loaded.
+	 * @return string Rendered HTML, or an empty string if the template failed
+	 *                outside of debug mode.
+	 * @throws FailedToLoadView If the template failed (in debug mode).
 	 */
 	public function render( array $context = [] ): string {
 		// Add entire context as array to the current instance to pass onto
@@ -113,14 +114,24 @@ class SimpleView extends stdClass implements View {
 			}
 		} catch ( Throwable $throwable ) {
 			// Remove whatever levels were added up until now.
-			while ( \ob_get_level() > $buffer_level && \ob_end_clean() ) {
-				continue;
+			$this->discard_buffers_above( $buffer_level );
+
+			/*
+			 * Rendered output goes straight back to WordPress, so this is
+			 * where a failure is caught. Debug mode reports it with the
+			 * template's own exception as the cause. In production, the view
+			 * renders nothing: its part of the page stays empty, and the rest
+			 * of the page keeps working. A partial that fails is a view of
+			 * its own, so it leaves only its own place empty.
+			 */
+			if ( $this->is_debug_mode() ) {
+				throw FailedToLoadView::from_view_exception(
+					$this->path,
+					$throwable
+				);
 			}
 
-			throw FailedToLoadView::from_view_exception(
-				$this->path,
-				$throwable
-			);
+			return '';
 		}
 
 		// If the template closed the view's own buffer, there is nothing left
@@ -136,6 +147,45 @@ class SimpleView extends stdClass implements View {
 	}
 
 	/**
+	 * Discard every output buffer above a given level, with its content.
+	 *
+	 * Removing a buffer runs its output handler, and a handler the failed
+	 * template installed can throw as well. PHP removes the buffer anyway, so
+	 * the cleanup carries on. The template's own failure is the one that gets
+	 * reported; the handler's failure is a consequence of it.
+	 *
+	 * @param int $level Buffer level to return to.
+	 */
+	private function discard_buffers_above( int $level ): void {
+		while ( \ob_get_level() > $level ) {
+			$current_level = \ob_get_level();
+
+			try {
+				$removed = $this->remove_buffer();
+			} catch ( Throwable $handler_failure ) {
+				$removed = \ob_get_level() < $current_level;
+			}
+
+			// A buffer that cannot be removed stops the loop instead of
+			// retrying it forever.
+			if ( ! $removed ) {
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Remove the innermost output buffer and discard its content.
+	 *
+	 * @return bool Whether a buffer was removed.
+	 * @throws Throwable If the buffer's output handler throws. PHP removes the
+	 *                   buffer anyway.
+	 */
+	private function remove_buffer(): bool {
+		return \ob_end_clean();
+	}
+
+	/**
 	 * Render a partial view.
 	 *
 	 * This can be used from within a currently rendered view, to include
@@ -147,9 +197,11 @@ class SimpleView extends stdClass implements View {
 	 * @param string                    $path    Path of the partial to render.
 	 * @param array<string, mixed>|null $context Context in which to render the partial.
 	 *
-	 * @return string Rendered HTML.
-	 * @throws InvalidPath If the provided path was not valid.
-	 * @throws FailedToLoadView If the view could not be loaded.
+	 * @return string Rendered HTML, or an empty string if the partial failed
+	 *                outside of debug mode.
+	 * @throws InvalidPath If the provided path was not valid (in debug mode,
+	 *                     with the built-in view factories).
+	 * @throws FailedToLoadView If the partial failed (in debug mode).
 	 */
 	public function render_partial( string $path, ?array $context = null ): string {
 		return $this->view_factory->create( $path )

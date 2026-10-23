@@ -6,8 +6,12 @@ namespace MWPD\BasicScaffold\Tests\Integration;
 
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\BasicScaffoldPlugin;
+use MWPD\BasicScaffold\Exception\FailedToLoadView;
+use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View\TemplatedViewFactory;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
+use MWPD\BasicScaffold\Tests\ViewHelper;
+use Throwable;
 
 /**
  * The backend sample renders its real template with explicit raw escaping.
@@ -70,5 +74,48 @@ final class SampleBackendServiceTest extends TestCase {
 
 		$this->assertStringContainsString( 'Raw value: <b>&lt;em&gt;Plugin&lt;/em&gt;</b>', $output );
 		$this->assertStringNotContainsString( '<em>Plugin</em>', $output );
+	}
+
+	/**
+	 * @dataProvider failing_templates
+	 */
+	public function test_a_failing_notice_renders_nothing_in_production( string $location ): void {
+		$service = new SampleBackendService( new TemplatedViewFactory( [ $location ], $this->debug_mode( false ) ) );
+
+		$this->expectOutputString( '' );
+		$service->render_notice();
+	}
+
+	/**
+	 * @dataProvider failing_templates
+	 *
+	 * @param class-string<Throwable> $expected Exception the failure surfaces as.
+	 */
+	public function test_a_failing_notice_surfaces_with_its_cause_in_debug_mode(
+		string $location,
+		string $expected
+	): void {
+		$service = new SampleBackendService( new TemplatedViewFactory( [ $location ], $this->debug_mode( true ) ) );
+
+		try {
+			$service->render_notice();
+			$this->fail( 'A failing notice should throw in debug mode.' );
+		} catch ( Throwable $exception ) {
+			$this->assertInstanceOf( $expected, $exception );
+			$this->assert_sample_template_cause( $exception );
+		}
+	}
+
+	/**
+	 * The two ways the notice's view can fail: its template is missing from
+	 * every location, or it throws while rendering.
+	 *
+	 * @return array<string, array{string, class-string<Throwable>}>
+	 */
+	public static function failing_templates(): array {
+		return [
+			'missing template'  => [ ViewHelper::CHILD_THEME_FOLDER, InvalidPath::class ],
+			'throwing template' => [ ViewHelper::VIEWS_FOLDER . 'failing', FailedToLoadView::class ],
+		];
 	}
 }

@@ -17,6 +17,8 @@ use MWPD\BasicScaffold\Exception\FailedToFindPost;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\Infrastructure\{
+	Service\DebugMode,
+	Service\WordPressDebugMode,
 	ServiceBasedPlugin,
 	View\TemplatedViewFactory,
 	ViewFactory
@@ -106,6 +108,14 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 		return [
 			// Map the ViewFactory interface to a concrete implementation.
 			ViewFactory::class => TemplatedViewFactory::class,
+
+			/*
+			 * Views fail loudly in debug mode and render nothing in
+			 * production. WordPressDebugMode reads debug mode from WP_DEBUG.
+			 * The view factory asks for it through its constructor, so the
+			 * injector needs to know which implementation to build.
+			 */
+			DebugMode::class   => WordPressDebugMode::class,
 
 			// Add your bindings here.
 		];

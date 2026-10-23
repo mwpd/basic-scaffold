@@ -10,8 +10,12 @@ use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleView;
+use MWPD\BasicScaffold\Infrastructure\View\SimpleViewFactory;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
+use Error;
+use LogicException;
 use PHPUnit\Framework\MockObject\MockObject;
+use RuntimeException;
 use stdClass;
 
 final class SimpleViewTest extends TestCase {
@@ -157,11 +161,195 @@ final class SimpleViewTest extends TestCase {
 		$this->assertEquals( '<p>Rendering works.</p>', $this->normalize( $view->render() ) );
 	}
 
-	public function test_it_throws_on_failed_view_load(): void {
-		$this->expectException( FailedToLoadView::class );
+	public function test_a_failing_template_throws_with_its_cause_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
 
-		$view = new SimpleView( 'tests/php/Fixture/views/broken-view.php', $this->view_factory );
-		$view->render();
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/throwing-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$level = \ob_get_level();
+
+		try {
+			$view->render();
+			$this->fail( 'A failing template should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$previous = $exception->getPrevious();
+			$this->assertInstanceOf( RuntimeException::class, $previous );
+			$this->assertSame( 'The template failed.', $previous->getMessage() );
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
+	}
+
+	public function test_a_template_with_a_php_error_throws_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/broken-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		try {
+			$view->render();
+			$this->fail( 'A template with a PHP error should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$this->assertInstanceOf( Error::class, $exception->getPrevious() );
+		}
+	}
+
+	public function test_a_failing_template_is_the_cause_even_when_cleaning_up_after_it_fails_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/throwing-cleanup-view.php',
+			$this->view_factory,
+			$this->debug_mode
+		);
+
+		$level = \ob_get_level();
+
+		try {
+			$view->render();
+			$this->fail( 'A failing template should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$previous = $exception->getPrevious();
+			$this->assertInstanceOf( LogicException::class, $previous );
+			$this->assertSame( 'The template failed.', $previous->getMessage() );
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
+	}
+
+	/**
+	 * @dataProvider data_failing_templates
+	 */
+	public function test_a_failing_template_renders_nothing_in_production( string $path ): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( false );
+
+		$view = new SimpleView( $path, $this->view_factory, $this->debug_mode );
+
+		// The caller's own buffer, which the failing view must leave alone.
+		$level = \ob_get_level();
+		\ob_start();
+		echo 'Output of the caller.';
+
+		try {
+			$result = $view->render();
+			$after  = \ob_get_level();
+			$caller = \ob_get_contents();
+		} finally {
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( '', $result );
+		$this->assertSame( $level + 1, $after, 'The view changed the caller\'s buffer level.' );
+		$this->assertSame( 'Output of the caller.', $caller );
+	}
+
+	/**
+	 * Templates that fail while rendering, each in its own way.
+	 *
+	 * @return array<string, array{string}>
+	 */
+	public static function data_failing_templates(): array {
+		return [
+			'template that throws'                 => [ 'tests/php/Fixture/views/plugin/throwing-view.php' ],
+			'template with a PHP error'            => [ 'tests/php/Fixture/views/broken-view.php' ],
+			'output handler that throws'           => [ 'tests/php/Fixture/views/plugin/throwing-buffer-view.php' ],
+			'template and cleanup that both throw' => [ 'tests/php/Fixture/views/plugin/throwing-cleanup-view.php' ],
+		];
+	}
+
+	public function test_a_failing_partial_renders_nothing_inside_its_parent_in_production(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( false );
+
+		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+			->create( 'tests/php/Fixture/views/plugin/view-with-failing-partial' );
+
+		$level  = \ob_get_level();
+		$result = $view->render();
+
+		$this->assertSame( $level, \ob_get_level(), 'The view leaked an output buffer.' );
+		$this->assertStringContainsString( '<p>Before the partial.</p>', $result );
+		$this->assertStringContainsString( '<p>After the partial.</p>', $result );
+		$this->assertStringNotContainsString( 'Partial output of a failing view.', $result );
+	}
+
+	public function test_a_failing_partial_fails_its_parent_with_the_cause_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+			->create( 'tests/php/Fixture/views/plugin/view-with-failing-partial' );
+
+		$level = \ob_get_level();
+
+		try {
+			$view->render();
+			$this->fail( 'A failing partial should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$partial = $exception->getPrevious();
+			$this->assertInstanceOf( FailedToLoadView::class, $partial );
+			$this->assertInstanceOf( RuntimeException::class, $partial->getPrevious() );
+			$this->assertSame( 'The template failed.', $partial->getPrevious()->getMessage() );
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
+	}
+
+	public function test_a_missing_partial_renders_nothing_inside_its_parent_in_production(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( false );
+
+		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+			->create( 'tests/php/Fixture/views/plugin/view-with-missing-partial' );
+
+		$level  = \ob_get_level();
+		$result = $view->render();
+
+		$this->assertSame( $level, \ob_get_level(), 'The view leaked an output buffer.' );
+		$this->assertStringContainsString( '<p>Before the partial.</p>', $result );
+		$this->assertStringContainsString( '<p>After the partial.</p>', $result );
+	}
+
+	public function test_a_missing_partial_fails_its_parent_with_the_cause_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view = ( new SimpleViewFactory( $this->debug_mode ) )
+			->create( 'tests/php/Fixture/views/plugin/view-with-missing-partial' );
+
+		$level = \ob_get_level();
+
+		try {
+			$view->render();
+			$this->fail( 'A missing partial should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$this->assertInstanceOf( InvalidPath::class, $exception->getPrevious() );
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
 	}
 
 	public function test_it_throws_on_invalid_context_property_in_debug_mode(): void {
@@ -389,7 +577,13 @@ final class SimpleViewTest extends TestCase {
 			$this->restore_buffer_level( $level );
 		}
 
-		$this->assertInstanceOf( FailedToLoadView::class, $exception );
+		// Debug mode reports the failure; production renders nothing instead.
+		if ( $debug_mode ) {
+			$this->assertInstanceOf( FailedToLoadView::class, $exception );
+		} else {
+			$this->assertNull( $exception );
+		}
+
 		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
 	}
 
