@@ -79,6 +79,15 @@ infrastructure's interfaces. `architecture.capabilitiesOnServices` keeps lifecyc
 capabilities on services, and `architecture.servicesDeclared` catches an
 undeclared subsystem service.
 
+**Migration:** When updating a generated plugin, service declaration resolvers now all run
+once, in declaration order, before any configured service is scheduled or
+checked for dependencies. Prefer resolvers that compute class names without
+depending on earlier services being registered. The whole filtered map is
+validated first so dependency overrides can trust every entry, including later
+ones. A later invalid declaration can now fail before an earlier unknown
+dependency, and prevents earlier services from being scheduled. This does not
+roll back resolver side effects or the injector setup that already ran.
+
 ## I need to add hooks
 
 **What people reach for:** `add_action()` in the constructor, or at the top of
