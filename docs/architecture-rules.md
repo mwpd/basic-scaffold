@@ -1131,11 +1131,15 @@ scheduling and clearing cron events create or change the plugin's own names.
 they subscribe to names other code owns. Only `add_action()` names known to
 start with `wp_ajax_` or `wp_ajax_nopriv_` are checked, and their remainder
 must carry the AJAX prefix. A known AJAX wrapper with an unresolved remainder
-fails with the usual "cannot check" message.
+fails with the usual "cannot check" message. A name WordPress owns that the
+plugin also has to write passes, reads and writes alike, when the kind lists it
+as `managed`: a reviewed exception for state WordPress keeps on the plugin's
+behalf, such as its entry in the `uninstall_plugins` option.
 
 **Configuration:** `prefixedNames.<kind>` sets the kind's `prefix`, its
-prefix `constants` and the `allowed` names. A kind absent from configuration
-is skipped. The defaults above follow WordPress conventions: underscores for
+prefix `constants`, the `allowed` names it may read and the `managed` names it
+may also write. Each kind lists all four, `[]` for none. A kind absent from
+configuration is skipped. The defaults above follow WordPress conventions: underscores for
 stored keys, shortcodes, cron hooks, settings and AJAX actions; hyphens for
 asset handles and admin slugs; and the path-like `mwpd/basic-scaffold` for REST
 namespaces (for example, `mwpd/basic-scaffold/v1`). Post types and taxonomies
@@ -1147,7 +1151,9 @@ the scaffold renames these settings together with `HOOK_PREFIX` and
 
 **Fix:** start the name with the prefix, or build it from the prefix
 constant. Shorten overlong post type and taxonomy names, including the prefix,
-to the WordPress limit.
+to the WordPress limit. Writing a name WordPress owns needs a reviewed
+`managed` entry; add one only for state WordPress keeps for the plugin itself,
+and say why beside it.
 
 **Patterns:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares), [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins).
 

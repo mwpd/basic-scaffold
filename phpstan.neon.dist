@@ -204,6 +204,7 @@ parameters:
                     - HOOK_PREFIX
                 # Hooks of WordPress the plugin fires itself.
                 allowed: []
+                managed: []
             options:
                 prefix: mwpd_basic_scaffold_
                 constants: []
@@ -216,14 +217,17 @@ parameters:
                     - blogname
                     - home
                     - siteurl
+                managed: []
             transients:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             meta:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             assets:
                 prefix: mwpd-basic-scaffold-
                 constants: []
@@ -234,36 +238,45 @@ parameters:
                     - wp-components
                     - wp-element
                     - wp-i18n
+                managed: []
 
             postTypes:
                 prefix: mwpd_bs_
                 constants: []
                 allowed: []
+                managed: []
             taxonomies:
                 prefix: mwpd_bs_
                 constants: []
                 allowed: []
+                managed: []
             shortcodes:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             restRoutes:
                 prefix: mwpd/basic-scaffold
                 constants: []
                 allowed: []
+                managed: []
             cron:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             adminPages:
                 prefix: mwpd-basic-scaffold-
                 constants: []
                 allowed: []
+                managed: []
             settings:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
             ajax:
                 prefix: mwpd_basic_scaffold_
                 constants: []
                 allowed: []
+                managed: []
