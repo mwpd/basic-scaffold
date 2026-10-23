@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold;
 
 use MWPD\BasicScaffold\Infrastructure\Plugin;
+use MWPD\BasicScaffold\Infrastructure\PluginLifecycle;
 
 /**
  * The plugin factory is responsible for instantiating the plugin and returning
@@ -35,7 +36,11 @@ final class BasicScaffoldPluginFactory {
 	 * graph, all reach the same plugin. It is not an API for themes or other
 	 * plugins, which integrate through the plugin's hooks (principle 13).
 	 *
-	 * @return Plugin Plugin instance.
+	 * The plugin also implements PluginLifecycle, which the main file's
+	 * activation hooks and the uninstall bridge call. The native return type
+	 * stays Plugin, as PHP 7.4 has no intersection types.
+	 *
+	 * @return Plugin&PluginLifecycle Plugin instance.
 	 */
 	public static function create(): Plugin {
 		/**
@@ -46,7 +51,7 @@ final class BasicScaffoldPluginFactory {
 		 * This serves the same purpose as a Singleton, but it is implemented as
 		 * a factory to stick to SOLID principles.
 		 *
-		 * @var Plugin|null $plugin
+		 * @var (Plugin&PluginLifecycle)|null $plugin
 		 */
 		static $plugin = null;
 

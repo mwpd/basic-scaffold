@@ -75,7 +75,9 @@ parameters:
             factories:
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory
             # Reviewed static callables that get the graph and delegate at once.
-            bridges: []
+            bridges:
+                # WordPress stores the uninstall callback and calls it statically.
+                - MWPD\BasicScaffold\BasicScaffoldUninstallHook::uninstall
         noGlobalState:
             # Classes that read request input and sanitize and normalize it
             # into internal types (design principles 7 and 9). This never
@@ -123,6 +125,9 @@ parameters:
             compositionRoot:
                 - MWPD\BasicScaffold\BasicScaffoldPlugin
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory
+                # The uninstall bridge is an edge like the bootstrap: it asks
+                # the factory for the plugin.
+                - MWPD\BasicScaffold\BasicScaffoldUninstallHook
                 # The bootstrap declares no class, so the rule names its code
                 # after the namespace and the file: it builds the fallback
                 # autoloader and asks the factory for the plugin.
