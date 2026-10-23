@@ -120,6 +120,14 @@ final class TemplatedViewTest extends TestCase {
 		new TemplatedView( '../static-view', $this->view_factory_mock, ViewHelper::LOCATIONS );
 	}
 
+	public function test_it_accepts_a_view_name_that_resolves_into_another_location(): void {
+		// Resolved against the child theme first, this lands in the plugin
+		// location, which is still one of the allowed locations.
+		$view = new TemplatedView( '../plugin/static-view', $this->view_factory_mock, ViewHelper::LOCATIONS );
+
+		$this->assertStringStartsWith( '<p>Rendering works.</p>', $view->render() );
+	}
+
 	public function test_it_rejects_an_absolute_path_outside_its_locations(): void {
 		$this->expectException( InvalidPath::class );
 

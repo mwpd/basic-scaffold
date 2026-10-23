@@ -63,10 +63,9 @@ final class TemplatedView extends SimpleView {
 	 * Validate a path.
 	 *
 	 * The path is looked up in each location in turn, and the first readable
-	 * match wins. That match must stay inside the location it was found in,
-	 * so `..` segments cannot reach a file the locations do not cover. A path
-	 * that matches no location is accepted only if it already points to a
-	 * file inside one of them.
+	 * match wins. A path that matches no location is accepted as it is. Either
+	 * way, the file must lie inside one of the locations (see ViewLocations),
+	 * so `..` segments cannot reach a file the locations do not cover.
 	 *
 	 * @param string $path Path to validate.
 	 *
@@ -74,36 +73,19 @@ final class TemplatedView extends SimpleView {
 	 * @throws InvalidPath If an invalid path was passed into the View.
 	 */
 	protected function validate( string $path ): string {
-		$path = $this->check_extension( $path, self::VIEW_EXTENSION );
+		$path      = $this->check_extension( $path, self::VIEW_EXTENSION );
+		$locations = new ViewLocations( $this->locations );
 
 		foreach ( $this->locations as $location ) {
-			$candidate = $location . $path;
-
-			if ( ! \is_readable( $candidate ) ) {
-				continue;
+			if ( \is_readable( $location . $path ) ) {
+				return $locations->confine( $location . $path );
 			}
-
-			$canonical_path = $this->canonicalize( $candidate );
-
-			if ( ! $this->is_inside( $canonical_path, $location ) ) {
-				throw InvalidPath::for_path_outside_locations( $path, $this->locations );
-			}
-
-			return $canonical_path;
 		}
 
 		if ( ! \is_readable( $path ) ) {
 			throw InvalidPath::from_path( $path );
 		}
 
-		$canonical_path = $this->canonicalize( $path );
-
-		foreach ( $this->locations as $location ) {
-			if ( $this->is_inside( $canonical_path, $location ) ) {
-				return $canonical_path;
-			}
-		}
-
-		throw InvalidPath::for_path_outside_locations( $path, $this->locations );
+		return $locations->confine( $path );
 	}
 }

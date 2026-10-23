@@ -172,9 +172,7 @@ class SimpleView extends stdClass implements View {
 	 * Validate a path.
 	 *
 	 * The path is relative to the plugin root, and the file it resolves to
-	 * must stay inside it. Rendering includes the file as PHP, so a path that
-	 * could climb out with `..` segments would be a local file inclusion as
-	 * soon as any part of a view name came from input.
+	 * must stay inside it (see ViewLocations).
 	 *
 	 * @param string $path Path to validate.
 	 *
@@ -190,57 +188,7 @@ class SimpleView extends stdClass implements View {
 			throw InvalidPath::from_path( $path );
 		}
 
-		$canonical_path = $this->canonicalize( $path );
-
-		if ( ! $this->is_inside( $canonical_path, $plugin_root ) ) {
-			throw InvalidPath::for_path_outside_locations( $path, [ $plugin_root ] );
-		}
-
-		return $canonical_path;
-	}
-
-	/**
-	 * Resolve a readable path to its canonical form.
-	 *
-	 * The canonical form has no `.` or `..` segments and no symbolic links,
-	 * so it names the file that will actually be included.
-	 *
-	 * @param string $path Readable path to resolve.
-	 *
-	 * @return string Canonical path.
-	 * @throws InvalidPath If the path cannot be resolved.
-	 */
-	protected function canonicalize( string $path ): string {
-		$canonical_path = \realpath( $path );
-
-		if ( false === $canonical_path ) {
-			throw InvalidPath::from_path( $path );
-		}
-
-		return $canonical_path;
-	}
-
-	/**
-	 * Check whether a canonical path lies inside a location.
-	 *
-	 * @param string $canonical_path Canonical path to check.
-	 * @param string $location       Location the path should be inside of.
-	 *
-	 * @return bool Whether the path lies inside the location.
-	 */
-	protected function is_inside( string $canonical_path, string $location ): bool {
-		$canonical_location = \realpath( $location );
-
-		// A location that does not exist cannot contain anything.
-		if ( false === $canonical_location ) {
-			return false;
-		}
-
-		// Compare against the location with a trailing separator, so that a
-		// sibling such as `views-other` does not pass as being inside `views`.
-		$prefix = \rtrim( $canonical_location, '/\\' ) . DIRECTORY_SEPARATOR;
-
-		return 0 === \strpos( $canonical_path, $prefix );
+		return ( new ViewLocations( [ $plugin_root ] ) )->confine( $path );
 	}
 
 	/**

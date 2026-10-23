@@ -79,6 +79,7 @@ parameters:
             # may be created anywhere.
             valueObjects:
                 - MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
+                - MWPD\BasicScaffold\Infrastructure\View\ViewLocations
                 - DateTimeImmutable
                 - DateInterval
                 - ArrayIterator
