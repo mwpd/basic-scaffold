@@ -225,15 +225,22 @@ final class RegistrationPanel implements Service, Registerable, Conditional, Obs
 	 * could merely be autoloaded does not mean Query Monitor runs.
 	 *
 	 * Query Monitor also stops collecting in requests it does not support,
-	 * such as the Customizer preview or an iframed request, which it asks
+	 * such as an iframed request, which it asks
 	 * QM_Collectors::request_supported() about. That is asked too, once the
-	 * class is known to be loaded.
+	 * class is known to be loaded. One of those requests, the Customizer
+	 * preview, only tells it apart from setup_theme on, after the plugin has
+	 * decided. So any request that loaded the Customizer counts as one Query
+	 * Monitor does not show the panel in: WordPress only loads the
+	 * WP_Customize_Manager class for the Customizer, on plugins_loaded, before
+	 * the plugin registers its services. That leaves out the panel on the
+	 * Customizer's own screen too, which Query Monitor would show.
 	 *
 	 * @return bool Whether Query Monitor runs in this request.
 	 */
 	private static function query_monitor_runs(): bool {
 		return \class_exists( 'QueryMonitor', false )
 			&& \class_exists( 'QM_Collectors', false )
+			&& ! \class_exists( 'WP_Customize_Manager', false )
 			&& QM_Collectors::request_supported();
 	}
 }

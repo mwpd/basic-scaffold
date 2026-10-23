@@ -395,7 +395,10 @@ final class RegistrationRecordingTest extends TestCase {
 
 		$observer = $plugin->get_container()->get( self::OBSERVER );
 		$this->assertInstanceOf( ObservingService::class, $observer );
-		$this->assertSame( $log, $observer->report );
+		$this->assertNotInstanceOf( RegistrationLog::class, $observer->report );
+		$this->assertFalse( method_exists( $observer->report, 'record' ) );
+		$this->assertSame( $log->get_records(), $observer->report->get_records() );
+		$this->assertNotSame( [], $log->get_records() );
 	}
 
 	public function test_the_built_in_log_works_without_configuration(): void {
@@ -409,7 +412,7 @@ final class RegistrationRecordingTest extends TestCase {
 
 		$observer = $plugin->get_container()->get( self::OBSERVER );
 		$this->assertInstanceOf( ObservingService::class, $observer );
-		$this->assertInstanceOf( SimpleRegistrationLog::class, $observer->report );
+		$this->assertNotInstanceOf( RegistrationLog::class, $observer->report );
 		$this->assertSame(
 			[ self::OBSERVER, 'unneeded' ],
 			array_map(

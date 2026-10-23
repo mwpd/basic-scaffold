@@ -915,7 +915,7 @@ interfaces: the scaffold lists `Injector` and `Instantiator`.
 `newOnlyWhereAllowed.valueObjects` lists the value objects: the scaffold lists
 `LazilyInstantiatedService`, `ViewLocations`, `ViewConfiguration`, the
 lifecycle values in `Infrastructure\Lifecycle` (IDs, scope, contexts and
-selections), `RegistrationRecord` and PHP's `DateTimeImmutable`,
+selections), `RegistrationRecord`, `ReadOnlyRegistrationReport` and PHP's `DateTimeImmutable`,
 `DateInterval`, `ArrayIterator` and `SplObjectStorage`.
 
 **Fix:** receive the object through the constructor, typed to its interface,

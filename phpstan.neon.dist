@@ -163,6 +163,9 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkSelection
                 - MWPD\BasicScaffold\Infrastructure\Registration\RegistrationRecord
+                # A read-only wrapper around the registration log, like the
+                # lazy service wrapper above.
+                - MWPD\BasicScaffold\Infrastructure\Registration\ReadOnlyRegistrationReport
                 - DateTimeImmutable
                 - DateInterval
                 - ArrayIterator

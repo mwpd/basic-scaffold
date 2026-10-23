@@ -24,6 +24,7 @@ use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteId;
 use MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection;
 use MWPD\BasicScaffold\Infrastructure\Lifecycle\SynchronousSiteRunner;
 use MWPD\BasicScaffold\Infrastructure\Registration\ObservesRegistration;
+use MWPD\BasicScaffold\Infrastructure\Registration\ReadOnlyRegistrationReport;
 use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationLog;
 use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationRecord;
 use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationReport;
@@ -259,6 +260,12 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * while no service observes the registration.
 	 */
 	private ?RegistrationLog $registration_log = null;
+
+	/**
+	 * Read-only view of the registration log that services receive, or null
+	 * while no service observes the registration.
+	 */
+	private ?RegistrationReport $registration_report = null;
 
 	/**
 	 * Latest record of each service, to leave out a record that would only
@@ -699,6 +706,12 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 				static function () use ( &$graph_injector ): Injector {
 					return $graph_injector;
 				}
+			);
+
+			// The registration report is the plugin's, as in its own graph.
+			$graph_injector = $graph_injector->delegate(
+				RegistrationReport::class,
+				fn(): RegistrationReport => $this->get_registration_report()
 			);
 
 			$this->resolving_injector = $graph_injector;
@@ -1378,10 +1391,11 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 
 		$this->drop_or_report_unregistrable_services();
 
-		$awaited_actions = $this->collect_awaited_actions();
+		$missing_dependencies = [];
+		$awaited_actions      = $this->collect_awaited_actions( $missing_dependencies );
 
 		if ( null !== $this->registration_log ) {
-			$this->record_pending_services( $awaited_actions );
+			$this->record_pending_services( $awaited_actions, $missing_dependencies );
 		}
 
 		$all_awaited_actions = [];
@@ -1496,6 +1510,11 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * service whose dependency will not be registered waits for its own action,
 	 * to find out whether it is needed at all.
 	 *
+	 * @param array<string,list<string>> $missing Filled with the dependencies
+	 *                                           of each pending service that
+	 *                                           are not registered yet, by its
+	 *                                           ID, as found along the way.
+	 *
 	 * @throws InvalidService If a dependency is not recognized.
 	 * @throws FailedToResolveDependencies If pending services depend on each
 	 *                                     other.
@@ -1505,12 +1524,12 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 *                                                    pending service that
 	 *                                                    waits for them.
 	 */
-	private function collect_awaited_actions(): array {
+	private function collect_awaited_actions( array &$missing ): array {
 		$actions   = [];
 		$collected = [];
 
 		foreach ( array_keys( $this->pending_services ) as $id ) {
-			$actions[ $id ] = $this->collect_actions_awaited_by( $id, [], $collected );
+			$actions[ $id ] = $this->collect_actions_awaited_by( $id, [], $collected, $missing );
 		}
 
 		return $actions;
@@ -1529,13 +1548,16 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * @param array<string,array<non-empty-string,true>> $collected Actions already collected, by the
 	 *                                                              ID of the service that waits for
 	 *                                                              them.
+	 * @param array<string,list<string>>                 $missing   Dependencies not registered yet,
+	 *                                                              by the ID of the service, filled
+	 *                                                              in for each service followed.
 	 *
 	 * @throws FailedToResolveDependencies If pending services depend on each
 	 *                                     other.
 	 *
 	 * @return array<non-empty-string,true> Actions to wait for, as keys.
 	 */
-	private function collect_actions_awaited_by( string $id, array $path, array &$collected ): array {
+	private function collect_actions_awaited_by( string $id, array $path, array &$collected, array &$missing ): array {
 		if ( isset( $collected[ $id ] ) ) {
 			return $collected[ $id ];
 		}
@@ -1545,6 +1567,7 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		$actions    = [];
 
 		$missing_dependencies = $this->collect_missing_dependencies( $class_name, $this->services );
+		$missing[ $id ]       = array_keys( $missing_dependencies );
 
 		foreach ( array_keys( $missing_dependencies ) as $dependency_id ) {
 			$cycle_start = array_search( $dependency_id, $path, true );
@@ -1560,7 +1583,7 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 			}
 
 			if ( isset( $this->pending_services[ $dependency_id ] ) ) {
-				$actions += $this->collect_actions_awaited_by( $dependency_id, $path, $collected );
+				$actions += $this->collect_actions_awaited_by( $dependency_id, $path, $collected, $missing );
 				continue;
 			}
 
@@ -1749,18 +1772,19 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 				continue;
 			}
 
-			if ( null !== $this->given_registration_log ) {
-				$this->registration_log = $this->given_registration_log;
-				return;
-			}
-
-			$registration_log = $this->injector->make( SimpleRegistrationLog::class );
+			$registration_log = $this->given_registration_log
+				?? $this->injector->make( SimpleRegistrationLog::class );
 
 			if ( ! $registration_log instanceof RegistrationLog ) {
 				throw FailedToMakeInstance::for_unexpected_instance( SimpleRegistrationLog::class, $registration_log );
 			}
 
-			$this->registration_log = $registration_log;
+			// Services only see the records through a wrapper that cannot
+			// write, even if they check what the object they received
+			// implements. Like the lazy service wrapper, it is a value, so
+			// it is created here rather than by the injector.
+			$this->registration_log    = $registration_log;
+			$this->registration_report = new ReadOnlyRegistrationReport( $registration_log );
 			return;
 		}
 	}
@@ -1774,31 +1798,33 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * @return RegistrationReport Read-only view of the registration log.
 	 */
 	private function get_registration_report(): RegistrationReport {
-		if ( null === $this->registration_log ) {
+		if ( null === $this->registration_report ) {
 			throw InvalidConfiguration::from_unobserved_registration(
 				RegistrationReport::class,
 				ObservesRegistration::class
 			);
 		}
 
-		return $this->registration_log;
+		return $this->registration_report;
 	}
 
 	/**
-	 * Record the pending services that still wait, with what they wait for.
+	 * Record the pending services that still wait, with what they wait for,
+	 * as collect_awaited_actions() found it.
 	 *
-	 * @param array<string,array<non-empty-string,true>> $awaited_actions Actions each pending
-	 *                                                                     service waits for, as keys.
-	 *
-	 * @throws InvalidService If a dependency is not recognized.
+	 * @param array<string,array<non-empty-string,true>> $awaited_actions      Actions each pending
+	 *                                                                          service waits for, as keys.
+	 * @param array<string,list<string>>                 $missing_dependencies Dependencies of each
+	 *                                                                          pending service that are
+	 *                                                                          not registered yet.
 	 */
-	private function record_pending_services( array $awaited_actions ): void {
+	private function record_pending_services( array $awaited_actions, array $missing_dependencies ): void {
 		foreach ( $this->pending_services as $id => $class_name ) {
 			$this->record(
 				RegistrationRecord::waiting_for_dependencies(
 					$id,
 					$class_name,
-					array_keys( $this->collect_missing_dependencies( $class_name, $this->services ) ),
+					$missing_dependencies[ $id ] ?? [],
 					array_keys( $awaited_actions[ $id ] ?? [] )
 				)
 			);

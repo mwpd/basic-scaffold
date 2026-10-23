@@ -1099,9 +1099,11 @@ How it works, and what it costs:
   registration (`ObservesRegistration`). The panel says yes only while Query
   Monitor runs and supports the request, which it checks without loading
   anything of Query Monitor
-  (`src/Infrastructure/QueryMonitor/RegistrationPanel.php:234-238`). Otherwise
+  (`src/Infrastructure/QueryMonitor/RegistrationPanel.php:240-245`). Otherwise
   the plugin records nothing and creates no log, and the panel is skipped like
-  any other `Conditional` service.
+  any other `Conditional` service. Query Monitor only tells a Customizer
+  preview apart later in the request, so the panel stays off in every request
+  that loads the Customizer, its own screen included.
 - **The history is recorded as it happens.** While the panel observes, the
   plugin writes each decision into a `RegistrationLog`, request by request and
   in memory only. It costs one small record per decision and nothing is

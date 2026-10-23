@@ -76,6 +76,13 @@ final class RegistrationPanelTest extends TestCase {
 	private array $callbacks = [];
 
 	/**
+	 * Priorities the callbacks were added at, by hook.
+	 *
+	 * @var array<string,list<int>>
+	 */
+	private array $priorities = [];
+
+	/**
 	 * How often the resolver of the delayed service ran.
 	 */
 	private int $resolver_calls = 0;
@@ -92,8 +99,9 @@ final class RegistrationPanelTest extends TestCase {
 		foreach ( [ 'shutdown', 'qm/outputter/html', 'qm/output/menus' ] as $hook ) {
 			$expectation = 'shutdown' === $hook ? Actions\expectAdded( $hook ) : Filters\expectAdded( $hook );
 			$expectation->zeroOrMoreTimes()->whenHappen(
-				function ( callable $callback ) use ( $hook ): void {
-					$this->callbacks[ $hook ][] = $callback;
+				function ( callable $callback, int $priority = 10 ) use ( $hook ): void {
+					$this->callbacks[ $hook ][]  = $callback;
+					$this->priorities[ $hook ][] = $priority;
 				}
 			);
 		}
@@ -125,6 +133,22 @@ final class RegistrationPanelTest extends TestCase {
 	public function test_a_request_query_monitor_does_not_support_leaves_the_panel_off(): void {
 		( new QueryMonitorInstallation() )->install()->run();
 		$_GET['interim-login'] = '1';
+
+		$this->assertFalse( RegistrationPanel::is_needed() );
+		$this->assertFalse( RegistrationPanel::observes_registration() );
+	}
+
+	/**
+	 * Query Monitor only finds out from setup_theme on that a request is a
+	 * Customizer preview, after the plugin decided whether to record. The
+	 * Customizer's class, which WordPress loads on plugins_loaded, tells
+	 * earlier.
+	 */
+	public function test_a_customizer_request_leaves_the_panel_off(): void {
+		( new QueryMonitorInstallation() )->install()->run();
+		$this->assertTrue( RegistrationPanel::observes_registration() );
+
+		$this->assertTrue( class_exists( 'WP_Customize_Manager' ) );
 
 		$this->assertFalse( RegistrationPanel::is_needed() );
 		$this->assertFalse( RegistrationPanel::observes_registration() );
@@ -235,6 +259,9 @@ final class RegistrationPanelTest extends TestCase {
 		// Nothing of Query Monitor is created before it asks.
 		$this->assertNull( QM_Collectors::get( self::PANEL_ID ) );
 
+		// Query Monitor's HTML dispatcher prints at shutdown priority 9; the
+		// collector joins before that.
+		$this->assertSame( [ 0 ], $this->priorities['shutdown'] );
 		$this->run_callbacks( 'shutdown' );
 		$collector = QM_Collectors::get( self::PANEL_ID );
 		$this->assertInstanceOf( QM_Collector::class, $collector );
@@ -367,6 +394,25 @@ final class RegistrationPanelTest extends TestCase {
 
 		preg_match_all( '~<tr class="[^"]*">\s*<td class="qm-ltr"><code>(.*?)</code>~s', $current, $current_rows );
 		$this->assertSame( array_values( array_unique( $ids ) ), $current_rows[1] );
+
+		// The current state is the latest record of each service: the service
+		// that waits for a dependency was first recorded without the action
+		// it waits for, then with it.
+		$this->assertMatchesRegularExpression(
+			'~<tr class="qm-warn">\s*<td class="qm-ltr"><code>hostile_needs</code></td>\s*'
+				. '<td class="qm-ltr"><code>' . preg_quote( HostileDependentService::class, '~' ) . '</code></td>\s*'
+				. '<td>Waiting for dependencies</td>\s*'
+				. '<td class="qm-ltr">Missing dependencies: '
+				. preg_quote( htmlspecialchars( HostileDependentService::DEPENDENCY, ENT_QUOTES ), '~' )
+				. '; Awaited actions: init</td>\s*<td class="qm-num">2</td>~',
+			$current
+		);
+		$this->assertMatchesRegularExpression(
+			'~<tr class="">\s*<td class="qm-ltr"><code>registered</code></td>\s*'
+				. '<td class="qm-ltr"><code>' . preg_quote( RegisteredService::class, '~' ) . '</code></td>\s*'
+				. '<td>Registered</td>\s*<td class="qm-ltr"></td>\s*<td class="qm-num">1</td>~',
+			$current
+		);
 
 		preg_match_all(
 			'~<td class="qm-num">(\d+)</td>\s*<td class="qm-ltr"><code>(.*?)</code>~s',

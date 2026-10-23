@@ -132,6 +132,10 @@ Infrastructure\Registerable interface
 Infrastructure\Registerable::public abstract function register(): void
 Infrastructure\Registration\ObservesRegistration interface
 Infrastructure\Registration\ObservesRegistration::public abstract static function observes_registration(): bool
+Infrastructure\Registration\ReadOnlyRegistrationReport final class
+Infrastructure\Registration\ReadOnlyRegistrationReport implements Infrastructure\Registration\RegistrationReport
+Infrastructure\Registration\ReadOnlyRegistrationReport::public function __construct( Infrastructure\Registration\RegistrationReport $report )
+Infrastructure\Registration\ReadOnlyRegistrationReport::public function get_records(): array
 Infrastructure\Registration\RegistrationLog extends Infrastructure\Registration\RegistrationReport
 Infrastructure\Registration\RegistrationLog interface
 Infrastructure\Registration\RegistrationLog::public abstract function get_records(): array
