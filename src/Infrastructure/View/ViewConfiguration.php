@@ -64,9 +64,10 @@ final class ViewConfiguration {
 		 * An empty name would put the overrides straight into the theme, and
 		 * a path such as `../views` could reach the theme's own folders. Both
 		 * reintroduce the collisions the override directory exists to avoid.
+		 * A null byte would make every later file check fail.
 		 */
 		if ( \in_array( $override_directory, [ '', '.', '..' ], true )
-			|| false !== \strpbrk( $override_directory, '/\\' ) ) {
+			|| false !== \strpbrk( $override_directory, "/\\\0" ) ) {
 			throw InvalidViewConfiguration::for_override_directory( $override_directory );
 		}
 

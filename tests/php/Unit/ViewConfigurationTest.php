@@ -66,6 +66,7 @@ final class ViewConfigurationTest extends TestCase {
 			'nested'           => [ 'my-plugin/views' ],
 			'escaping'         => [ '../views' ],
 			'backslash nested' => [ 'my-plugin\\views' ],
+			'null byte'        => [ "my-plugin\0" ],
 		];
 	}
 

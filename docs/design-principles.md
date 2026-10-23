@@ -153,10 +153,11 @@ A collaborator only has a default when there is an obvious one. Where the
 plugin root is has none the infrastructure could know: it is computed once
 in the composition root, next to the theme override directory, and handed to
 the view factories as a `ViewConfiguration`
-(`src/BasicScaffoldPlugin.php:216-219`). A view or factory built by hand,
-outside the composition root, is passed one explicitly; without it, resolving
-a plugin-relative view fails with `InvalidViewConfiguration` rather than
-guessing.
+(`src/BasicScaffoldPlugin.php:216-219`). A `SimpleView` or a view factory
+built by hand, outside the composition root, is passed one explicitly;
+without it, resolving a plugin-relative view or the default locations fails
+with `InvalidViewConfiguration` rather than guessing. A `TemplatedView` built
+with explicit locations needs none.
 
 Not every implementation is a replacement point. `TemplatedView` layers
 WordPress core's theme-override behaviour (child theme, then parent theme,
