@@ -133,6 +133,18 @@ abstract class ServiceBasedPlugin implements Plugin {
 	private array $resumption_actions = [];
 
 	/**
+	 * Delayed services hooked to their registration action, whose callback
+	 * has not run yet.
+	 *
+	 * Once the action has started, did_action() can no longer tell such a
+	 * service from one that will never be registered: its callback may still
+	 * be ahead, even at the priority the pending services are checked at.
+	 *
+	 * @var array<string,non-empty-string>
+	 */
+	private array $hooked_services = [];
+
+	/**
 	 * Whether register_services() has already run in this request.
 	 */
 	private bool $services_registered = false;
@@ -682,6 +694,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			return null;
 		}
 
+		if ( isset( $this->hooked_services[ $id ] ) ) {
+			return $this->hooked_services[ $id ];
+		}
+
 		$action = $class_name::get_registration_action();
 
 		return \did_action( $action ) ? null : $action;
@@ -724,12 +740,24 @@ abstract class ServiceBasedPlugin implements Plugin {
 			if ( \did_action( $registration_action ) ) {
 				$this->maybe_register_service( $id, $class_name );
 			} else {
+				$registration_priority = $class_name::get_registration_priority();
+
+				$this->hooked_services[ $id ] = $registration_action;
+
 				\add_action(
 					$registration_action,
-					function () use ( $id, $class_name ): void {
+					function () use ( $id, $class_name, $registration_priority ): void {
+						unset( $this->hooked_services[ $id ] );
 						$this->maybe_register_service( $id, $class_name );
+
+						// At the last priority, this can run after the pending
+						// services were checked on this action, so they are
+						// checked again for what this service brings.
+						if ( PHP_INT_MAX === $registration_priority && [] !== $this->pending_services ) {
+							$this->register_pending_services();
+						}
 					},
-					$class_name::get_registration_priority(),
+					$registration_priority,
 					0
 				);
 			}

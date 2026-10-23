@@ -17,6 +17,7 @@ use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\WpService;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithCallback;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
@@ -41,12 +42,14 @@ use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedService2;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestEarlyDelayedDependentService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestLateDelayedDependentService;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestLastDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestLateDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceA;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceB;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceC;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingB;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingInjector;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingLast;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingUnneeded;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceWithMissingDependency;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededDelayedService;
@@ -630,6 +633,29 @@ class ServiceBasedPluginTest extends TestCase {
 		$this->fire( 'wp' );
 
 		$this->assertSame( [ 'dependent_service' => false ], $seen->getArrayCopy() );
+		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
+	}
+
+	/**
+	 * Test that a dependency hooked at the same last priority as the plugin's
+	 * check of the pending services, but after it, is still waited for rather
+	 * than reported as never registered.
+	 */
+	public function test_a_dependency_at_the_last_priority_is_still_waited_for(): void {
+		$plugin = new TestServicesPlugin(
+			[
+				'dependent_service' => TestServiceNeedingLast::class,
+				'last_service'      => TestLastDelayedService::class,
+				'wp_service'        => WpService::class,
+				'delayed_service'   => TestDelayedService::class,
+			]
+		);
+		$plugin->register_services();
+
+		$this->fire( 'init' );
+		$this->fire( 'wp' );
+
+		$this->assertTrue( $plugin->get_container()->has( 'last_service' ) );
 		$this->assertTrue( $plugin->get_container()->has( 'dependent_service' ) );
 	}
 

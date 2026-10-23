@@ -256,6 +256,23 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 		);
 	}
 
+	public function test_a_top_level_class_does_not_use_an_infrastructure_trait(): void {
+		$this->analyse(
+			$this->fixtures( 'StrayTraitUser' ),
+			[
+				$this->error(
+					11,
+					'StrayTraitUser',
+					'a top-level class',
+					'Infrastructure\DefaultWork',
+					'the infrastructure',
+					' Depend on an interface of the infrastructure instead, and bind the implementation in the'
+						. ' composition root.'
+				),
+			]
+		);
+	}
+
 	public function test_only_the_composition_root_wires_subsystems_and_nothing_depends_on_the_tests(): void {
 		$this->analyse(
 			$this->fixtures( 'Plugin', 'Stray' ),

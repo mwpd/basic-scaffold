@@ -149,7 +149,12 @@ final class DependencyDirectionRule implements Rule {
 
 			$type = $this->reflection->getClass( $dependency );
 
-			return $type->isInterface() || ( $type->isTrait() && $this->supplies_contract( $name, $type ) );
+			// Only a subsystem may use a trait that fulfils its interfaces; a
+			// top-level class keeps to the interfaces themselves.
+			return $type->isInterface()
+				|| ( $from !== DependencyContext::TOP_LEVEL
+					&& $type->isTrait()
+					&& $this->supplies_contract( $name, $type ) );
 		}
 
 		// A subsystem may use its own classes and those of other subsystems,
@@ -189,7 +194,9 @@ final class DependencyDirectionRule implements Rule {
 				. ' and the exceptions; add an interface to the infrastructure that the other class implements.';
 		}
 
-		if ( $to === DependencyContext::INFRASTRUCTURE && $this->is_trait( $dependency ) ) {
+		if ( $to === DependencyContext::INFRASTRUCTURE
+			&& $from !== DependencyContext::TOP_LEVEL
+			&& $this->is_trait( $dependency ) ) {
 			return $problem . ' A subsystem only uses a trait of the infrastructure that supplies methods of the'
 				. ' infrastructure interfaces its class implements; implement the interface the trait is for, or'
 				. ' keep the code in the subsystem.';
