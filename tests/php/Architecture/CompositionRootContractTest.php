@@ -20,6 +20,8 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BrokenLifecyclePlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\IdempotentLifecyclePlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\CallbackPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\GoodService;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\IncompatibleBindingPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\BoundToSomethingElse;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\NotAService;
 use stdClass;
 use WP_Post;
@@ -68,7 +70,12 @@ final class CompositionRootContractTest extends TestCase {
 			[ 'delayed', 'EmptyDelayedService', 'is Delayed, but get_registration_action() returns no action.' ],
 			[ 'not-a-service', 'NotAService', 'is not a class implementing Service.' ],
 			[ 'removing', 'RemovingService', 'changes hooks while it is being built, directly or through' ],
-			[ 'rebound', 'BoundToSomethingElse', 'is built as ' . NotAService::class . ', which is not a Service.' ],
+			[
+				'rebound',
+				'BoundToSomethingElse',
+				'cannot be built from the composition root: The delegate for "' . BoundToSomethingElse::class
+					. '" returned ' . NotAService::class . ', not an instance of that class.',
+			],
 		];
 
 		$this->assertCount( count( $expected ), $problems, implode( "\n\n", $problems ) );
@@ -86,6 +93,21 @@ final class CompositionRootContractTest extends TestCase {
 		}
 
 		$this->assertStringContainsString( 'UnboundContract', $problems[1] );
+	}
+
+	public function test_it_reports_an_injector_configuration_the_plugin_rejects(): void {
+		$problems = ( new CompositionRootContract( IncompatibleBindingPlugin::class ) )->check();
+
+		$this->assertCount( 1, $problems, implode( "\n\n", $problems ) );
+		$this->assertStringStartsWith(
+			'[architecture.compositionRootContracts] The injector configuration of ' . IncompatibleBindingPlugin::class
+				. ' is invalid: "' . BoundToSomethingElse::class . '" cannot be bound to "' . NotAService::class . '"',
+			$problems[0]
+		);
+		$this->assertStringContainsString(
+			'Rule: docs/architecture-rules.md#architecturecompositionrootcontracts',
+			$problems[0]
+		);
 	}
 
 	public function test_it_watches_what_callable_declarations_do(): void {

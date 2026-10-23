@@ -9,6 +9,7 @@ use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
+use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Exception\InvalidService;
 use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
@@ -676,5 +677,89 @@ class ServiceBasedPluginTest extends TestCase {
 		$this->assertNotSame( $original, $injector );
 		$this->assertInstanceOf( TestServiceNeedingInjector::class, $service );
 		$this->assertSame( $injector, $service->get_injector() );
+	}
+
+	/**
+	 * Test that a services filter that returns something other than an array
+	 * is reported as invalid configuration, not as a PHP warning.
+	 */
+	public function test_a_services_filter_that_returns_no_array_throws(): void {
+		Filters\expectApplied( ServiceBasedPlugin::SERVICES_FILTER )
+			->once()
+			->andReturn( 'not an array' );
+
+		$plugin = new TestServiceBasedPlugin();
+
+		$this->expectException( InvalidConfiguration::class );
+		$this->expectExceptionMessage( 'The services configuration "not an array" is not an array' );
+
+		$plugin->register_services();
+	}
+
+	/**
+	 * Test that a service whose class does not exist is reported when the
+	 * services are registered, naming the service.
+	 */
+	public function test_a_service_class_that_does_not_exist_throws(): void {
+		/**
+		 * A class name that no autoloader can load.
+		 *
+		 * @var class-string $missing
+		 */
+		$missing = __NAMESPACE__ . '\\NoSuchService';
+
+		$plugin = new TestServicesPlugin( [ 'missing' => $missing ] );
+
+		$this->expectException( InvalidService::class );
+		$this->expectExceptionMessage(
+			'The service "missing" names the class "' . $missing . '", which does not exist.'
+		);
+
+		$plugin->register_services();
+	}
+
+	/**
+	 * Test that a service whose class does not implement Service is reported
+	 * when the services are registered, even when it is not Registerable and
+	 * would otherwise only fail once it is first retrieved.
+	 */
+	public function test_a_service_class_that_is_not_a_service_throws(): void {
+		$plugin = new TestServicesPlugin( [ 'not_a_service' => DummyClass::class ] );
+
+		$this->expectException( InvalidService::class );
+		$this->expectExceptionMessage(
+			'The service "not_a_service" names the class "' . DummyClass::class . '", which does not implement Service.'
+		);
+
+		$plugin->register_services();
+	}
+
+	/**
+	 * Test that a binding whose implementation cannot stand in for what it is
+	 * bound to is reported when the injector is configured.
+	 */
+	public function test_a_binding_to_a_type_that_is_not_a_subtype_throws(): void {
+		$plugin = new TestInjectorConfigurationPlugin( [ DummyInterface::class => DummyClass::class ] );
+
+		$this->expectException( InvalidConfiguration::class );
+		$this->expectExceptionMessage(
+			'"' . DummyInterface::class . '" cannot be bound to "' . DummyClass::class . '"'
+		);
+
+		$plugin->register_services();
+	}
+
+	/**
+	 * Test that a binding to a class implementing the bound interface is
+	 * accepted.
+	 */
+	public function test_a_binding_to_a_subtype_is_accepted(): void {
+		$plugin = new TestInjectorConfigurationPlugin( [ DummyInterface::class => DummyClassWithDependency::class ] );
+		$plugin->register_services();
+
+		$this->assertInstanceOf(
+			DummyClassWithDependency::class,
+			$this->get_registered_injector( $plugin )->make( DummyInterface::class )
+		);
 	}
 }

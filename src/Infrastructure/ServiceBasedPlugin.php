@@ -212,6 +212,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Register the individual services of this plugin.
 	 *
+	 * @throws InvalidConfiguration If the services configuration is not an array.
 	 * @throws InvalidService If a service is not valid.
 	 */
 	public function register_services(): void {
@@ -271,10 +272,15 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		/**
-		 * The filter may return anything, so check every entry (principle 9).
+		 * The filter may return anything, so check the value and every entry
+		 * (principle 9).
 		 *
-		 * @var array<mixed> $services
+		 * @var mixed $services
 		 */
+
+		if ( ! is_array( $services ) ) {
+			throw InvalidConfiguration::from_invalid_services( $services );
+		}
 
 		$this->services         = [];
 		$this->pending_services = [];
@@ -292,11 +298,15 @@ abstract class ServiceBasedPlugin implements Plugin {
 				throw InvalidService::from_invalid_class_name( $class_name );
 			}
 
-			/**
-			 * The resolved value is guaranteed to be a class name at this point.
-			 *
-			 * @var class-string $class_name
-			 */
+			// Fail here rather than when the service is first used: a service
+			// that is not Registerable is only made once it is retrieved.
+			if ( ! $this->is_known_type( $class_name ) ) {
+				throw InvalidService::from_missing_class( $id, $class_name );
+			}
+
+			if ( ! is_a( $class_name, Service::class, true ) ) {
+				throw InvalidService::from_non_service_class( $id, $class_name );
+			}
 
 			$services[ $id ]       = $class_name;
 			$this->services[ $id ] = $class_name;
@@ -800,6 +810,14 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 * @var class-string $to
 			 */
 
+			// Whatever is made for $from has to be usable as $from. That can
+			// only be checked when both types can be loaded; otherwise the
+			// injector reports the problem when it makes the instance.
+			if ( $this->is_known_type( $from ) && $this->is_known_type( $to )
+				&& ! is_a( $to, $from, true ) ) {
+				throw InvalidConfiguration::from_incompatible_binding( $from, $to );
+			}
+
 			$injector = $injector->bind( $from, $to );
 		}
 
@@ -924,6 +942,16 @@ abstract class ServiceBasedPlugin implements Plugin {
 		}
 
 		return $injector;
+	}
+
+	/**
+	 * Check whether a name refers to a class or interface that can be loaded.
+	 *
+	 * @param string $name Name to check.
+	 * @return bool Whether the class or interface exists.
+	 */
+	private function is_known_type( string $name ): bool {
+		return class_exists( $name ) || interface_exists( $name );
 	}
 
 	/**

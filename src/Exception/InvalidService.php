@@ -127,4 +127,38 @@ final class InvalidService extends InvalidArgumentException implements BasicScaf
 
 		return new self( $message );
 	}
+
+	/**
+	 * Create a new instance of the exception for a service whose class does
+	 * not exist.
+	 *
+	 * @param string $service_id Identifier of the service.
+	 * @param string $class_name Class name that does not exist.
+	 */
+	public static function from_missing_class( string $service_id, string $class_name ): self {
+		$message = \sprintf(
+			'The service "%s" names the class "%s", which does not exist.',
+			$service_id,
+			$class_name
+		);
+
+		return new self( $message );
+	}
+
+	/**
+	 * Create a new instance of the exception for a service whose class does
+	 * not implement the Service interface.
+	 *
+	 * @param string $service_id Identifier of the service.
+	 * @param string $class_name Class name that does not implement Service.
+	 */
+	public static function from_non_service_class( string $service_id, string $class_name ): self {
+		$message = \sprintf(
+			'The service "%s" names the class "%s", which does not implement Service.',
+			$service_id,
+			$class_name
+		);
+
+		return new self( $message );
+	}
 }

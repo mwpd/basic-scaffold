@@ -223,8 +223,8 @@ $report = $this->injector->make( Report::class );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:58-60`,
 bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:241-244`, proven by
-`tests/php/Unit/ServiceBasedPluginTest.php:457-505`.
+`src/Infrastructure/ServiceBasedPlugin.php:242-245`, proven by
+`tests/php/Unit/ServiceBasedPluginTest.php:628-680`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`; `architecture.dependencyDirection`
 keeps the consumer on the interface.
