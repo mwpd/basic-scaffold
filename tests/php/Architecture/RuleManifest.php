@@ -13,7 +13,6 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
-use MWPD\BasicScaffold\Tests\PHPStan\Rule;
 use ReflectionClass;
 
 /**
@@ -33,6 +32,11 @@ use ReflectionClass;
  *
  * Each entry also names what checks the rule, so a test can prove that it
  * runs: PHPStan rule classes, or the test methods of the architecture suite.
+ * Rule classes are named by string, not by ::class: Psalm scans every class
+ * this file references, and the rules are built on PHPStan 2, which Psalm 5
+ * cannot load. RuleRegistrationTest still catches a misspelled name, because
+ * it reports any rule that no entry names.
+ *
  * A PHPStan rule's entry lists fixed phrases of its messages, so an ignore
  * that matches them can be recognized.
  *
@@ -175,7 +179,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-start-simple-and-add-implementations-later',
 			'configuration'    => 'parameters.architecture.finalByDefault',
 			'checked_by'       => [
-				Rule\FinalByDefaultRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\FinalByDefaultRule',
 			],
 			'signatures'       => [
 				'is not final. Declare it final',
@@ -187,7 +191,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-start-simple-and-add-implementations-later',
 			'configuration'    => 'parameters.architecture.namesWithoutTypeKind',
 			'checked_by'       => [
-				Rule\NamesWithoutTypeKindRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NamesWithoutTypeKindRule',
 			],
 			'signatures'       => [
 				'encodes its kind in its name',
@@ -199,7 +203,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-a-singleton',
 			'configuration'    => 'parameters.architecture.noStaticState',
 			'checked_by'       => [
-				Rule\NoStaticStateRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoStaticStateRule',
 			],
 			'signatures'       => [
 				'keeps state outside any object',
@@ -211,7 +215,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-reach-the-plugin-from-a-static-wordpress-callback',
 			'configuration'    => 'parameters.architecture.pluginFactoryOnlyAtEdges',
 			'checked_by'       => [
-				Rule\PluginFactoryOnlyAtEdgesRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\PluginFactoryOnlyAtEdgesRule',
 			],
 			'signatures'       => [
 				'uses the plugin factory as a service locator',
@@ -223,7 +227,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-wordpress-state-such-as-the-current-post',
 			'configuration'    => 'parameters.architecture.noGlobalState',
 			'checked_by'       => [
-				Rule\NoGlobalStateRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoGlobalStateRule',
 			],
 			'signatures'       => [
 				'pulls state from globals',
@@ -237,13 +241,13 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.noWordPressErrorMechanisms',
 			'checked_by'       => [
-				Rule\NoErrorReportingFunctionsRule::class,
-				Rule\NoWordPressErrorCreationRule::class,
-				Rule\NoWordPressErrorInMethodsRule::class,
-				Rule\NoWordPressErrorInFunctionsRule::class,
-				Rule\NoWordPressErrorInClosuresRule::class,
-				Rule\NoWordPressErrorInArrowFunctionsRule::class,
-				Rule\NoWordPressErrorInPropertiesRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoErrorReportingFunctionsRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoWordPressErrorCreationRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoWordPressErrorInMethodsRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoWordPressErrorInFunctionsRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoWordPressErrorInClosuresRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoWordPressErrorInArrowFunctionsRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoWordPressErrorInPropertiesRule',
 			],
 			'signatures'       => [
 				'reports an error where it happens',
@@ -258,7 +262,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.namespace',
 			'checked_by'       => [
-				Rule\NoFalseOnFailureRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoFalseOnFailureRule',
 			],
 			'signatures'       => [
 				'declares a return type that unions false with another type',
@@ -270,8 +274,8 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptions',
 			'checked_by'       => [
-				Rule\ThrowOnlyPluginExceptionsRule::class,
-				Rule\CreateOnlyPluginExceptionsRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\ThrowOnlyPluginExceptionsRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\CreateOnlyPluginExceptionsRule',
 			],
 			'signatures'       => [
 				'which does not implement',
@@ -284,7 +288,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptions',
 			'checked_by'       => [
-				Rule\ExceptionShapeRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\ExceptionShapeRule',
 			],
 			'signatures'       => [
 				'has no named constructor',
@@ -299,7 +303,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptions',
 			'checked_by'       => [
-				Rule\ExceptionsThroughNamedConstructorsRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\ExceptionsThroughNamedConstructorsRule',
 			],
 			'signatures'       => [
 				'creates an exception outside its named constructors',
@@ -311,7 +315,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptionsKeepCause',
 			'checked_by'       => [
-				Rule\ExceptionsKeepCauseRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\ExceptionsKeepCauseRule',
 			],
 			'signatures'       => [
 				'loses the caught exception',
@@ -324,7 +328,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-print-output',
 			'configuration'    => 'parameters.architecture.outputOnlyThroughViews',
 			'checked_by'       => [
-				Rule\OutputOnlyThroughViewsRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\OutputOnlyThroughViewsRule',
 			],
 			'signatures'       => [
 				'does not come directly from a Renderable or View method call',
@@ -336,7 +340,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-print-output',
 			'configuration'    => 'parameters.architecture.rawIsEscaped',
 			'checked_by'       => [
-				Rule\RawIsEscapedRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\RawIsEscapedRule',
 			],
 			'signatures'       => [
 				'prints an unescaped raw() value',
@@ -348,7 +352,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-create-objects-on-demand',
 			'configuration'    => 'parameters.architecture.dependencyDirection',
 			'checked_by'       => [
-				Rule\DependencyDirectionRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\DependencyDirectionRule',
 			],
 			'signatures'       => [
 				'Production code never depends on the tests',
@@ -363,7 +367,10 @@ final class RuleManifest {
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'pattern'          => 'i-need-a-service-locator',
 			'configuration'    => 'parameters.architecture.noServiceLocator',
-			'checked_by'       => [ Rule\NoServiceLocatorRule::class ],
+			'checked_by'       => [
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoServiceLocatorRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoInjectorConfigurationRule',
+			],
 			'signatures'       => [
 				'depends on the service container',
 				'Configure bindings, sharing and delegations in the composition root',
@@ -375,8 +382,8 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-create-objects-on-demand',
 			'configuration'    => 'parameters.architecture.newOnlyWhereAllowed',
 			'checked_by'       => [
-				Rule\NewOnlyWhereAllowedRule::class,
-				Rule\DynamicCreationRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NewOnlyWhereAllowedRule',
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\DynamicCreationRule',
 			],
 			'signatures'       => [
 				'creates a collaborator',
@@ -390,7 +397,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-add-hooks',
 			'configuration'    => 'parameters.architecture.constructorsOnlyAssign.allowed',
 			'checked_by'       => [
-				Rule\ConstructorsOnlyAssignRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\ConstructorsOnlyAssignRule',
 			],
 			'signatures'       => [
 				'does work beyond storing dependencies',
@@ -402,7 +409,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-add-hooks',
 			'configuration'    => 'parameters.architecture.namespace',
 			'checked_by'       => [
-				Rule\NoHooksInConstructorRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoHooksInConstructorRule',
 			],
 			'signatures'       => [
 				'hooks into WordPress while the object is being built',
@@ -414,7 +421,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-add-hooks',
 			'configuration'    => 'parameters.architecture.hooks.lifecycleMethods',
 			'checked_by'       => [
-				Rule\HooksInLifecycleMethodsRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\HooksInLifecycleMethodsRule',
 			],
 			'signatures'       => [
 				'changes a hook outside a lifecycle method',
@@ -426,7 +433,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-a-service-only-in-some-requests',
 			'configuration'    => 'parameters.architecture.hooks',
 			'checked_by'       => [
-				Rule\NoContextChecksInRegisterRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\NoContextChecksInRegisterRule',
 			],
 			'signatures'       => [
 				'decides at registration whether the service applies',
@@ -439,7 +446,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-to-hook-in-later',
 			'configuration'    => 'parameters.architecture.queryContextNeedsDelay.queryFunctions',
 			'checked_by'       => [
-				Rule\QueryContextNeedsDelayRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\QueryContextNeedsDelayRule',
 			],
 			'signatures'       => [
 				'asks about the query before it is available',
@@ -463,7 +470,7 @@ final class RuleManifest {
 			'pattern'          => 'i-need-a-name-in-a-space-wordpress-shares',
 			'configuration'    => 'parameters.architecture.prefixedNames',
 			'checked_by'       => [
-				Rule\PrefixedNamesRule::class,
+				'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\PrefixedNamesRule',
 			],
 			'signatures'       => [
 				'without the plugin\'s prefix',
@@ -574,7 +581,7 @@ final class RuleManifest {
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
 			'pattern'          => 'i-need-to-add-a-feature',
 			'configuration'    => 'parameters.architecture.capabilitiesOnServices',
-			'checked_by'       => [ Rule\CapabilitiesOnServicesRule::class ],
+			'checked_by'       => [ 'MWPD\\BasicScaffold\\Tests\\PHPStan\\Rule\\CapabilitiesOnServicesRule' ],
 			'signatures'       => [
 				'implements a lifecycle capability without',
 				'so delayed registration has work to run',

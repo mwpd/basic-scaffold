@@ -106,8 +106,12 @@ cannot tell, such as the main plugin file and the view template directories,
 The tree must pass a new rule without a baseline. Fix what it finds, or file
 the findings as their own issues and land the rule after them.
 
-PHPStan rules only use the parts of PHPStan's API that its versions 1 and 2
-share, because `composer.json` allows both.
+PHPStan rules build on PHPStan 2 and prefer the classes and methods it tags
+`@api`, which its backward compatibility promise covers. Psalm 5 crashes when
+it loads a PHPStan 2 class, and it loads every class a scanned file references.
+So `tests/php/PHPStan/` stays out of Psalm's scan, and any other file names
+PHPStan classes, including the rules, by string rather than with `::class`, as
+`RuleManifest` does.
 
 ## What each principle is checked by
 
