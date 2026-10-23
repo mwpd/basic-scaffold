@@ -415,25 +415,46 @@ class ServiceBasedPluginTest extends TestCase {
 	}
 
 	/**
+	 * Ways to spell the name of a function, which PHP all accepts as callable.
+	 *
+	 * @return array<string,array{0:string,1:string}> Function to define, and
+	 *                                                how the configuration
+	 *                                                names it.
+	 */
+	public static function data_function_names(): array {
+		return [
+			'global function'   => [ 'mwpd_basic_scaffold_test_resolver', 'mwpd_basic_scaffold_test_resolver' ],
+			'leading backslash' => [ 'mwpd_basic_scaffold_test_resolver', '\\mwpd_basic_scaffold_test_resolver' ],
+			'other case'        => [ 'mwpd_basic_scaffold_test_resolver', 'MWPD_Basic_Scaffold_Test_Resolver' ],
+			'namespaced'        => [ __NAMESPACE__ . '\\test_resolver', __NAMESPACE__ . '\\test_resolver' ],
+		];
+	}
+
+	/**
 	 * Test that a string naming a function is a literal value, not a resolver:
 	 * the function never runs, and the string is validated like any other
 	 * class name.
+	 *
+	 * @dataProvider data_function_names
+	 *
+	 * @param string $defined Function to define.
+	 * @param string $name    How the configuration names it.
 	 */
-	public function test_a_function_name_is_not_called_as_a_resolver(): void {
-		Functions\expect( 'mwpd_basic_scaffold_test_resolver' )->never();
+	public function test_a_function_name_is_not_called_as_a_resolver( string $defined, string $name ): void {
+		Functions\expect( $defined )->never();
 
 		/**
 		 * Brain Monkey has just defined the function, so the name is callable.
 		 *
 		 * @var callable $function_name
 		 */
-		$function_name = 'mwpd_basic_scaffold_test_resolver';
+		$function_name = $name;
 
 		$plugin = new TestInjectorConfigurationPlugin( [ DummyInterface::class => $function_name ] );
 		$plugin->register_services();
 
 		$this->expectException( FailedToMakeInstance::class );
-		$this->expectExceptionMessage( 'mwpd_basic_scaffold_test_resolver' );
+		$this->expectExceptionMessage( ltrim( $name, '\\' ) );
 
 		$this->get_registered_injector( $plugin )->make( DummyInterface::class );
 	}

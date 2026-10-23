@@ -144,7 +144,8 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * This effectively turns these FQCNs into a "singleton", without incurring
 	 * all the drawbacks of the Singleton design anti-pattern.
 	 *
-	 * @return array<class-string> Array of fully qualified class names.
+	 * @return array<class-string|callable> Array of fully qualified class names
+	 *                                      or callables that return one.
 	 */
 	protected function get_shared_instances(): array {
 		return [
