@@ -14,7 +14,10 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\SampleSubsystem;
 
 use MWPD\BasicScaffold\Infrastructure\{
+	Asset\AssetContext,
+	Asset\Script,
 	Conditional,
+	HasAssets,
 	Registerable,
 	Service,
 	ViewFactory
@@ -29,8 +32,11 @@ use MWPD\BasicScaffold\Infrastructure\{
  *
  * Note that the dependency here is actually an interface, not a class. We can
  * still just transparently use it though.
+ *
+ * The notice has a button that copies the plugin name, which needs a script.
+ * The service declares it in get_assets(), and the plugin loads it.
  */
-final class SampleBackendService implements Service, Registerable, Conditional {
+final class SampleBackendService implements Service, Registerable, Conditional, HasAssets {
 
 	/**
 	 * View factory.
@@ -63,6 +69,27 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 		 * new view to be rendered when we want to show our sample notice.
 		 */
 		$this->view_factory = $view_factory;
+	}
+
+	/**
+	 * Get the assets the service needs at an enqueue point.
+	 *
+	 * The service only exists in admin requests, but the block editor asks for
+	 * its own assets there as well, so the script is declared for the admin
+	 * screens only. It is deferred: it only needs the notice to be parsed.
+	 *
+	 * @param AssetContext $context Where in the request the assets are loaded.
+	 *
+	 * @return iterable<Script> Script of the copy button on admin screens.
+	 */
+	public function get_assets( AssetContext $context ): iterable {
+		if ( ! $context->is_admin() ) {
+			return [];
+		}
+
+		return [
+			Script::file( 'mwpd-basic-scaffold-copy-button', 'assets/js/sample-backend-service.js' )->deferred(),
+		];
 	}
 
 	/**

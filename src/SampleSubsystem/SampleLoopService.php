@@ -14,9 +14,12 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold\SampleSubsystem;
 
 use MWPD\BasicScaffold\Infrastructure\{
+	Asset\AssetContext,
+	Asset\Style,
 	Conditional,
 	DefaultRegistrationPriority,
 	Delayed,
+	HasAssets,
 	Registerable,
 	Service,
 	ViewFactory
@@ -25,7 +28,7 @@ use MWPD\BasicScaffold\Infrastructure\{
 /**
  * Sample loop service.
  */
-final class SampleLoopService implements Service, Registerable, Conditional, Delayed {
+final class SampleLoopService implements Service, Registerable, Conditional, Delayed, HasAssets {
 
 	// Nothing else on the action needs to run before or after this service, so
 	// it registers at the default priority.
@@ -121,6 +124,25 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		 * the WordPress execution flow.
 		 */
 		\add_filter( 'the_content', [ $this, 'prepend_post_header' ] );
+	}
+
+	/**
+	 * Get the assets the service needs at an enqueue point.
+	 *
+	 * The post header has a stylesheet of its own. It only loads where the
+	 * header can show: the service exists on singular views only, so this
+	 * just has to pick the front end out of the enqueue points.
+	 *
+	 * @param AssetContext $context Where in the request the assets are loaded.
+	 *
+	 * @return iterable<Style> Stylesheet of the post header on the front end.
+	 */
+	public function get_assets( AssetContext $context ): iterable {
+		if ( ! $context->is_front_end() ) {
+			return [];
+		}
+
+		return [ Style::file( 'mwpd-basic-scaffold-post-header', 'assets/css/sample-loop-service.css' ) ];
 	}
 
 	/**

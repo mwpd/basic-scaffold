@@ -11,7 +11,7 @@ use MWPD\BasicScaffold\SampleSubsystem\PostHeader;
  * context properties do.
  */
 ?>
-<pre>
+<pre class="mwpd-basic-scaffold-post-header">
 	Post title: <?= $this->title() ?>
 	<br>
 	Post date:  <?= $this->date() ?>

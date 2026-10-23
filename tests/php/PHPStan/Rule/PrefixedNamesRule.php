@@ -17,8 +17,10 @@ use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\BinaryOp\Concat;
+use PhpParser\Node\Expr\CallLike;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\FuncCall;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PHPStan\Analyser\Scope;
@@ -46,8 +48,14 @@ use PHPStan\Type\Type;
  * `uninstall_plugins` option it removes its uninstall callback from, are
  * listed separately per kind, so every such write stays reviewed.
  *
+ * A kind can also name the static methods that create a name of it, such as
+ * the named constructors of the plugin's asset declarations, whose first
+ * argument is checked like the name passed to a WordPress function. The
+ * classes that only pass such declared names on to WordPress are listed as
+ * forwarders, and their calls are not checked again.
+ *
  * @phpstan-type Kind array{prefix: string, constants: array<string>, allowed: array<string>, managed: array<string>}
- * @implements Rule<FuncCall>
+ * @implements Rule<CallLike>
  */
 final class PrefixedNamesRule implements Rule {
 
@@ -122,6 +130,20 @@ final class PrefixedNamesRule implements Rule {
 	private array $kinds;
 
 	/**
+	 * Static methods that create a name, as Class::method, by kind.
+	 *
+	 * @var array<string, array<string>>
+	 */
+	private array $declarations;
+
+	/**
+	 * Classes that only pass on names declared elsewhere, by kind.
+	 *
+	 * @var array<string, array<string>>
+	 */
+	private array $forwarders;
+
+	/**
 	 * Reflection, to tell which function a call refers to.
 	 */
 	private ReflectionProvider $reflection;
@@ -134,11 +156,23 @@ final class PrefixedNamesRule implements Rule {
 	 *                                              allowed names of each kind.
 	 * @param ReflectionProvider  $reflection       Reflection, to tell which
 	 *                                              function a call refers to.
+	 * @param array<string, array<string>> $declarations Static methods that
+	 *                                                   create a name, by kind.
+	 * @param array<string, array<string>> $forwarders   Classes that only pass
+	 *                                                   names on, by kind.
 	 */
-	public function __construct( PluginNamespace $plugin_namespace, array $kinds, ReflectionProvider $reflection ) {
+	public function __construct(
+		PluginNamespace $plugin_namespace,
+		array $kinds,
+		ReflectionProvider $reflection,
+		array $declarations = [],
+		array $forwarders = []
+	) {
 		$this->plugin_namespace = $plugin_namespace;
 		$this->kinds            = $kinds;
 		$this->reflection       = $reflection;
+		$this->declarations     = $declarations;
+		$this->forwarders       = $forwarders;
 	}
 
 	/**
@@ -147,29 +181,39 @@ final class PrefixedNamesRule implements Rule {
 	 * @return string Node class name.
 	 */
 	public function getNodeType(): string {
-		return FuncCall::class;
+		return CallLike::class;
 	}
 
 	/**
 	 * Report a name the plugin creates without its prefix.
 	 *
-	 * @param FuncCall $node  Function call to inspect.
+	 * @param CallLike $node  Call to inspect.
 	 * @param Scope    $scope Scope of the call.
 	 * @return list<IdentifierRuleError> Errors found.
 	 */
 	public function processNode( Node $node, Scope $scope ): array {
+		if ( ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
+			return [];
+		}
+
+		if ( $node instanceof StaticCall ) {
+			return $this->process_declaration( $node, $scope );
+		}
+
+		if ( ! $node instanceof FuncCall ) {
+			return [];
+		}
+
 		$called = CalledFunction::name_of( $node, $scope, $this->reflection );
 
-		if ( $called === null
-			|| ! isset( self::FUNCTIONS[ $called ] )
-			|| ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
+		if ( $called === null || ! isset( self::FUNCTIONS[ $called ] ) ) {
 			return [];
 		}
 
 		[ $kind, $positions, $reads ] = self::FUNCTIONS[ $called ];
 		$settings                     = $this->kinds[ $kind ] ?? null;
 
-		if ( $settings === null ) {
+		if ( $settings === null || $this->is_forwarder( $kind, $scope ) ) {
 			return [];
 		}
 
@@ -196,12 +240,84 @@ final class PrefixedNamesRule implements Rule {
 	}
 
 	/**
+	 * Report a declaration that creates a name without the plugin's prefix.
+	 *
+	 * @param StaticCall $node  Static call to inspect.
+	 * @param Scope      $scope Scope of the call.
+	 * @return list<IdentifierRuleError> Errors found.
+	 */
+	private function process_declaration( StaticCall $node, Scope $scope ): array {
+		if ( ! $node->class instanceof Name || ! $node->name instanceof Identifier ) {
+			return [];
+		}
+
+		$class  = ltrim( $scope->resolveName( $node->class ), '\\' );
+		$method = $node->name->toString();
+		$errors = [];
+
+		foreach ( $this->declarations as $kind => $declarations ) {
+			$settings = $this->kinds[ $kind ] ?? null;
+			if ( $settings === null || ! self::declares( $declarations, $class, $method ) ) {
+				continue;
+			}
+
+			$short   = substr( (string) strrchr( '\\' . $class, '\\' ), 1 );
+			$problem = $this->check_argument( $node, 0, $scope, $short . '::' . $method, $kind, $settings, false );
+			if ( $problem === null ) {
+				continue;
+			}
+
+			$errors[] = RuleErrorBuilder::message( $problem )
+				->identifier( RuleManifest::PREFIXED_NAMES )
+				->tip( RuleManifest::get_explanation( RuleManifest::PREFIXED_NAMES ) )
+				->build();
+		}
+
+		return $errors;
+	}
+
+	/**
+	 * Check whether a static method is listed as creating a name.
+	 *
+	 * @param array<string> $declarations Listed methods, as Class::method.
+	 * @param string        $class_name   Class the method is called on.
+	 * @param string        $method       Method called.
+	 * @return bool Whether the method creates a name.
+	 */
+	private static function declares( array $declarations, string $class_name, string $method ): bool {
+		foreach ( $declarations as $declaration ) {
+			[ $declared_class, $declared_method ] = array_pad( explode( '::', $declaration, 2 ), 2, '' );
+
+			if ( strcasecmp( ltrim( $declared_class, '\\' ), $class_name ) === 0
+				&& strcasecmp( $declared_method, $method ) === 0 ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether a call is made in a class that only passes on names that
+	 * were checked where they were declared.
+	 *
+	 * @param string $kind  Kind of name.
+	 * @param Scope  $scope Scope of the call.
+	 * @return bool Whether the call is not checked.
+	 */
+	private function is_forwarder( string $kind, Scope $scope ): bool {
+		$class = $scope->getClassReflection();
+
+		return $class !== null && in_array( $class->getName(), $this->forwarders[ $kind ] ?? [], true );
+	}
+
+	/**
 	 * Find the argument that gives the name, and check it.
 	 *
 	 * An argument unpacked from a constant array is read from the array. Any
 	 * other unpacking hides the name from the rule.
 	 *
-	 * @param FuncCall $node     Function call.
+	 * @param CallLike $node     Function or static call.
 	 * @param int      $position Position of the name.
 	 * @param Scope    $scope    Scope of the call.
 	 * @param string   $called   Function the name is passed to.
@@ -211,7 +327,7 @@ final class PrefixedNamesRule implements Rule {
 	 * @return string|null What is wrong and what to do instead, or null.
 	 */
 	private function check_argument(
-		FuncCall $node,
+		CallLike $node,
 		int $position,
 		Scope $scope,
 		string $called,

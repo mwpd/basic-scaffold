@@ -14,6 +14,7 @@ parametersSchema:
             capabilities: listOf(string())
             delayed: string()
             registerable: string()
+            hasAssets: string()
         ])
         finalByDefault: structure([
             baseClasses: listOf(string())
@@ -85,6 +86,12 @@ parametersSchema:
             ]),
             string()
         )
+        # Per kind of name: static methods whose first argument creates a name
+        # of it, as Class::method, and classes that only pass such names on.
+        prefixedDeclarations: structure([
+            methods: arrayOf(listOf(string()), string())
+            forwarders: arrayOf(listOf(string()), string())
+        ])
     ])
 
 services:
@@ -103,6 +110,7 @@ services:
             capabilities: %architecture.capabilitiesOnServices.capabilities%
             delayed: %architecture.capabilitiesOnServices.delayed%
             registerable: %architecture.capabilitiesOnServices.registerable%
+            has_assets: %architecture.capabilitiesOnServices.hasAssets%
             infrastructure: %architecture.dependencyDirection.infrastructure%
             composition_root: %architecture.dependencyDirection.compositionRoot%
         tags:
@@ -281,6 +289,7 @@ services:
         arguments:
             context: @architectureDependencyContext
             reflection: @PHPStan\Reflection\ReflectionProvider
+            value_objects: %architecture.newOnlyWhereAllowed.valueObjects%
         tags:
             - phpstan.rules.rule
 
@@ -401,6 +410,8 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             kinds: %architecture.prefixedNames%
+            declarations: %architecture.prefixedDeclarations.methods%
+            forwarders: %architecture.prefixedDeclarations.forwarders%
             reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule
