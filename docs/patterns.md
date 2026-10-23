@@ -29,6 +29,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need a service only in some requests](#i-need-a-service-only-in-some-requests)
 - [I need to hook in later](#i-need-to-hook-in-later)
 - [I need to set something up when the plugin is activated](#i-need-to-set-something-up-when-the-plugin-is-activated)
+- [I need to clean up when the plugin is uninstalled](#i-need-to-clean-up-when-the-plugin-is-uninstalled)
 - [I need to create objects on demand](#i-need-to-create-objects-on-demand)
 - [I need to choose an implementation at runtime](#i-need-to-choose-an-implementation-at-runtime)
 - [I need a service locator](#i-need-a-service-locator)
@@ -284,12 +285,179 @@ Three things to know:
   Steps that must run in sequence belong in one service that runs them in
   that order.
 
+### On multisite: in every site, or once for the network
+
+`activate()` and `deactivate()` run once, in the site the plugin is
+activated in. When the work belongs in each site, or once for a whole
+network, implement the scoped interfaces instead. Each one receives the
+`SiteContext` or `NetworkContext` it runs in:
+
+| Interface | Called |
+| --- | --- |
+| `SiteActivateable`, `SiteDeactivateable` | In the current site, or in every site of the network for a network activation or deactivation, with that site switched to. A network deactivation skips a site that keeps the plugin activated on its own, and deactivating one site tears nothing down while the plugin stays network-active. |
+| `NetworkActivateable`, `NetworkDeactivateable` | Once for a network activation or deactivation, in the network's main site. Setup runs for the network first, then the sites; teardown runs the sites first. |
+| `SiteInitializable` | In a new site, once core has set it up, when the plugin is network-active on the new site's network. |
+| `SiteUninitializable` | In a site about to be deleted, before core drops its tables, whether or not the plugin is still active there. |
+
+```php
+final class ReportsTable implements Service, SiteActivateable, SiteInitializable {
+
+	public function activate_site( SiteContext $context ): void {
+		$this->create_table(); // In the site that is switched to.
+	}
+
+	public function initialize_site( SiteContext $context ): void {
+		$this->create_table(); // A site added after the network activation.
+	}
+
+	private function create_table(): void { /* … */ }
+}
+```
+
+Things to know:
+
+- **A scoped interface replaces the parameterless one.** A service that
+  implements any scoped interface of an event no longer receives `activate()`
+  or `deactivate()` for that event, in any scope, even where its scoped
+  interface does not apply: one with `Activateable` and `NetworkActivateable`
+  gets nothing on an activation of a single site. Setup that several methods
+  share goes into a private method each of them calls, as above, so it never
+  runs twice.
+- **Each site gets an object graph of its own.** The plugin builds it after
+  switching to the site: a fresh injector, the composition root's
+  configuration and services applied there with their filters, and
+  `is_needed()` asked there. Shared instances are shared within that site
+  only, nothing goes into the plugin's container and nothing is registered.
+  Callable declarations in the configuration run for each site too, so they
+  should only work out class names.
+- **Address network options by ID.** Switching sites does not switch networks,
+  so use `$context->network_id()` with `get_network_option()` and its
+  siblings.
+- **The work is done when the call returns.** Sites are visited one after the
+  other in the activation request, looked up in pages: that bounds memory, not
+  time, so a large network can run into the time limit. A custom `SiteRunner`
+  passed to the plugin constructor replaces the default, for example one that
+  is driven from WP-CLI. A plugin given a custom injector also passes an
+  `InjectorFactory` that creates it; otherwise a scoped service fails with
+  `InvalidConfiguration`. Both are optional trailing constructor parameters,
+  as in `new BasicScaffoldPlugin( true, null, null, $runner )`.
+- **A failure stops the event, visibly.** The first exception propagates after
+  the site context is restored, in debug mode and in production alike
+  ([principle 10](design-principles.md#10-errors-are-exceptions)). Sites
+  already done stay done, so run the activation again once the cause is fixed.
+  A failure in a new or deleted site can interrupt WordPress's own creation or
+  deletion of that site.
+- **New and deleted sites are only reached where the plugin is loaded.** A
+  site created from a network where the plugin is not active, or a site
+  deleted from the network admin while the plugin is only active on that one
+  site, is not reached, because WordPress does not load the plugin in that
+  request. Nothing more is needed to deploy the plugin; this limit is the
+  trade-off for that.
+- **The soft flush of the rewrite rules happens once,** in the site the event
+  starts in.
+
 **Proven by:** `tests/php/Fixture/Lifecycle/RewriteLifecycleService.php`,
-exercised by `tests/php/Unit/ServiceBasedPluginTest.php`.
+exercised by `tests/php/Unit/ServiceBasedPluginTest.php`; the scoped
+interfaces by `tests/php/Unit/ScopedLifecycleTest.php` and
+`tests/php/Unit/SiteLifecycleHooksTest.php`, with an in-memory multisite in
+`tests/php/Fixture/Lifecycle/Multisite.php`.
 
 **Rules:** `architecture.compositionRootContracts` runs `activate()` and
-`deactivate()` twice and reports a second run that changes anything, so guard
-each step or make it set rather than add.
+`deactivate()`, and the scoped methods, twice and reports a second run that
+changes anything, so guard each step or make it set rather than add.
+
+## I need to clean up when the plugin is uninstalled
+
+**What people reach for:** an `uninstall.php` that deletes options with
+`delete_option()` in the current site only, or `register_uninstall_hook()` at
+the top of the main plugin file with a closure.
+
+**Why not here:** [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns):
+the main plugin file is the only file with side effects, and an
+`uninstall.php` would be a second one. WordPress stores the uninstall
+callback in the database and only accepts a function or a static method, so
+it needs a bridge into the object graph
+([principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)).
+Registering it at include time would write to the database on every request,
+and would even add the entry back while WordPress is uninstalling the plugin.
+Deleting only in the current site leaves the data of every other site on a
+network behind. And [the core idea](design-principles.md#how-services-map-to-it):
+each service cleans up its own data.
+
+**Instead:** implement `SiteUninstallable` for what the service keeps in
+each site and `NetworkUninstallable` for what it keeps for a network, in a
+focused service without a condition. The composition root names the main
+plugin file and the uninstall bridge, and the plugin registers the bridge when
+it is activated:
+
+```php
+// src/BasicScaffoldPlugin.php
+protected function get_uninstall_callback(): array {
+	return [ BasicScaffoldUninstallHook::class, 'uninstall' ];
+}
+```
+
+```php
+final class ReportsCleanup implements Service, SiteUninstallable, NetworkUninstallable {
+
+	public function uninstall_site( SiteContext $context ): void {
+		\delete_option( 'mwpd_basic_scaffold_reports' ); // Fine if it is gone already.
+	}
+
+	public function uninstall_network( NetworkContext $context ): void {
+		// Switching sites does not switch networks: name the network.
+		\delete_network_option( $context->network_id()->to_int(), 'mwpd_basic_scaffold_reports' );
+	}
+}
+```
+
+When the plugin is deleted, WordPress includes its main file and calls the
+bridge, which hands over to `ServiceBasedPlugin::uninstall()`. On a single
+site, that cleans up the current site. On multisite, it visits every site of
+every network, whether or not the plugin was ever active there, then calls
+the network cleanup once for each network, in its main site. Each call gets
+an object graph of its own, built in the site it runs in, so a `Conditional`
+service is asked there. Nothing else is built or registered, even if
+`plugins_loaded` fires afterwards, and `WP_UNINSTALL_PLUGIN` plays no part.
+
+Things to know:
+
+- **Keep cleanup unconditional.** A `Conditional` cleanup service only runs
+  in the sites where its condition holds in the uninstall request, which is
+  rarely what the condition was written for, and data stays behind elsewhere.
+  Cleanup that has to happen in any case belongs in its own service without a
+  condition, like the one above.
+- **Only the plugin's own data, and absence is fine.** Delete prefixed names
+  only, and expect that a site never had the data or that an earlier attempt
+  already removed it.
+- **A failure stops the uninstall, visibly.** The first exception propagates
+  after the site context is restored; later sites and networks are not
+  visited, and what was cleaned up stays cleaned up. Before the exception
+  leaves, the plugin registers its uninstall callback again in the site the
+  plugin was deleted in, so deleting it again, once the cause is fixed,
+  retries the cleanup from the start.
+- **Where the callback is registered.** Activation registers it on the
+  activating site and on the main site of every network, because each
+  network admin reads it from its main site. A successful uninstall removes
+  those copies. A network added later, or a network whose main site changes,
+  gets the callback at the next activation, and so does an installation of a
+  plugin generated before this existed.
+- **Large installations.** The uninstall runs within the request that deletes
+  the plugin. Sites are looked up in pages, which bounds memory but not time,
+  so a very large installation can run into the time limit. A custom
+  `SiteRunner`, for example one driven from WP-CLI, is the answer, as shown in
+  [I need to set something up when the plugin is activated](#i-need-to-set-something-up-when-the-plugin-is-activated).
+
+**Proven by:** `src/BasicScaffoldUninstallHook.php:36-38`, the cleanup service
+in `tests/php/Fixture/Lifecycle/UnconditionalCleanupService.php`, and
+`tests/php/Unit/UninstallLifecycleTest.php` and
+`tests/php/Unit/UninstallBridgeTest.php`.
+
+**Rules:** `architecture.pluginFactoryOnlyAtEdges` lists the bridge,
+`architecture.bootstrapContract` keeps `register_uninstall_hook()` out of the
+main file, and `architecture.compositionRootContracts` runs
+`uninstall_site()` and `uninstall_network()` twice and reports a second run
+that changes anything.
 
 ## I need to create objects on demand
 
@@ -361,7 +529,7 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
 bound at `src/BasicScaffoldPlugin.php:111`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:365-368`, proven by
+`src/Infrastructure/ServiceBasedPlugin.php:1150-1153`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`, `architecture.noServiceLocator`;
@@ -507,12 +675,17 @@ A bridge outside the main plugin file follows the same contract:
   before `plugins_loaded`, a `Conditional` service that is not registered in
   this request, or any other failure becomes a dedicated exception, caught
   before control goes back to WordPress. The activation hooks do not catch
-  yet; that is open in #143.
+  yet; that is open in #143. The uninstall bridge is the approved exception:
+  a failed uninstall propagates, so that it is visible and can be retried.
 
-The uninstall bridge (#34) is the first bridge the scaffold itself adds.
+The scaffold's own bridge outside the main file is the uninstall bridge,
+`BasicScaffoldUninstallHook::uninstall()`, which WordPress calls when the
+plugin is deleted, as
+[I need to clean up when the plugin is uninstalled](#i-need-to-clean-up-when-the-plugin-is-uninstalled)
+shows.
 
-**Proven by:** `basic-scaffold.php:119-131`, and the factory at
-`src/BasicScaffoldPluginFactory.php:40-58`.
+**Proven by:** `basic-scaffold.php:129-151`, `src/BasicScaffoldUninstallHook.php:31-39`,
+and the factory at `src/BasicScaffoldPluginFactory.php:45-63`.
 
 **Rules:** `architecture.noStaticState` allows static state only in the
 factory. [`architecture.pluginFactoryOnlyAtEdges`](architecture-rules.md#architecturepluginfactoryonlyatedges)
@@ -540,7 +713,7 @@ own:
 - **It hands out more than services.** Next to the registered services, the
   container holds the injector that builds their collaborators, under
   `mwpd.basic_scaffold.injector`
-  (`src/Infrastructure/ServiceBasedPlugin.php:371-374`), so outside code could
+  (`src/Infrastructure/ServiceBasedPlugin.php:1156-1159`), so outside code could
   call `bind()`, `share()` or `delegate()` on it, which
   `architecture.noServiceLocator` forbids even the plugin's own subsystems.
 - **Whether a service is there depends on the moment.** `get()` throws
@@ -608,7 +781,7 @@ other code. Two investigations are open, and neither is approved:
   a theme's overrides of them, never a theme's other files or another plugin.
 
 **Proven by:** the configuration filters at
-`src/Infrastructure/ServiceBasedPlugin.php:391-394` and `:873-954`, and
+`src/Infrastructure/ServiceBasedPlugin.php:1212-1215` and `:1673-1754`, and
 `tests/php/Unit/ServiceBasedPluginTest.php:899-921`, where a filter added
 after the plugin was constructed, as a plugin loaded later would add it,
 takes effect at `plugins_loaded`.
@@ -694,7 +867,7 @@ public function __construct(
 
 **Proven by:** `src/Infrastructure/View/SimpleView.php:86-97`, and the
 injector and container defaults of `ServiceBasedPlugin`
-(`src/Infrastructure/ServiceBasedPlugin.php:164-183`).
+(`src/Infrastructure/ServiceBasedPlugin.php:264-296`).
 
 **Rules:** `architecture.newOnlyWhereAllowed` allows `new` in exactly this
 shape: a nullable parameter typed to an interface the default implements.
@@ -829,9 +1002,10 @@ loads it.
 **Instead:** put the work in a service and let `register()` hook it in at the
 right action. The main plugin file is the only file with side effects, and it
 only loads the autoloader, hooks activation and deactivation, and registers
-the plugin.
+the plugin. Even the uninstall callback is not registered there: activation
+stores it, because WordPress keeps it in the database.
 
-**Proven by:** `basic-scaffold.php:74-137`.
+**Proven by:** `basic-scaffold.php:76-157`.
 
 **Rules:** `architecture.noSideEffectsOnInclude`;
 `architecture.bootstrapContract` limits the main file's hook API calls to
@@ -869,7 +1043,7 @@ a plugin, usually to its slug. Themes that already override the plugin's
 views move their files into that directory: a file directly in the theme's
 `views/` folder is no longer picked up.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:245-275`, and
+**Proven by:** `src/BasicScaffoldPlugin.php:280-310`, and
 `tests/php/Unit/TemplatedViewFactoryTest.php`, which shows that a bare theme
 `views/` file is not selected and that two override directories do not see
 each other's files.

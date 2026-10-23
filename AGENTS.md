@@ -56,7 +56,9 @@ pattern shows the scaffold's way, with code that passes the checks.
 service, and each service decides in isolation where and when it acts in the
 WordPress lifecycle, by implementing small capability interfaces
 (`Conditional`, `Delayed`, `HasDependencies`, `Registerable`, `Activateable`,
-`Deactivateable`). The infrastructure works out when to trigger what. New
+`Deactivateable`, and the site- and network-scoped lifecycle interfaces such as
+`SiteActivateable` and `SiteUninstallable`). The infrastructure works out when
+to trigger what. New
 logic is one more service, never one more condition threaded through the
 others. A lifecycle point no interface covers gets a new interface, not a
 conditional inside a service.

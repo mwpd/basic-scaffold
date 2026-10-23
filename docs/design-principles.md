@@ -64,12 +64,19 @@ Each lifecycle question a service has to answer is a small interface in
 | When does it hook in? | `Delayed::get_registration_action()`, `Delayed::get_registration_priority()` | Registration waits for that action, at that priority, or runs at once if it has already fired. Dependencies that are only ready later take precedence over the priority. |
 | Which services must exist first? | `HasDependencies::get_dependencies()` | Registration waits until those services are registered, and fails with `FailedToResolveDependencies` when they never can be. |
 | What does it hook into? | `Registerable::register()` | Called once the service is built, to add its actions and filters. |
-| What happens on activation or deactivation? | `Activateable`, `Deactivateable` | Called from the plugin's activation and deactivation hooks. |
+| What happens on activation or deactivation? | `Activateable`, `Deactivateable` | Called once, in the site the plugin is activated or deactivated in, unless the service implements a scoped interface of the same event. |
+| What happens in each site, or once for the network, on activation or deactivation? | `SiteActivateable`, `NetworkActivateable`, `SiteDeactivateable`, `NetworkDeactivateable` | Called with a `SiteContext` in every site the event reaches, switched to, or with a `NetworkContext` once for the network. Any of them replaces the parameterless call of that event. |
+| What happens when a site is created or deleted? | `SiteInitializable`, `SiteUninitializable` | Called in a new site of a network where the plugin is network-active, and in a site about to be deleted, in requests where the plugin is loaded. |
+| What happens when the plugin is uninstalled? | `SiteUninstallable`, `NetworkUninstallable` | Called through the uninstall bridge in every site, then once for each network on multisite, or in the one site of a single-site installation. |
 
 The plugin itself only hooks into `plugins_loaded`
-(`src/Infrastructure/ServiceBasedPlugin.php:79`) and the activation and
-deactivation hooks (`basic-scaffold.php:119-131`). Everything else is decided
-per service. `SampleLoopService` shows the result: it declares that it runs at
+(`src/Infrastructure/ServiceBasedPlugin.php:90`) and the activation and
+deactivation hooks (`basic-scaffold.php:129-151`). On multisite, registration
+also hooks into the creation and deletion of sites when a service needs it,
+and activation stores the uninstall callback
+(`src/BasicScaffoldUninstallHook.php:36-38`), which WordPress calls when the
+plugin is deleted. Everything else is decided per service.
+`SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
 (`src/SampleSubsystem/SampleLoopService.php:60-77`), and no other code has to
 know.
@@ -79,8 +86,11 @@ builds**. A service that is not needed in a request is never instantiated, so
 each request only pays for the services it actually uses.
 
 When a service needs a lifecycle point that no interface covers yet, such as
-uninstall or a new site on a multisite network, the answer is a new capability
+an upgrade between two versions of the plugin, the answer is a new capability
 interface in the infrastructure. It is never a conditional inside the service.
+That is how the site- and network-scoped interfaces came about: a service does
+not branch on whether an activation is network-wide, it implements the
+interface for where its work happens.
 
 ## 1. Runs on PHP and WordPress alone
 
@@ -91,7 +101,7 @@ asset pipeline before it runs: copy the plugin directory and activate it.
 Composer is a **development tool**, not a runtime dependency. The scaffold
 uses and supports it for tests, static analysis and coding standards, and loads
 its autoloader when one is present. When it is absent, the bundled
-`Infrastructure\Autoloader` takes over (`basic-scaffold.php:74-86`).
+`Infrastructure\Autoloader` takes over (`basic-scaffold.php:76-88`).
 
 In practice:
 
@@ -119,7 +129,7 @@ In the code:
   (`src/Infrastructure/ServiceContainer/SimpleServiceContainer.php:29`).
 - `ServiceBasedPlugin` accepts both through its constructor and only falls back
   to the simple versions when none is passed
-  (`src/Infrastructure/ServiceBasedPlugin.php:164-183`). Swapping in an adapter
+  (`src/Infrastructure/ServiceBasedPlugin.php:264-296`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
   (`src/BasicScaffoldPlugin.php:111`) and can be rebound the same way.
@@ -140,8 +150,13 @@ the built-in implementation as the fallback:
 
 - `ServiceBasedPlugin` accepts any `Injector` and `ServiceContainer`, and falls
   back to `SimpleInjector` and `SimpleServiceContainer`
-  (`src/Infrastructure/ServiceBasedPlugin.php:164-183`). The code calls this a
-  poka-yoke: a design that makes the easy path also the correct one.
+  (`src/Infrastructure/ServiceBasedPlugin.php:264-296`). The code calls this a
+  poka-yoke: a design that makes the easy path also the correct one. The
+  `SiteRunner` that visits the sites of a network and the `InjectorFactory`
+  behind the scoped lifecycle graphs work the same way, with
+  `SynchronousSiteRunner` and `SimpleInjectorFactory` as their defaults. Only
+  a custom injector also needs its own factory, because the default factory
+  cannot know how to create it.
 - `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
   (`src/Infrastructure/View/SimpleView.php:96`), and so do the view factories,
   which hand theirs on to the views they create.
@@ -219,7 +234,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:828-832`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:1628-1632`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -239,7 +254,7 @@ There are exactly two ways to defer part of that tree:
   injector instead is allowed but not required: the factory is assumed to
   know best how to build its product. The same goes for managing instances:
   `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
-  variable (`src/BasicScaffoldPluginFactory.php:40-54`). That works around a
+  variable (`src/BasicScaffoldPluginFactory.php:45-59`). That works around a
   limitation of WordPress core, which needs static access to the plugin from
   outside the object graph, for example for the activation hooks. Because the
   state is encapsulated in the factory, it does not leak into the rest of the
@@ -260,16 +275,19 @@ locator. It depends on which side of the graph's edge the code is on:
 
 - **Inside the graph**, a class receives what it needs through its
   constructor. When it needs an object later or once per use, it receives a
-  factory, or the injector (`src/Infrastructure/ServiceBasedPlugin.php:365-368`),
+  factory, or the injector (`src/Infrastructure/ServiceBasedPlugin.php:1150-1153`),
   and calls only `make()` on it. When it has to
   choose between implementations at runtime, it receives a typed registry for
   that one concept. It never looks a service up in the container.
 - **At the edge**, where WordPress calls in from outside, a listed *bridge*
   gets the plugin through the plugin factory and delegates at once to instance
-  methods, as the activation hooks do (`basic-scaffold.php:119-131`). A bridge
+  methods, as the activation hooks do (`basic-scaffold.php:129-151`) and the
+  uninstall bridge does (`src/BasicScaffoldUninstallHook.php:36-38`). A bridge
   holds no state and no logic of its own, and it is where exceptions have to
   be caught before control goes back to WordPress (principle 10); the
-  activation hooks do not do that yet (#143).
+  activation hooks do not do that yet (#143). The scoped lifecycle events,
+  uninstall included, are the approved exception: their failures propagate,
+  as principle 10 explains.
 - **Outside the plugin**, in a theme or another plugin, there is no bridge.
   That code integrates through the plugin's hooks (principle 13), never by
   reaching into the graph. The plugin factory and `Plugin::get_container()`
@@ -287,7 +305,7 @@ shows the hooks.
 Concrete classes are `final`. Variation happens through interfaces and
 injected collaborators, not through inheritance. Only classes deliberately
 designed as a base are open: `ServiceBasedPlugin` is abstract so the
-composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:28`),
+composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:39`),
 and `SimpleView` is the base that `TemplatedView` builds on
 (`src/Infrastructure/View/SimpleView.php:35`). Every other class in `src/` is
 `final`, and new classes follow suit unless they are designed for extension
@@ -302,9 +320,9 @@ book, shows the better alternative so that plugins built on it learn it too.
 | Common anti-pattern | What the scaffold does instead |
 | --- | --- |
 | Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:71-77`). [Pattern](patterns.md#i-need-to-add-hooks) |
-| Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:40-58`). [Pattern](patterns.md#i-need-a-singleton) |
+| Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:45-63`). [Pattern](patterns.md#i-need-a-singleton) |
 | A service locator, such as a static `Services::get( 'id' )` | Each need behind it has its own answer: constructor injection, a factory, a typed registry, `share()`, or a bridge at the edge of the object graph (principle 5). [Pattern](patterns.md#i-need-a-service-locator) |
-| A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:119-131`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
+| A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:129-151`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
 | Creating collaborators with `new` inside a class, or pulling them from globals | Dependencies are injected through the constructor and configured as bindings in the composition root. [Pattern: creating objects](patterns.md#i-need-to-create-objects-on-demand), [WordPress state](patterns.md#i-need-wordpress-state-such-as-the-current-post) |
 | `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:45-52`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
 | Hooking to an early action just to wait for a later one | A service names its registration action through `Delayed`, and the plugin defers it. [Pattern](patterns.md#i-need-to-hook-in-later) |
@@ -381,11 +399,11 @@ In the code: the service list passes through a filter that any plugin can
 hook, so `ServiceBasedPlugin` checks that it is an array, and that each entry
 has a string identifier and names an existing class implementing `Service`,
 before using it. It throws `InvalidConfiguration` or `InvalidService` on
-anything unexpected (`src/Infrastructure/ServiceBasedPlugin.php:432-464`).
+anything unexpected (`src/Infrastructure/ServiceBasedPlugin.php:1232-1264`).
 Bindings, arguments, shared instances and delegations receive the same
 treatment after their filters, raising `InvalidConfiguration`, `InvalidService`
 or `InvalidArgument`. A binding must point to a subtype of what it binds,
-whenever both can be loaded (`:994-1000`), and the injector checks that a
+whenever both can be loaded (`:1794-1800`), and the injector checks that a
 delegation returns an instance of the class it was registered for
 (`src/Infrastructure/Injector/SimpleInjector.php:518-527`).
 
@@ -466,20 +484,48 @@ service's own code in a hook callback, or during registration, activation or
 deactivation, still reaches WordPress with debug mode on or off. How to catch
 those once, in the infrastructure, is open in #143.
 
+**The scoped lifecycle events are an approved exception.** A failure in a
+site- or network-scoped activation or deactivation, in the set-up of a new
+site or the clean-up of a deleted one, or in the uninstall, propagates to
+WordPress unchanged, with debug mode on and off alike
+([ruling on #34](https://github.com/mwpd/basic-scaffold/issues/34)). A
+multisite set-up that cannot do what it was asked to should fail visibly,
+rather than report a success it did not achieve. Graceful degradation would
+hide exactly that. So the plugin:
+
+- switches back to the site that was current before it lets the exception
+  leave the switched site;
+- stops at the first failure: no later service, site or phase runs, and no
+  failures are collected into a combined exception;
+- undoes nothing that already ran. Every lifecycle step is idempotent
+  (principle 11), so the way back is to fix the cause and run the step again;
+- registers the uninstall callback again before a failed uninstall
+  propagates, so that deleting the plugin again retries the cleanup.
+
+The exception can interrupt what WordPress was doing: a network activation
+stops part-way through the network, and a site that is being created or
+deleted can be left half done. That is the price of not reporting a success
+that did not happen. The parameterless `Activateable` and `Deactivateable`
+calls are not part of this exception; they wait for #143 like every other
+callback.
+
 This is the same compromise as principle 4: clean, strict code inside, and the
 WordPress way at the edges, where forcing the clean approach would create more
 problems than it solves.
 
 ## 11. Lifecycle steps are idempotent
 
-Registering, activating and deactivating are safe to run more than once.
+Registering, activating, deactivating and uninstalling are safe to run more
+than once, in every site and network they reach.
 WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
-happened (`src/Infrastructure/ServiceBasedPlugin.php:341-343`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:784-786`).
+happened (`src/Infrastructure/ServiceBasedPlugin.php:1126-1128`), and never
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:1584-1586`).
 A step that runs a second time must leave the plugin exactly as the first run
-did.
+did. The scoped lifecycle steps rely on it most: a network activation or an
+uninstall that failed part-way is retried by running it again, over the sites
+that were already done as well as the ones that were not.
 
 ## 12. Extension points run at a hook, never at include time
 
@@ -489,9 +535,9 @@ plugin file is being included. At include time, plugins loaded after this one
 have had no chance to add their callbacks, so an extension point that runs
 then only works for code that happens to load earlier. So the plugin applies
 its filters during registration at `plugins_loaded`: the `services` filter
-(`src/Infrastructure/ServiceBasedPlugin.php:391-394`), and the injector
+(`src/Infrastructure/ServiceBasedPlugin.php:1212-1215`), and the injector
 filters, because the injector is configured there and not in the constructor
-(`src/Infrastructure/ServiceBasedPlugin.php:355`).
+(`src/Infrastructure/ServiceBasedPlugin.php:1140`).
 
 ## 13. One plugin, to arbitrary complexity
 
@@ -514,7 +560,7 @@ collaboration or synchronization between plugins.
 
 **Everything public carries the plugin's prefix**, so that several plugins
 built from this scaffold can run side by side without clashing. That covers
-hook names and service identifiers (`src/BasicScaffoldPlugin.php:247-249`, `:273-275`), as
+hook names and service identifiers (`src/BasicScaffoldPlugin.php:282-284`, `:308-310`), as
 well as option, meta and transient names, script and style handles, and the
 paths a theme uses to override the plugin's views. The prefixes prevent
 collisions; they are not a coordination protocol.
@@ -525,9 +571,9 @@ This scaffold is companion code to a book, and the plugins generated from it
 copy what it does. Its code and comments are teaching material:
 
 - **Comments explain why**, not just what. The bootstrap is split into three
-  numbered steps that say what each one is for (`basic-scaffold.php:33-46`),
+  numbered steps that say what each one is for (`basic-scaffold.php:35-48`),
   and the composition root is laid out the same way
-  (`src/BasicScaffoldPlugin.php`, sections 1 to 3).
+  (`src/BasicScaffoldPlugin.php`, sections 1 to 4).
 - **The samples must be correct.** Sample services and views are copied more
   than anything else, so they demonstrate the full pattern, including escaping
   and error handling, and they are covered by tests. A shortcut in a sample is

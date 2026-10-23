@@ -47,7 +47,9 @@ into this scaffold.
 - **Services with a declared lifecycle**: `Registerable`, `Conditional`, `Delayed`,
   `HasDependencies`, `Activateable` and `Deactivateable` let each service state when
   it is needed and what it hooks into. Services that a request does not need are
-  never even instantiated.
+  never even instantiated. Site- and network-scoped interfaces cover multisite
+  activation, new and deleted sites, and uninstalling, through a static
+  uninstall bridge rather than an `uninstall.php`.
 - **Dependency injection** through a single composition root,
   [`src/BasicScaffoldPlugin.php`](src/BasicScaffoldPlugin.php), with a simple
   built-in injector and service container that you can swap for your own.
