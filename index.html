@@ -485,7 +485,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 						<th scope="col"><code>OutdatedPostNotice</code><span>Conditional, Delayed to <code>wp</code></span></th>
 						<th scope="col"><code>PostAgeColumn</code><span>Conditional, Delayed to <code>current_screen</code></span></th>
 						<th scope="col"><code>FreshnessSetting</code><span>Delayed to <code>admin_init</code></span></th>
-						<th scope="col"><code>StaleContentDigest</code><span>Activateable, Deactivateable</span></th>
+						<th scope="col"><code>StaleContentDigest</code><span>SiteActivateable, SiteDeactivateable</span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -610,7 +610,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 	<p class="lede">Content Freshness is the scaffold's worked example: a real plugin with those four features, built from this template commit by commit. Watch what each new feature changes.</p>
 
 	<div class="example-link">
-		<p><b>Content Freshness 1.0.0</b>A notice for readers, a column and a weekly digest for editors, one setting. Every listing below is from its source.</p>
+		<p><b>Content Freshness 1.0.1</b>A notice for readers, a column and a weekly digest for editors, one setting. Every listing below is from its source.</p>
 		<nav aria-label="Worked example">
 			<a href="../content-freshness/">Plugin page</a>
 			<a href="https://github.com/mwpd/content-freshness">Source on GitHub</a>
@@ -623,6 +623,8 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 		<p>The notice is needed on a single post, and WordPress can only say whether this is a single post once the query has run. So the service says both, as static answers the plugin can ask before it builds anything.</p>
 		<figure class="listing">
 			<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">OutdatedPostNotice</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Conditional</span>, <span class="t">Delayed</span> {
+
+	<span class="k">use</span> <span class="t">DefaultRegistrationPriority</span>; <span class="c">// Priority 10 on its action.</span>
 
 	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">is_needed</span>(): <span class="t">bool</span> {
 		<span class="k">return</span> <span class="f">\is_singular</span>( <span class="s">'post'</span> ); <span class="c">// Only on a single post...</span>
@@ -704,11 +706,17 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 	<div class="act">
 		<span class="kicker">Third feature</span>
 		<h3>The digest needs the plugin's lifecycle, not a request.</h3>
-		<p>A weekly email is scheduled when the plugin is activated and cleared when it is deactivated. The service says that by implementing <code>Activateable</code> and <code>Deactivateable</code>, and the plugin calls it from its activation hooks.</p>
-		<p>It is deliberately not <code>Conditional</code>. WP-Cron fires the event in whatever request comes along, so the callback has to be hooked in every request, and activation skips a <code>Conditional</code> service that is not needed in the activation request.</p>
+		<p>A weekly email is scheduled when the plugin is activated and cleared when it is deactivated, in each site: every site has its own posts, editors and cron events. The service says that by implementing <code>SiteActivateable</code> and <code>SiteDeactivateable</code>, and the scaffold calls it in every site an activation or deactivation reaches, a whole network included.</p>
+		<p>It is deliberately not <code>Conditional</code>. WP-Cron fires the event in whatever request comes along, so the callback has to be hooked in every request, and the lifecycle events skip a <code>Conditional</code> service that is not needed in the site they reach.</p>
 		<div class="pair">
 			<figure class="listing">
-				<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">StaleContentDigest</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Activateable</span>, <span class="t">Deactivateable</span> {
+				<pre tabindex="0"><code><span class="k">final</span> <span class="k">class</span> <span class="t">StaleContentDigest</span> <span class="k">implements</span>
+	<span class="t">Service</span>,
+	<span class="t">Registerable</span>,
+	<span class="t">SiteActivateable</span>,
+	<span class="t">SiteDeactivateable</span>,
+	<span class="t">SiteInitializable</span>,
+	<span class="t">SiteUninstallable</span> {
 
 	<span class="k">public</span> <span class="k">const</span> CRON_HOOK = <span class="s">'mwpd_content_freshness_send_digest'</span>;
 
@@ -716,7 +724,18 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 		<span class="f">\add_action</span>( <span class="t">self</span>::CRON_HOOK, [ <span class="v">$this</span>, <span class="s">'send'</span> ], 10, 0 );
 	}
 
-	<span class="k">public</span> <span class="k">function</span> <span class="f">activate</span>(): <span class="t">void</span> {
+	<span class="k">public</span> <span class="k">function</span> <span class="f">activate_site</span>( <span class="t">SiteContext</span> <span class="v">$context</span> ): <span class="t">void</span> {
+		<span class="v">$this</span>-&gt;<span class="f">schedule</span>(); <span class="c">// In the site that is switched to.</span>
+	}
+
+	<span class="k">public</span> <span class="k">function</span> <span class="f">deactivate_site</span>( <span class="t">SiteContext</span> <span class="v">$context</span> ): <span class="t">void</span> {
+		<span class="v">$this</span>-&gt;<span class="f">unschedule</span>();
+	}
+
+	<span class="c">// ... initialize_site() schedules in a new site of the network,</span>
+	<span class="c">// uninstall_site() clears an event left behind.</span>
+
+	<span class="k">private</span> <span class="k">function</span> <span class="f">schedule</span>(): <span class="t">void</span> {
 		<span class="k">if</span> ( <span class="k">false</span> !== <span class="f">\wp_next_scheduled</span>( <span class="t">self</span>::CRON_HOOK ) ) {
 			<span class="k">return</span>; <span class="c">// Activating twice schedules once.</span>
 		}
@@ -729,11 +748,6 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 			<span class="k">true</span>
 		);
 		<span class="c">// ... a WP_Error becomes FailedToScheduleDigest.</span>
-	}
-
-	<span class="k">public</span> <span class="k">function</span> <span class="f">deactivate</span>(): <span class="t">void</span> {
-		<span class="v">$result</span> = <span class="f">\wp_clear_scheduled_hook</span>( <span class="t">self</span>::CRON_HOOK, [], <span class="k">true</span> );
-		<span class="c">// ...</span>
 	}
 }</code></pre>
 				<figcaption><b>Listing 5</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/Digest/StaleContentDigest.php"><code>src/Digest/StaleContentDigest.php</code></a>, trimmed. <span class="tag">From the repository</span></figcaption>
@@ -753,7 +767,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 			</figure>
 		</div>
 		<aside class="note"><span class="n">b</span>The fourth service, <code>FreshnessSetting</code>, is <code>Delayed</code> to <code>admin_init</code> and not <code>Conditional</code>: waiting for <code>admin_init</code> already keeps it out of the front end, and an <code>is_admin()</code> condition would stop it from cleaning up when the plugin is deleted through WP-CLI.</aside>
-		<p>The fourth feature, the setting under Settings &rsaquo; Reading, went in the same way. Removing its option when the plugin is deleted was a lifecycle point the scaffold had no interface for. The scaffold's rule is that such a point gets a new capability interface, never a condition inside a service, so the example added one: <a href="https://github.com/mwpd/content-freshness/blob/main/src/Infrastructure/Uninstallable.php"><code>Uninstallable</code></a>.</p>
+		<p>The fourth feature, the setting under Settings &rsaquo; Reading, went in the same way. Removing its option when the plugin is deleted is a lifecycle point too, and the scaffold covers it with a capability interface, never a condition inside a service: the setting implements <a href="https://github.com/mwpd/content-freshness/blob/main/src/Infrastructure/SiteUninstallable.php"><code>SiteUninstallable</code></a>, and the scaffold's static uninstall bridge reaches it in every site when the plugin is deleted.</p>
 	</div>
 
 	<figure class="ledger">
@@ -785,11 +799,12 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 	<h3>The lifecycle questions a service can answer</h3>
 	<dl class="questions">
 		<div><dt>Is it needed in this request at all?</dt><dd><code>Conditional::is_needed()</code>. Asked before the service is built. If the answer is no, the service never exists.</dd></div>
-		<div><dt>When does it hook in?</dt><dd><code>Delayed::get_registration_action()</code>. Registration waits for that action, or runs at once if it has already fired.</dd></div>
+		<div><dt>When does it hook in?</dt><dd><code>Delayed::get_registration_action()</code>, at <code>get_registration_priority()</code>. Registration waits for that action, or runs at once if it has already fired.</dd></div>
 		<div><dt>Which services must exist first?</dt><dd><code>HasDependencies::get_dependencies()</code>. Registration waits until they are registered, and fails loudly when they never can be.</dd></div>
 		<div><dt>What does it hook into?</dt><dd><code>Registerable::register()</code>. Called once the service is built, to add its actions and filters.</dd></div>
-		<div><dt>What happens on activation?</dt><dd><code>Activateable::activate()</code>. Called from the plugin's activation hook. Safe to run twice.</dd></div>
-		<div><dt>And on deactivation?</dt><dd><code>Deactivateable::deactivate()</code>. Called from the deactivation hook, the same way.</dd></div>
+		<div><dt>What happens on activation?</dt><dd><code>Activateable::activate()</code>, once, or <code>SiteActivateable::activate_site()</code> in every site the activation reaches. Safe to run twice.</dd></div>
+		<div><dt>And on deactivation?</dt><dd><code>Deactivateable::deactivate()</code>, or <code>SiteDeactivateable::deactivate_site()</code> in every site, the same way.</dd></div>
+		<div><dt>And when the plugin is deleted?</dt><dd><code>SiteUninstallable::uninstall_site()</code> in every site, through a static uninstall bridge. Safe to run twice.</dd></div>
 	</dl>
 	<p>The questions are static methods on purpose, so the plugin can <mark>decide before it builds</mark>. A service a request does not need is never instantiated, which is what Figure 1 shows: each request pays only for the services it uses.</p>
 </section>
@@ -802,24 +817,26 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 		<pre tabindex="0"><code><span class="k">protected</span> <span class="k">function</span> <span class="f">get_bindings</span>(): <span class="k">array</span> {
 	<span class="k">return</span> [
 		<span class="c">// Views can be overridden by the theme.</span>
-		<span class="t">ViewFactory</span>::<span class="k">class</span>     =&gt; <span class="t">TemplatedViewFactory</span>::<span class="k">class</span>,
+		<span class="t">ViewFactory</span>::<span class="k">class</span>      =&gt; <span class="t">TemplatedViewFactory</span>::<span class="k">class</span>,
 
 		<span class="c">// Failures surface when WP_DEBUG is on, and degrade when it is off.</span>
-		<span class="t">DebugMode</span>::<span class="k">class</span>       =&gt; <span class="t">WordPressDebugMode</span>::<span class="k">class</span>,
+		<span class="t">DebugMode</span>::<span class="k">class</span>        =&gt; <span class="t">WordPressDebugMode</span>::<span class="k">class</span>,
+
+		<span class="c">// ... the factories of the optional Query Monitor panel.</span>
 
 		<span class="c">// Ages are measured against the time WordPress tells.</span>
-		<span class="t">Clock</span>::<span class="k">class</span>           =&gt; <span class="t">WordPressClock</span>::<span class="k">class</span>,
+		<span class="t">Clock</span>::<span class="k">class</span>            =&gt; <span class="t">WordPressClock</span>::<span class="k">class</span>,
 
 		<span class="c">// A post is outdated once it is older than the maximum age set</span>
 		<span class="c">// under Settings &gt; Reading. Rebind this to change the rule for</span>
 		<span class="c">// every service at once.</span>
-<span class="ln hl">		<span class="t">FreshnessPolicy</span>::<span class="k">class</span> =&gt; <span class="t">OptionFreshnessPolicy</span>::<span class="k">class</span>,</span>
+<span class="ln hl">		<span class="t">FreshnessPolicy</span>::<span class="k">class</span>  =&gt; <span class="t">OptionFreshnessPolicy</span>::<span class="k">class</span>,</span>
 
 		<span class="c">// The notice asks WordPress's main loop which post it renders.</span>
-		<span class="t">MainLoop</span>::<span class="k">class</span>        =&gt; <span class="t">WordPressMainLoop</span>::<span class="k">class</span>,
+		<span class="t">MainLoop</span>::<span class="k">class</span>         =&gt; <span class="t">WordPressMainLoop</span>::<span class="k">class</span>,
 
 		<span class="c">// The digest asks the database for the stalest posts.</span>
-		<span class="t">StalePosts</span>::<span class="k">class</span>      =&gt; <span class="t">WordPressStalePosts</span>::<span class="k">class</span>,
+		<span class="t">StalePosts</span>::<span class="k">class</span>       =&gt; <span class="t">WordPressStalePosts</span>::<span class="k">class</span>,
 	];
 }
 
@@ -830,7 +847,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 		<span class="t">FreshnessPolicy</span>::<span class="k">class</span>,
 	];
 }</code></pre>
-		<figcaption><b>Listing 7</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/ContentFreshnessPlugin.php"><code>src/ContentFreshnessPlugin.php</code></a>, the bindings and shared instances. <span class="tag">From the repository</span></figcaption>
+		<figcaption><b>Listing 7</b> <a href="https://github.com/mwpd/content-freshness/blob/main/src/ContentFreshnessPlugin.php"><code>src/ContentFreshnessPlugin.php</code></a>, the bindings and shared instances, trimmed. <span class="tag">From the repository</span></figcaption>
 	</figure>
 
 	<aside class="note"><span class="n">c</span>The injector and the service container are small in-house implementations behind interfaces. <code>ServiceBasedPlugin</code> takes any <code>Injector</code> and <code>ServiceContainer</code> through its constructor and falls back to the simple ones when none is passed.</aside>
@@ -910,7 +927,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 <span class="d"> ------ -----------------------------------------------------------------------------------------</span>
 <span class="d">  Line   PostAgeColumn.php</span>
 <span class="d"> ------ -----------------------------------------------------------------------------------------</span>
-  82     is_admin() in MWPD\ContentFreshness\PostsList\PostAgeColumn::register() decides at
+  83     is_admin() in MWPD\ContentFreshness\PostsList\PostAgeColumn::register() decides at
          registration whether the service applies to this request. Implement Conditional and
          return the answer from is_needed(), so the plugin does not even build the service
          when it is not needed.
@@ -945,7 +962,7 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 		</div>
 		<div>
 			<h3>Answers indexed by need</h3>
-			<p><a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/patterns.md"><code>docs/patterns.md</code></a> has 17 sections named the way the problem is phrased: “I need a singleton”, “I need a service locator”, “I need to hook in later”. Each gives the scaffold's answer, with code that passes the checks.</p>
+			<p><a href="https://github.com/mwpd/basic-scaffold/blob/main/docs/patterns.md"><code>docs/patterns.md</code></a> has 20 sections named the way the problem is phrased: “I need a singleton”, “I need a service locator”, “I need to hook in later”. Each gives the scaffold's answer, with code that passes the checks.</p>
 		</div>
 		<div>
 			<h3>A feedback loop that teaches</h3>
@@ -966,6 +983,8 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
 	<figure class="listing">
 		<pre class="diff" tabindex="0"><code><span class="ln del"><span class="pm" aria-hidden="true">&minus;</span><span class="k">final</span> <span class="k">class</span> <span class="t">PostAgeColumn</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span> {</span>
 <span class="ln add"><span class="pm" aria-hidden="true">+</span><span class="k">final</span> <span class="k">class</span> <span class="t">PostAgeColumn</span> <span class="k">implements</span> <span class="t">Service</span>, <span class="t">Registerable</span>, <span class="t">Conditional</span>, <span class="t">Delayed</span> {</span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span></span>
+<span class="ln add"><span class="pm" aria-hidden="true">+</span>	<span class="k">use</span> <span class="t">DefaultRegistrationPriority</span>;</span>
 <span class="ln add"><span class="pm" aria-hidden="true">+</span></span>
 <span class="ln add"><span class="pm" aria-hidden="true">+</span>	<span class="k">public</span> <span class="k">static</span> <span class="k">function</span> <span class="f">is_needed</span>(): <span class="t">bool</span> {</span>
 <span class="ln add"><span class="pm" aria-hidden="true">+</span>		<span class="v">$screen</span> = <span class="f">\get_current_screen</span>();</span>
