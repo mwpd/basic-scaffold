@@ -135,7 +135,7 @@ says which rules enforce each principle, and what stays with review.
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor`, `bootstrapContract` | |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve`, `infrastructureApiSnapshot` | Whether comments explain why and cited lines still support the prose |
-| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `suppressionsAreNamed`, `testsAreDiscovered`, `gatesAtStrength`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
+| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `suppressionsAreNamed`, `testsAreDiscovered`, `gatesAtStrength`, `everyPathAnalysed`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
 
 ## Mistakes the checks catch
 
@@ -758,7 +758,8 @@ are recognized as baselines even under another filename.
 **Allows:** stronger Psalm levels, additional PHPUnit suites and ordinary
 PHPStan extension includes. Installed packages' configurations are not checked.
 Existing PHPStan `ignoreErrors` entries and Psalm `issueHandlers` are outside
-this rule's scope, as are inline suppressions and which paths each tool checks.
+this rule's scope, as are inline suppressions.
+[`everyPathAnalysed`](#architectureeverypathanalysed) checks which paths each tool analyses.
 
 **Configuration:** the expected levels, standards, compatibility version and
 suite names are constants at the top of `GatesAtStrengthChecks` in
@@ -768,6 +769,37 @@ there for review.
 **Fix:** fix the code instead of weakening the gate; restore the required
 configuration. A deliberate change to the policy needs a maintainer ruling
 on an issue with `needs: decision` before changing the expectation.
+
+### `architecture.everyPathAnalysed`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the gates.
+
+**Checks:** PHPStan, PHPCS and Psalm each include the bootstrap, every production
+class and view directory, and the tests directory declared by `RepositoryLayout`.
+An included ancestor covers a required root. Exclusions must not remove a required
+root or hide code below it without a reviewed allowance. PHPStan's `excludePaths`
+list and `analyse`/`analyseAndScan` map forms are checked, as are Psalm's
+`projectFiles/ignoreFiles` and PHPCS's global `exclude-pattern` entries.
+Missing, unreadable and malformed configurations fail with guidance to restore them.
+
+**Allows:** exclusions within `RepositoryLayout::RULE_FIXTURES`, which deliberately
+break rules, and the existing documented per-gate exceptions: PHPStan's broken
+view fixture; Psalm's broken view fixture and `tests/php/PHPStan` directory.
+Exclusions outside required roots are harmless. PHPCS patterns inside a `rule`
+only affect that sniff and are outside this check's scope. Which rules the gates
+run is checked by [`gatesAtStrength`](#architecturegatesatstrength).
+
+**Configuration:** `RepositoryLayout` declares `BOOTSTRAP`, `PRODUCTION`,
+`PRODUCTION_VIEWS`, `TESTS` and `RULE_FIXTURES`. Included roots and exclusions
+come from `phpstan.neon.dist`, `phpcs.xml.dist` and `psalm.xml`. The per-gate
+allowance constants at the top of `EveryPathAnalysedChecks` in
+`tests/php/Architecture/` keep exceptions reviewable; a new entry needs a
+documented reason in its gate's configuration.
+
+**Fix:** add the missing path to the named configuration's included roots or
+remove the exclusion it reports. Fix the code instead of hiding it from a gate.
+A deliberate policy change needs a maintainer ruling on an issue with
+`needs: decision` before changing an allowance.
 
 ### `architecture.dependencyDirection`
 
