@@ -127,7 +127,7 @@ says which rules enforce each principle, and what stays with review.
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
-| [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
+| [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor`, `bootstrapContract` | |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve` | Whether comments explain why and cited lines still support the prose |
 | [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength` | |
@@ -141,6 +141,7 @@ that names the fix. The fixtures and tests listed prove it.
 | --- | --- | --- |
 | A service constructor reading an option or branching | `constructorsOnlyAssign` | `tests/php/PHPStan/Fixture/ConstructorsOnlyAssign/CallService.php`, `BranchService.php` |
 | A hook added in a constructor | `noHooksInConstructor` | `tests/php/PHPStan/Fixture/Hooks/Feature/BadService.php` |
+| A bootstrap applying a filter before other plugins can hook in | `bootstrapContract` | `tests/php/Fixture/BootstrapContract/filters-too-early.php`, `BootstrapContractTest::test_it_reports_a_filter_applied_at_include_time_with_the_fix` |
 | `new` of a service inside another service | `newOnlyWhereAllowed` | `tests/php/PHPStan/Fixture/Creation/Consumer.php` |
 | A class that is not `final` | `finalByDefault` | `tests/php/PHPStan/Fixture/FinalByDefault/classes.php` |
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
@@ -590,6 +591,40 @@ whitespace after a closing `?>`, all count as side effects.
 
 **Fix:** move the code into a service method that `register()` hooks in at
 the right time, or into the main plugin file.
+
+**Pattern:** [I need to run code when the plugin file loads](patterns.md#i-need-to-run-code-when-the-plugin-file-loads).
+
+### `architecture.bootstrapContract`
+
+**Principle:** [12. Extension points run at a hook, never at include time](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time).
+
+**Checks:** including the main plugin file in a separate PHP process under
+Brain Monkey makes exactly three hook API calls: one `add_action()` for
+`plugins_loaded`, one `register_activation_hook()` and one
+`register_deactivation_hook()`. Each registration must have a callable
+callback; activation and deactivation must name the included bootstrap.
+Callbacks are recorded without being run.
+
+Every other recorded hook API call fails, including `add_filter()`, removals,
+hook queries, `register_uninstall_hook()`, `do_action()` and `apply_filters()`.
+The reference-array and deprecated variants of actions and filters are
+recorded too. Duplicate registrations fail even when they would leave the
+same final hook state. Missing registrations fail with the required wiring.
+
+**Allows:** registering the autoloader and building the composition root,
+provided they make no additional hook API calls. This checks hook calls,
+not arbitrary PHP side effects or whether registered callbacks do the right
+work when WordPress later runs them.
+
+**Configuration:** `RepositoryLayout::BOOTSTRAP` names the main plugin file.
+`BootstrapContract` also accepts a fixture bootstrap path. No plugin namespace
+or hook prefix is hard-coded in the checker, so it follows generated plugins
+after renaming. Intentional violations live in
+`tests/php/Fixture/BootstrapContract`, listed in `RepositoryLayout::RULE_FIXTURES`.
+
+**Fix:** move the named call into a service's `register()` or into registration
+at `plugins_loaded`, when other plugins have had a chance to hook in. Keep
+exactly one registration for each of the three entry hooks in the bootstrap.
 
 **Pattern:** [I need to run code when the plugin file loads](patterns.md#i-need-to-run-code-when-the-plugin-file-loads).
 

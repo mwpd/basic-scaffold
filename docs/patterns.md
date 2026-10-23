@@ -654,8 +654,10 @@ the plugin.
 
 **Proven by:** `basic-scaffold.php:74-137`.
 
-**Rules:** `architecture.noSideEffectsOnInclude`. What the main file itself
-may do on include is checked once #73 lands.
+**Rules:** `architecture.noSideEffectsOnInclude`;
+`architecture.bootstrapContract` limits the main file's hook API calls to
+registering one `plugins_loaded` action and the activation and deactivation
+hooks, leaving extension points for registration.
 
 ## I need a name in a space WordPress shares
 

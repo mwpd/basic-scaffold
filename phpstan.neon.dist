@@ -16,6 +16,8 @@ parameters:
         - tests/php/Fixture/views/broken-view.php
         # Fixtures for the architecture rules break those rules on purpose.
         - tests/php/PHPStan/Fixture
+        # Bootstrap contract fixtures deliberately make invalid hook calls.
+        - tests/php/Fixture/BootstrapContract
         # Stand-ins for WordPress classes, which the WordPress stubs declare.
         - tests/php/Fixture/WordPress
     ignoreErrors:
