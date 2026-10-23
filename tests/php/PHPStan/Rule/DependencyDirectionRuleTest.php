@@ -28,6 +28,7 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 
 	private const TIP = 'Principle 4: SOLID at the top, WordPress at the edges, see '
 		. 'docs/design-principles.md#4-solid-at-the-top-wordpress-at-the-edges. '
+		. 'Pattern: docs/patterns.md#i-need-to-create-objects-on-demand. '
 		. 'Rule: docs/architecture-rules.md#architecturedependencydirection';
 
 	private const EXCEPTION_FIX = ' Exceptions only depend on each other and on PHP; pass what the message needs as a'

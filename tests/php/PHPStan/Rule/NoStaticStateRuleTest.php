@@ -30,6 +30,7 @@ final class NoStaticStateRuleTest extends RuleTestCase {
 
 	private const TIP = 'Principle 5: One composition root builds the object graph, see '
 		. 'docs/design-principles.md#5-one-composition-root-builds-the-object-graph. '
+		. 'Pattern: docs/patterns.md#i-need-a-singleton. '
 		. 'Rule: docs/architecture-rules.md#architecturenostaticstate';
 
 	protected function getRule(): Rule {

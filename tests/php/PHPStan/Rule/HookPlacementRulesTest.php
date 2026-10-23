@@ -52,7 +52,7 @@ final class HookPlacementRulesTest extends RuleTestCase {
 			$this->createReflectionProvider()
 		);
 
-		$tip = $this->tip( 'nohooksinconstructor' );
+		$tip = $this->tip( 'nohooksinconstructor', 'i-need-to-add-hooks' );
 
 		$this->analyse(
 			$this->fixtures(),
@@ -81,7 +81,7 @@ final class HookPlacementRulesTest extends RuleTestCase {
 			$this->createReflectionProvider()
 		);
 
-		$tip = $this->tip( 'hooksinlifecyclemethods' );
+		$tip = $this->tip( 'hooksinlifecyclemethods', 'i-need-to-add-hooks' );
 
 		$this->analyse(
 			$this->fixtures(),
@@ -111,7 +111,7 @@ final class HookPlacementRulesTest extends RuleTestCase {
 						. ' to this request. Implement Conditional and return the answer from is_needed(), so the'
 						. ' plugin does not even build the service when it is not needed.',
 					19,
-					$this->tip( 'nocontextchecksinregister' ),
+					$this->tip( 'nocontextchecksinregister', 'i-need-a-service-only-in-some-requests' ),
 				],
 			]
 		);
@@ -147,9 +147,10 @@ final class HookPlacementRulesTest extends RuleTestCase {
 			. ' Deactivateable; if it must wait for a later action, implement Delayed.';
 	}
 
-	private function tip( string $anchor ): string {
+	private function tip( string $anchor, string $pattern ): string {
 		return 'Principle 7: Show the alternative to WordPress anti-patterns, see'
 			. ' docs/design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns.'
+			. ' Pattern: docs/patterns.md#' . $pattern . '.'
 			. ' Rule: docs/architecture-rules.md#architecture' . $anchor;
 	}
 }

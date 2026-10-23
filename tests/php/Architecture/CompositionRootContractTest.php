@@ -77,7 +77,8 @@ final class CompositionRootContractTest extends TestCase {
 				$problems[ $index ]
 			);
 			$this->assertStringContainsString(
-				'Rule: docs/architecture-rules.md#architecturecompositionrootcontracts',
+				'Pattern: docs/patterns.md#i-need-to-add-a-feature. '
+					. 'Rule: docs/architecture-rules.md#architecturecompositionrootcontracts',
 				$problems[ $index ]
 			);
 		}

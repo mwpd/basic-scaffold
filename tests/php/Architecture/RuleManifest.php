@@ -27,7 +27,9 @@ use ReflectionClass;
  * names that document instead.
  *
  * Failure messages take their "why" from this list, so a rule never has to
- * repeat where its principle is documented.
+ * repeat where its principle is documented. An entry may also name the
+ * pattern in docs/patterns.md that meets the need behind the code a rule
+ * rejects, so a failure also says how.
  *
  * Each entry also names what checks the rule, so a test can prove that it
  * runs: PHPStan rule classes, or the test methods of the architecture suite.
@@ -37,6 +39,7 @@ use ReflectionClass;
  * @phpstan-type RuleEntry array{
  *     principle: string,
  *     principle_anchor: string,
+ *     pattern?: string,
  *     configuration: string,
  *     document?: string,
  *     checked_by: array<string>,
@@ -54,6 +57,11 @@ final class RuleManifest {
 	 * Document that holds the rule catalogue, relative to the plugin root.
 	 */
 	public const CATALOGUE = 'docs/architecture-rules.md';
+
+	/**
+	 * Document that holds the patterns, relative to the plugin root.
+	 */
+	public const PATTERNS = 'docs/patterns.md';
 
 	/**
 	 * Document that holds the hard rules, relative to the plugin root.
@@ -107,6 +115,7 @@ final class RuleManifest {
 		self::FINAL_BY_DEFAULT                      => [
 			'principle'        => 'Principle 6: Final by default',
 			'principle_anchor' => '6-final-by-default',
+			'pattern'          => 'i-need-to-start-simple-and-add-implementations-later',
 			'configuration'    => 'parameters.architecture.finalByDefault',
 			'checked_by'       => [
 				Rule\FinalByDefaultRule::class,
@@ -118,6 +127,7 @@ final class RuleManifest {
 		self::NO_STATIC_STATE                       => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-a-singleton',
 			'configuration'    => 'parameters.architecture.noStaticState',
 			'checked_by'       => [
 				Rule\NoStaticStateRule::class,
@@ -129,6 +139,7 @@ final class RuleManifest {
 		self::NO_WORDPRESS_ERROR_MECHANISMS         => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
+			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.noWordPressErrorMechanisms',
 			'checked_by'       => [
 				Rule\NoErrorReportingFunctionsRule::class,
@@ -149,6 +160,7 @@ final class RuleManifest {
 		self::THROW_ONLY_PLUGIN_EXCEPTIONS          => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
+			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptions',
 			'checked_by'       => [
 				Rule\ThrowOnlyPluginExceptionsRule::class,
@@ -162,6 +174,7 @@ final class RuleManifest {
 		self::EXCEPTION_SHAPE                       => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
+			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptions',
 			'checked_by'       => [
 				Rule\ExceptionShapeRule::class,
@@ -176,6 +189,7 @@ final class RuleManifest {
 		self::EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS => [
 			'principle'        => 'Principle 10: Errors are exceptions',
 			'principle_anchor' => '10-errors-are-exceptions',
+			'pattern'          => 'i-need-to-report-a-failure',
 			'configuration'    => 'parameters.architecture.exceptions',
 			'checked_by'       => [
 				Rule\ExceptionsThroughNamedConstructorsRule::class,
@@ -187,6 +201,7 @@ final class RuleManifest {
 		self::DEPENDENCY_DIRECTION                  => [
 			'principle'        => 'Principle 4: SOLID at the top, WordPress at the edges',
 			'principle_anchor' => '4-solid-at-the-top-wordpress-at-the-edges',
+			'pattern'          => 'i-need-to-create-objects-on-demand',
 			'configuration'    => 'parameters.architecture.dependencyDirection',
 			'checked_by'       => [
 				Rule\DependencyDirectionRule::class,
@@ -202,6 +217,7 @@ final class RuleManifest {
 		self::NEW_ONLY_WHERE_ALLOWED                => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-to-create-objects-on-demand',
 			'configuration'    => 'parameters.architecture.newOnlyWhereAllowed',
 			'checked_by'       => [
 				Rule\NewOnlyWhereAllowedRule::class,
@@ -216,6 +232,7 @@ final class RuleManifest {
 		self::NO_HOOKS_IN_CONSTRUCTOR               => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-add-hooks',
 			'configuration'    => 'parameters.architecture.namespace',
 			'checked_by'       => [
 				Rule\NoHooksInConstructorRule::class,
@@ -227,6 +244,7 @@ final class RuleManifest {
 		self::HOOKS_IN_LIFECYCLE_METHODS            => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-add-hooks',
 			'configuration'    => 'parameters.architecture.hooks.lifecycleMethods',
 			'checked_by'       => [
 				Rule\HooksInLifecycleMethodsRule::class,
@@ -238,6 +256,7 @@ final class RuleManifest {
 		self::NO_CONTEXT_CHECKS_IN_REGISTER         => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-a-service-only-in-some-requests',
 			'configuration'    => 'parameters.architecture.hooks.contextFunctions',
 			'checked_by'       => [
 				Rule\NoContextChecksInRegisterRule::class,
@@ -249,6 +268,7 @@ final class RuleManifest {
 		self::PREFIXED_NAMES                        => [
 			'principle'        => 'Principle 13: One plugin, to arbitrary complexity',
 			'principle_anchor' => '13-one-plugin-to-arbitrary-complexity',
+			'pattern'          => 'i-need-a-name-in-a-space-wordpress-shares',
 			'configuration'    => 'parameters.architecture.prefixedNames',
 			'checked_by'       => [
 				Rule\PrefixedNamesRule::class,
@@ -280,6 +300,7 @@ final class RuleManifest {
 		self::NO_SIDE_EFFECTS_ON_INCLUDE            => [
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-run-code-when-the-plugin-file-loads',
 			'configuration'    => 'RepositoryLayout',
 			'checked_by'       => [
 				RepositoryStructureTest::class . '::test_the_plugin_has_no_side_effects_on_include',
@@ -320,6 +341,7 @@ final class RuleManifest {
 		self::COMPOSITION_ROOT_CONTRACTS            => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',
 			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-to-add-a-feature',
 			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT',
 			'checked_by'       => [
 				CompositionRootContractTest::class . '::test_the_plugin_keeps_the_promises_of_its_composition_root',
@@ -383,20 +405,26 @@ final class RuleManifest {
 	/**
 	 * Get the explanation that closes every failure message of a rule.
 	 *
-	 * It names the principle and links to it and to the rule's catalogue
-	 * entry, so a reader can act on the failure without searching.
+	 * It names the principle and links to it, to the pattern that meets the
+	 * need the code was after, when there is one, and to the rule's catalogue
+	 * entry: why, how, and the exact check. A reader can act on the failure
+	 * without searching.
 	 *
 	 * @param string $identifier Identifier of the rule.
 	 * @return string Explanation of the rule.
 	 */
 	public static function get_explanation( string $identifier ): string {
-		$rule = self::RULES[ $identifier ];
+		$rule    = self::RULES[ $identifier ];
+		$pattern = isset( $rule['pattern'] )
+			? sprintf( ' Pattern: %1$s#%2$s.', self::PATTERNS, $rule['pattern'] )
+			: '';
 
 		return sprintf(
-			'%1$s, see %2$s#%3$s. Rule: %4$s#%5$s',
+			'%1$s, see %2$s#%3$s.%4$s Rule: %5$s#%6$s',
 			$rule['principle'],
 			self::get_principle_document( $identifier ),
 			$rule['principle_anchor'],
+			$pattern,
 			self::CATALOGUE,
 			self::get_catalogue_anchor( $identifier )
 		);

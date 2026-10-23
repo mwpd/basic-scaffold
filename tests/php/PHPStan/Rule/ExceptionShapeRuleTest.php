@@ -28,6 +28,7 @@ final class ExceptionShapeRuleTest extends RuleTestCase {
 	private const MARKER = self::EXCEPTIONS . '\PluginException';
 
 	private const TIP = 'Principle 10: Errors are exceptions, see docs/design-principles.md#10-errors-are-exceptions. '
+		. 'Pattern: docs/patterns.md#i-need-to-report-a-failure. '
 		. 'Rule: docs/architecture-rules.md#architectureexceptionshape';
 
 	protected function getRule(): Rule {

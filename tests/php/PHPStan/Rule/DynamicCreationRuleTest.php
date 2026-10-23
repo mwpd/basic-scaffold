@@ -27,6 +27,7 @@ final class DynamicCreationRuleTest extends RuleTestCase {
 
 	private const TIP = 'Principle 5: One composition root builds the object graph, see '
 		. 'docs/design-principles.md#5-one-composition-root-builds-the-object-graph. '
+		. 'Pattern: docs/patterns.md#i-need-to-create-objects-on-demand. '
 		. 'Rule: docs/architecture-rules.md#architecturenewonlywhereallowed';
 
 	protected function getRule(): Rule {

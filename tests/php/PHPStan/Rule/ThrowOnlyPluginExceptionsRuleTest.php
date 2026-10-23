@@ -33,6 +33,7 @@ final class ThrowOnlyPluginExceptionsRuleTest extends RuleTestCase {
 	private const EXCEPTIONS = self::FIXTURE_NAMESPACE . '\Exception';
 
 	private const TIP = 'Principle 10: Errors are exceptions, see docs/design-principles.md#10-errors-are-exceptions. '
+		. 'Pattern: docs/patterns.md#i-need-to-report-a-failure. '
 		. 'Rule: docs/architecture-rules.md#architecturethrowonlypluginexceptions';
 
 	/**

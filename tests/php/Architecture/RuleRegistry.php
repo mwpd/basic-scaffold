@@ -182,6 +182,180 @@ final class RuleRegistry {
 	}
 
 	/**
+	 * Find the rules each pattern lists, keyed by the pattern's anchor.
+	 *
+	 * A pattern is a "## " section of docs/patterns.md. The rules it lists are
+	 * the identifiers in backticks in its paragraph that starts with
+	 * "**Rules:**".
+	 *
+	 * @param string $patterns Contents of the patterns document.
+	 * @return array<string, array<string>> Identifiers, keyed by pattern anchor.
+	 */
+	public static function find_pattern_rules( string $patterns ): array {
+		$found = [];
+
+		foreach ( self::split_sections( $patterns, '##' ) as $anchor => $section ) {
+			$found[ $anchor ] = [];
+
+			if ( preg_match( '/^\*\*Rules:\*\*(.*?)(?:\n\s*\n|\z)/ms', $section, $rules ) === 1 ) {
+				preg_match_all( '/`(architecture\.[A-Za-z0-9]+)`/', $rules[1], $matches );
+				$found[ $anchor ] = array_values( array_unique( $matches[1] ) );
+			}
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Find the patterns each rule's catalogue section links to.
+	 *
+	 * @param string $catalogue Contents of the catalogue.
+	 * @return array<string, array<string>> Pattern anchors, keyed by identifier.
+	 */
+	public static function find_linked_patterns( string $catalogue ): array {
+		$found = [];
+
+		foreach ( self::split_sections( $catalogue, '###' ) as $section ) {
+			if ( preg_match( '/\A`(architecture\.[A-Za-z0-9]+)`/', $section, $heading ) !== 1 ) {
+				continue;
+			}
+
+			preg_match_all( '/\(patterns\.md#([a-z0-9_-]+)\)/', $section, $matches );
+			$found[ $heading[1] ] = array_values( array_unique( $matches[1] ) );
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Find where the rules and the patterns that cite them disagree.
+	 *
+	 * A pattern lists the rules that enforce it, and a rule names the pattern
+	 * its failures link to. Both directions have to hold, so a failure never
+	 * links to a pattern that does not mention the rule, and a pattern never
+	 * claims a rule that does not exist or does not lead back to it.
+	 *
+	 * @param array<string, RuleEntry>     $manifest Manifest entries, keyed by
+	 *                                               identifier.
+	 * @param array<string, array<string>> $patterns Rules each pattern lists,
+	 *                                               keyed by pattern anchor.
+	 * @param array<string, array<string>> $linked   Patterns each rule's
+	 *                                               catalogue section links to,
+	 *                                               keyed by identifier.
+	 * @return array<string> Problems found.
+	 */
+	public static function find_pattern_problems( array $manifest, array $patterns, array $linked ): array {
+		$problems = [];
+
+		foreach ( $patterns as $anchor => $identifiers ) {
+			foreach ( $identifiers as $identifier ) {
+				if ( ! isset( $manifest[ $identifier ] ) ) {
+					$problems[] = sprintf(
+						'%1$s#%2$s lists %3$s under Rules, which RuleManifest does not list. Name a rule that'
+						. ' exists, or describe a rule still being built by its issue instead of its identifier.',
+						RuleManifest::PATTERNS,
+						$anchor,
+						$identifier
+					);
+					continue;
+				}
+
+				$own_pattern = $manifest[ $identifier ]['pattern'] ?? null;
+				if ( $own_pattern !== $anchor && ! in_array( $anchor, $linked[ $identifier ] ?? [], true ) ) {
+					$problems[] = sprintf(
+						'%1$s#%2$s lists %3$s under Rules, but the rule does not lead back to it. Link the pattern'
+						. ' from the rule\'s section in %4$s, or make it the rule\'s pattern in RuleManifest.',
+						RuleManifest::PATTERNS,
+						$anchor,
+						$identifier,
+						RuleManifest::CATALOGUE
+					);
+				}
+			}
+		}
+
+		foreach ( $manifest as $identifier => $rule ) {
+			$pattern = $rule['pattern'] ?? null;
+			if ( $pattern === null ) {
+				continue;
+			}
+
+			if ( ! isset( $patterns[ $pattern ] ) ) {
+				$problems[] = sprintf(
+					'%1$s links its failures to %2$s#%3$s, which is not a pattern. Point the rule\'s pattern in'
+					. ' RuleManifest at a "## " section of %2$s.',
+					$identifier,
+					RuleManifest::PATTERNS,
+					$pattern
+				);
+				continue;
+			}
+
+			if ( ! in_array( $identifier, $patterns[ $pattern ], true ) ) {
+				$problems[] = sprintf(
+					'%1$s links its failures to %2$s#%3$s, but that pattern does not list it under Rules. Add'
+					. ' the rule to the pattern\'s Rules, or point the rule\'s pattern in RuleManifest at the'
+					. ' pattern it enforces.',
+					$identifier,
+					RuleManifest::PATTERNS,
+					$pattern
+				);
+			}
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Split a Markdown document into the sections under one level of heading.
+	 *
+	 * @param string $markdown Contents of the document.
+	 * @param string $level    The heading's hashes, such as "##".
+	 * @return array<string, string> Section text after the heading's hashes,
+	 *                               keyed by the anchor GitHub generates for
+	 *                               the heading.
+	 */
+	private static function split_sections( string $markdown, string $level ): array {
+		$sections = [];
+		$parts    = preg_split( '/^' . $level . '\s+/m', self::strip_code_blocks( $markdown ) );
+
+		foreach ( array_slice( (array) $parts, 1 ) as $part ) {
+			$part    = (string) $part;
+			$heading = (string) strtok( $part, "\n" );
+
+			$sections[ self::get_anchor( $heading ) ] = $part;
+		}
+
+		return $sections;
+	}
+
+	/**
+	 * Remove fenced code blocks from a Markdown document.
+	 *
+	 * A line inside a fence that looks like a heading or a Rules paragraph is
+	 * an example, not part of the document's structure.
+	 *
+	 * @param string $markdown Contents of the document.
+	 * @return string The document without its fenced code blocks.
+	 */
+	public static function strip_code_blocks( string $markdown ): string {
+		return (string) preg_replace( '/^(`{3,}|~{3,})[^\n]*\n.*?^\1[ \t]*$/ms', '', $markdown );
+	}
+
+	/**
+	 * Get the anchor GitHub generates for a heading.
+	 *
+	 * @param string $heading Text of the heading.
+	 * @return string Anchor, without the leading "#".
+	 */
+	public static function get_anchor( string $heading ): string {
+		$anchor = strtolower( trim( $heading ) );
+		$anchor = (string) preg_replace( '/[^a-z0-9 _-]/', '', $anchor );
+
+		return str_replace( ' ', '-', $anchor );
+	}
+
+	/**
 	 * Check one entry of a rule's checked_by.
 	 *
 	 * @param string        $identifier Identifier of the rule.

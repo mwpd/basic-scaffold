@@ -112,6 +112,115 @@ final class RuleRegistrationTest extends TestCase {
 		);
 	}
 
+	public function test_every_pattern_and_the_rules_it_lists_lead_to_each_other(): void {
+		$root     = dirname( __DIR__, 3 );
+		$problems = RuleRegistry::find_pattern_problems(
+			RuleManifest::get_rules(),
+			RuleRegistry::find_pattern_rules( (string) file_get_contents( $root . '/' . RuleManifest::PATTERNS ) ),
+			RuleRegistry::find_linked_patterns( (string) file_get_contents( $root . '/' . RuleManifest::CATALOGUE ) )
+		);
+
+		$this->assertSame( [], $problems, implode( "\n\n", $problems ) );
+	}
+
+	public function test_it_reports_patterns_and_rules_that_do_not_lead_to_each_other(): void {
+		$patterns  = implode(
+			"\n",
+			[
+				'# Patterns',
+				'',
+				'## I need a thing',
+				'',
+				'**Rules:** `architecture.own`, `architecture.linked`, `architecture.unlinked`,',
+				'`architecture.unknown`.',
+				'',
+				'Later text mentioning `architecture.ignored`.',
+				'',
+				'## I need another thing',
+				'',
+				'**Rules:** none yet.',
+				'',
+				'### A subsection',
+				'',
+				'```markdown',
+				'## I need a fake thing',
+				'',
+				'**Rules:** `architecture.fenced`.',
+				'```',
+			]
+		);
+		$catalogue = implode(
+			"\n",
+			[
+				'### `architecture.linked`',
+				'',
+				'**Pattern:** [I need a thing](patterns.md#i-need-a-thing).',
+				'',
+				'### `architecture.unlinked`',
+				'',
+				'No pattern.',
+			]
+		);
+		$entry     = static fn( ?string $pattern ): array => $pattern === null
+			? [
+				'principle'        => 'Principle',
+				'principle_anchor' => 'principle',
+				'configuration'    => 'configuration',
+				'checked_by'       => [],
+				'signatures'       => [],
+			]
+			: [
+				'principle'        => 'Principle',
+				'principle_anchor' => 'principle',
+				'pattern'          => $pattern,
+				'configuration'    => 'configuration',
+				'checked_by'       => [],
+				'signatures'       => [],
+			];
+
+		$found = RuleRegistry::find_pattern_rules( $patterns );
+		$this->assertSame(
+			[
+				'i-need-a-thing'       => [
+					'architecture.own',
+					'architecture.linked',
+					'architecture.unlinked',
+					'architecture.unknown',
+				],
+				'i-need-another-thing' => [],
+			],
+			$found
+		);
+
+		$problems = RuleRegistry::find_pattern_problems(
+			[
+				'architecture.own'      => $entry( 'i-need-a-thing' ),
+				'architecture.linked'   => $entry( null ),
+				'architecture.unlinked' => $entry( null ),
+				'architecture.stray'    => $entry( 'i-need-another-thing' ),
+				'architecture.nested'   => $entry( 'a-subsection' ),
+				'architecture.fenced'   => $entry( 'i-need-a-fake-thing' ),
+			],
+			$found,
+			RuleRegistry::find_linked_patterns( $catalogue )
+		);
+
+		$this->assertSame(
+			[
+				'docs/patterns.md#i-need-a-thing lists architecture.unlinked under Rules, but the rule does not lead'
+					. ' back to it.',
+				'docs/patterns.md#i-need-a-thing lists architecture.unknown under Rules, which RuleManifest does not'
+					. ' list.',
+				'architecture.stray links its failures to docs/patterns.md#i-need-another-thing, but that pattern'
+					. ' does not list it under Rules.',
+				'architecture.nested links its failures to docs/patterns.md#a-subsection, which is not a pattern.',
+				'architecture.fenced links its failures to docs/patterns.md#i-need-a-fake-thing, which is not a'
+					. ' pattern.',
+			],
+			array_map( static fn( string $problem ): string => explode( '. ', $problem )[0] . '.', $problems )
+		);
+	}
+
 	public function test_it_finds_the_rules_a_configuration_registers(): void {
 		$neon = implode(
 			"\n",

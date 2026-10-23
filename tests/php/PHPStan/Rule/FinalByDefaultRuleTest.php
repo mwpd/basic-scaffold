@@ -26,6 +26,7 @@ final class FinalByDefaultRuleTest extends RuleTestCase {
 	private const FIXTURE_NAMESPACE = 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\FinalByDefault';
 
 	private const TIP = 'Principle 6: Final by default, see docs/design-principles.md#6-final-by-default. '
+		. 'Pattern: docs/patterns.md#i-need-to-start-simple-and-add-implementations-later. '
 		. 'Rule: docs/architecture-rules.md#architecturefinalbydefault';
 
 	private string $namespace = self::FIXTURE_NAMESPACE;
