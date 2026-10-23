@@ -51,6 +51,10 @@ parameters:
             # Code in that namespace that is not an exception.
             notExceptions:
                 - MWPD\BasicScaffold\Exception\Stringify
+        exceptionsKeepCause:
+            # Reviewed Class::method recoveries that need no catch body.
+            # Explain the recovery beside each entry (design principle 10).
+            emptyCatches: []
         noWordPressErrorMechanisms:
             # Classes that hand a WP_Error to WordPress where it expects one.
             boundaryAdapters: []

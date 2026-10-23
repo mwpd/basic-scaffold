@@ -80,6 +80,8 @@ final class RuleManifest {
 
 	public const EXCEPTIONS_THROUGH_NAMED_CONSTRUCTORS = 'architecture.exceptionsThroughNamedConstructors';
 
+	public const EXCEPTIONS_KEEP_CAUSE = 'architecture.exceptionsKeepCause';
+
 	public const DEPENDENCY_DIRECTION = 'architecture.dependencyDirection';
 
 	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
@@ -200,6 +202,19 @@ final class RuleManifest {
 			],
 			'signatures'       => [
 				'creates an exception outside its named constructors',
+			],
+		],
+		self::EXCEPTIONS_KEEP_CAUSE                 => [
+			'principle'        => 'Principle 10: Errors are exceptions',
+			'principle_anchor' => '10-errors-are-exceptions',
+			'pattern'          => 'i-need-to-report-a-failure',
+			'configuration'    => 'parameters.architecture.exceptionsKeepCause',
+			'checked_by'       => [
+				Rule\ExceptionsKeepCauseRule::class,
+			],
+			'signatures'       => [
+				'loses the caught exception',
+				'discards the caught exception',
 			],
 		],
 		self::DEPENDENCY_DIRECTION                  => [

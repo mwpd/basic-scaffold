@@ -119,7 +119,7 @@ says which rules enforce each principle, and what stays with review.
 | [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed` | Collaborators pulled from globals, HTML echoed from business logic, god classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
-| [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors` | Graceful degradation at the boundary (#27, #30) |
+| [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
@@ -270,6 +270,32 @@ exception's own static methods.
 the new cause, so the same failure always reads the same.
 
 **Pattern:** [I need to report a failure](patterns.md#i-need-to-report-a-failure).
+
+### `architecture.exceptionsKeepCause`
+
+**Principle:** [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions).
+
+**Checks:** inside a catch in the plugin's namespace, a throw of a new
+exception through `new` or a static named constructor passes the caught
+variable directly as an argument. An empty catch, including one containing
+only comments, also fails. Nested catches are checked against their own
+caught variable; functions, closures and classes declared inside a catch are
+separate scopes.
+
+**Allows:** bare rethrows (`throw $caught;`), translations that pass the caught
+variable, and empty catches in listed methods. The check does not follow
+variable aliases or inspect how a constructor uses its arguments.
+
+**Configuration:** `exceptionsKeepCause.emptyCatches` lists reviewed recoveries
+as `Class::method`, with a reason beside each entry. Class and method names
+match regardless of case and allow a leading backslash. An allowance does
+not extend to closures inside the method and does not permit losing a cause
+when throwing. The scaffold needs no empty catches.
+
+**Fix:** pass the caught exception to the constructor or named constructor as
+its previous cause, or rethrow it. Handle the failure in an empty catch; list
+the method only when doing nothing is an intentional, reviewed recovery.
+See [I need to report a failure](patterns.md#i-need-to-report-a-failure).
 
 ### `architecture.strictTypes`
 

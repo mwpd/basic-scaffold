@@ -529,8 +529,9 @@ try {
 
 **Rules:** `architecture.noWordPressErrorMechanisms`,
 `architecture.throwOnlyPluginExceptions`, `architecture.exceptionShape`,
-`architecture.exceptionsThroughNamedConstructors`. A lost cause is reported
-once #76 lands, and `T|false` return types once #91 lands.
+`architecture.exceptionsThroughNamedConstructors`,
+`architecture.exceptionsKeepCause`. `T|false` return types are reported once
+#91 lands.
 
 ## I need to run code when the plugin file loads
 
