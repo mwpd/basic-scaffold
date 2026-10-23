@@ -234,7 +234,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:1628-1632`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:1626-1630`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -275,7 +275,7 @@ locator. It depends on which side of the graph's edge the code is on:
 
 - **Inside the graph**, a class receives what it needs through its
   constructor. When it needs an object later or once per use, it receives a
-  factory, or the injector (`src/Infrastructure/ServiceBasedPlugin.php:1150-1153`),
+  factory, or the injector (`src/Infrastructure/ServiceBasedPlugin.php:1148-1151`),
   and calls only `make()` on it. When it has to
   choose between implementations at runtime, it receives a typed registry for
   that one concept. It never looks a service up in the container.
@@ -399,11 +399,11 @@ In the code: the service list passes through a filter that any plugin can
 hook, so `ServiceBasedPlugin` checks that it is an array, and that each entry
 has a string identifier and names an existing class implementing `Service`,
 before using it. It throws `InvalidConfiguration` or `InvalidService` on
-anything unexpected (`src/Infrastructure/ServiceBasedPlugin.php:1232-1264`).
+anything unexpected (`src/Infrastructure/ServiceBasedPlugin.php:1230-1262`).
 Bindings, arguments, shared instances and delegations receive the same
 treatment after their filters, raising `InvalidConfiguration`, `InvalidService`
 or `InvalidArgument`. A binding must point to a subtype of what it binds,
-whenever both can be loaded (`:1794-1800`), and the injector checks that a
+whenever both can be loaded (`:1792-1798`), and the injector checks that a
 delegation returns an instance of the class it was registered for
 (`src/Infrastructure/Injector/SimpleInjector.php:518-527`).
 
@@ -520,8 +520,8 @@ than once, in every site and network they reach.
 WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
-happened (`src/Infrastructure/ServiceBasedPlugin.php:1126-1128`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:1584-1586`).
+happened (`src/Infrastructure/ServiceBasedPlugin.php:1124-1126`), and never
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:1582-1584`).
 A step that runs a second time must leave the plugin exactly as the first run
 did. The scoped lifecycle steps rely on it most: a network activation or an
 uninstall that failed part-way is retried by running it again, over the sites
@@ -535,9 +535,9 @@ plugin file is being included. At include time, plugins loaded after this one
 have had no chance to add their callbacks, so an extension point that runs
 then only works for code that happens to load earlier. So the plugin applies
 its filters during registration at `plugins_loaded`: the `services` filter
-(`src/Infrastructure/ServiceBasedPlugin.php:1212-1215`), and the injector
+(`src/Infrastructure/ServiceBasedPlugin.php:1210-1213`), and the injector
 filters, because the injector is configured there and not in the constructor
-(`src/Infrastructure/ServiceBasedPlugin.php:1140`).
+(`src/Infrastructure/ServiceBasedPlugin.php:1138`).
 
 ## 13. One plugin, to arbitrary complexity
 

@@ -380,7 +380,7 @@ final class UninstallLifecycleTest extends TestCase {
 		$this->expectException( InvalidConfiguration::class );
 		$this->expectExceptionMessage( 'The uninstall callback needs to know which plugin it belongs to' );
 
-		$this->plugin( [] )->without_main_file()->register_services();
+		$this->plugin( [] )->without_main_file()->activate();
 	}
 
 	/**
@@ -400,7 +400,8 @@ final class UninstallLifecycleTest extends TestCase {
 
 	/**
 	 * WordPress stores the callback in the database, so it has to be a public
-	 * static method named by two strings.
+	 * static method named by two strings. Activation checks that before it
+	 * registers the callback.
 	 *
 	 * @dataProvider data_invalid_callbacks
 	 *
@@ -416,7 +417,7 @@ final class UninstallLifecycleTest extends TestCase {
 		$this->expectException( InvalidConfiguration::class );
 		$this->expectExceptionMessage( 'is not a public static method given as [ class name, method name ]' );
 
-		$this->plugin( [] )->with_uninstall_callback( $callback )->register_services();
+		$this->plugin( [] )->with_uninstall_callback( $callback )->activate();
 	}
 
 	/**

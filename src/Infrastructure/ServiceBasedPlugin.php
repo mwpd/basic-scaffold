@@ -852,7 +852,9 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 *
 	 * This runs while the services are registered, in every request, so a
 	 * missing setting is reported during development rather than when a site
-	 * is created or the plugin is deleted.
+	 * is created or the plugin is deleted. It only compares classes and
+	 * settings and loads nothing; the shape of the uninstall callback is
+	 * checked when activation registers it.
 	 *
 	 * @param array<string,class-string> $services Validated services.
 	 *
@@ -873,12 +875,8 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 
 		$uninstall = $this->find_declaring_interface( $services, self::UNINSTALL_INTERFACES );
 
-		if ( null !== $uninstall && null === $this->get_valid_uninstall_callback() ) {
+		if ( null !== $uninstall && null === $this->get_uninstall_callback() ) {
 			throw InvalidConfiguration::from_missing_uninstall_callback( $uninstall );
-		}
-
-		if ( null !== $this->get_valid_uninstall_callback() ) {
-			$this->get_valid_main_file( 'The uninstall callback' );
 		}
 	}
 

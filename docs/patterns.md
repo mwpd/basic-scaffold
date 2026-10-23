@@ -529,7 +529,7 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
 bound at `src/BasicScaffoldPlugin.php:111`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:1150-1153`, proven by
+`src/Infrastructure/ServiceBasedPlugin.php:1148-1151`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`, `architecture.noServiceLocator`;
@@ -713,7 +713,7 @@ own:
 - **It hands out more than services.** Next to the registered services, the
   container holds the injector that builds their collaborators, under
   `mwpd.basic_scaffold.injector`
-  (`src/Infrastructure/ServiceBasedPlugin.php:1156-1159`), so outside code could
+  (`src/Infrastructure/ServiceBasedPlugin.php:1154-1157`), so outside code could
   call `bind()`, `share()` or `delegate()` on it, which
   `architecture.noServiceLocator` forbids even the plugin's own subsystems.
 - **Whether a service is there depends on the moment.** `get()` throws
@@ -781,7 +781,7 @@ other code. Two investigations are open, and neither is approved:
   a theme's overrides of them, never a theme's other files or another plugin.
 
 **Proven by:** the configuration filters at
-`src/Infrastructure/ServiceBasedPlugin.php:1212-1215` and `:1673-1754`, and
+`src/Infrastructure/ServiceBasedPlugin.php:1210-1213` and `:1671-1752`, and
 `tests/php/Unit/ServiceBasedPluginTest.php:899-921`, where a filter added
 after the plugin was constructed, as a plugin loaded later would add it,
 takes effect at `plugins_loaded`.
