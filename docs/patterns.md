@@ -297,8 +297,8 @@ $report = $this->injector->make( Report::class );
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:58-60`,
 bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
-`src/Infrastructure/ServiceBasedPlugin.php:329-332`, proven by
-`tests/php/Unit/ServiceBasedPluginTest.php:628-680`.
+`src/Infrastructure/ServiceBasedPlugin.php:346-349`, proven by
+`tests/php/Unit/ServiceBasedPluginTest.php:685-737`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`; `architecture.dependencyDirection`
 keeps the consumer on the interface.
@@ -521,7 +521,7 @@ public function __construct( string $path, ViewFactory $view_factory, ?DebugMode
 
 **Proven by:** `src/Infrastructure/View/SimpleView.php:73-76`, and the
 injector and container defaults of `ServiceBasedPlugin`
-(`src/Infrastructure/ServiceBasedPlugin.php:147-166`).
+(`src/Infrastructure/ServiceBasedPlugin.php:152-171`).
 
 **Rules:** `architecture.newOnlyWhereAllowed` allows `new` in exactly this
 shape: a nullable parameter typed to an interface the default implements.
