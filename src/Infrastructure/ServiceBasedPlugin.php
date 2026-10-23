@@ -277,7 +277,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 			$services[ $id ]       = $class_name;
 			$this->services[ $id ] = $class_name;
 
-			if ( ! $this->dependencies_are_met( $id, $class_name, $services ) ) {
+			// Only services with dependencies can have to wait, so only those
+			// are checked, and only those ever become pending.
+			if ( is_a( $class_name, HasDependencies::class, true )
+				&& ! $this->dependencies_are_met( $id, $class_name, $services ) ) {
 				$this->pending_services[ $id ] = $class_name;
 				continue;
 			}
@@ -427,10 +430,11 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * @return array<non-empty-string,true> Actions to wait for, as keys.
 	 */
 	private function collect_awaited_actions(): array {
-		$actions = [];
+		$actions   = [];
+		$collected = [];
 
 		foreach ( array_keys( $this->pending_services ) as $id ) {
-			$actions += $this->collect_actions_awaited_by( $id, [] );
+			$actions += $this->collect_actions_awaited_by( $id, [], $collected );
 		}
 
 		return $actions;
@@ -439,16 +443,27 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Collect the registration actions that one pending service waits for.
 	 *
-	 * @param string            $id   ID of the pending service.
-	 * @param array<int,string> $path IDs of the pending services that depend on
-	 *                                this one, in the order they were followed.
+	 * Each service is only followed once, however many services depend on it,
+	 * so the work stays linear in the number of dependencies.
+	 *
+	 * @param string                                     $id        ID of the pending service.
+	 * @param array<int,string>                          $path      IDs of the pending services that
+	 *                                                              depend on this one, in the order
+	 *                                                              they were followed.
+	 * @param array<string,array<non-empty-string,true>> $collected Actions already collected, by the
+	 *                                                              ID of the service that waits for
+	 *                                                              them.
 	 *
 	 * @throws FailedToResolveDependencies If pending services depend on each
 	 *                                     other.
 	 *
 	 * @return array<non-empty-string,true> Actions to wait for, as keys.
 	 */
-	private function collect_actions_awaited_by( string $id, array $path ): array {
+	private function collect_actions_awaited_by( string $id, array $path, array &$collected ): array {
+		if ( isset( $collected[ $id ] ) ) {
+			return $collected[ $id ];
+		}
+
 		$path[]     = $id;
 		$class_name = $this->pending_services[ $id ];
 		$actions    = [];
@@ -465,7 +480,7 @@ abstract class ServiceBasedPlugin implements Plugin {
 			}
 
 			if ( isset( $this->pending_services[ $dependency_id ] ) ) {
-				$actions += $this->collect_actions_awaited_by( $dependency_id, $path );
+				$actions += $this->collect_actions_awaited_by( $dependency_id, $path, $collected );
 				continue;
 			}
 
@@ -485,6 +500,8 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 			$actions[ $class_name::get_registration_action() ] = true;
 		}
+
+		$collected[ $id ] = $actions;
 
 		return $actions;
 	}

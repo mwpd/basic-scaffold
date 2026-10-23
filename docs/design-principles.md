@@ -207,7 +207,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:615-619`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:632-636`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -411,7 +411,7 @@ WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
 happened (`src/Infrastructure/ServiceBasedPlugin.php:217-220`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:570-573`).
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:587-590`).
 A step that runs a second time must leave the plugin exactly as the first run
 did.
 

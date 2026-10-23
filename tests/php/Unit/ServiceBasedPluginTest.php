@@ -20,6 +20,7 @@ use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededServiceNeedingUnneeded;
 use MWPD\BasicScaffold\Tests\Fixture\TestCircularDependencyPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\TestDependencyCheckingPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestMissingDependencyPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestMultipleDelayedDependenciesPlugin;
 
@@ -133,6 +134,21 @@ class ServiceBasedPluginTest extends TestCase {
 		$this->assertTrue( $container->has( 'needs_b' ) );
 		$this->assertTrue( $container->has( 'service_b' ) );
 		$this->assertTrue( $container->has( 'service_c' ) );
+	}
+
+	/**
+	 * Test that only services with dependencies have their dependencies
+	 * checked, so an override of dependencies_are_met() may rely on it.
+	 */
+	public function test_only_services_with_dependencies_are_checked(): void {
+		$plugin = new TestDependencyCheckingPlugin();
+		$plugin->register_services();
+
+		$container = $plugin->get_container();
+
+		$this->assertTrue( $container->has( 'needs_b' ) );
+		$this->assertTrue( $container->has( 'service_a' ) );
+		$this->assertTrue( $container->has( 'service_b' ) );
 	}
 
 	/**
