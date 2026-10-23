@@ -546,11 +546,10 @@ try {
 `src/Infrastructure/View/SimpleView.php:98-115` and
 `src/Exception/FailedToLoadView.php:39`.
 
-**Rules:** `architecture.noWordPressErrorMechanisms`,
+**Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,
 `architecture.throwOnlyPluginExceptions`, `architecture.exceptionShape`,
 `architecture.exceptionsThroughNamedConstructors`,
-`architecture.exceptionsKeepCause`. `T|false` return types are reported once
-#91 lands.
+`architecture.exceptionsKeepCause`.
 
 ## I need to run code when the plugin file loads
 

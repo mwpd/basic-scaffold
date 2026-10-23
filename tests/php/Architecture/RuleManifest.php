@@ -76,6 +76,8 @@ final class RuleManifest {
 
 	public const NO_WORDPRESS_ERROR_MECHANISMS = 'architecture.noWordPressErrorMechanisms';
 
+	public const NO_FALSE_ON_FAILURE = 'architecture.noFalseOnFailure';
+
 	public const THROW_ONLY_PLUGIN_EXCEPTIONS = 'architecture.throwOnlyPluginExceptions';
 
 	public const EXCEPTION_SHAPE = 'architecture.exceptionShape';
@@ -183,6 +185,18 @@ final class RuleManifest {
 				'carries an error through the plugin',
 				'takes or returns a WP_Error',
 				'holds a WP_Error',
+			],
+		],
+		self::NO_FALSE_ON_FAILURE                   => [
+			'principle'        => 'Principle 10: Errors are exceptions',
+			'principle_anchor' => '10-errors-are-exceptions',
+			'pattern'          => 'i-need-to-report-a-failure',
+			'configuration'    => 'parameters.architecture.namespace',
+			'checked_by'       => [
+				Rule\NoFalseOnFailureRule::class,
+			],
+			'signatures'       => [
+				'declares a return type that unions false with another type',
 			],
 		],
 		self::THROW_ONLY_PLUGIN_EXCEPTIONS          => [
