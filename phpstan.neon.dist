@@ -49,6 +49,14 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\HasDependencies
                 - MWPD\BasicScaffold\Infrastructure\Activateable
                 - MWPD\BasicScaffold\Infrastructure\Deactivateable
+                - MWPD\BasicScaffold\Infrastructure\SiteActivateable
+                - MWPD\BasicScaffold\Infrastructure\NetworkActivateable
+                - MWPD\BasicScaffold\Infrastructure\SiteDeactivateable
+                - MWPD\BasicScaffold\Infrastructure\NetworkDeactivateable
+                - MWPD\BasicScaffold\Infrastructure\SiteInitializable
+                - MWPD\BasicScaffold\Infrastructure\SiteUninitializable
+                - MWPD\BasicScaffold\Infrastructure\SiteUninstallable
+                - MWPD\BasicScaffold\Infrastructure\NetworkUninstallable
             delayed: MWPD\BasicScaffold\Infrastructure\Delayed
             registerable: MWPD\BasicScaffold\Infrastructure\Registerable
         finalByDefault:
@@ -141,6 +149,13 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\ServiceContainer\LazilyInstantiatedService
                 - MWPD\BasicScaffold\Infrastructure\View\ViewLocations
                 - MWPD\BasicScaffold\Infrastructure\View\ViewConfiguration
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteId
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkId
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteContext
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkContext
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection
+                - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkSelection
                 - DateTimeImmutable
                 - DateInterval
                 - ArrayIterator
@@ -156,6 +171,14 @@ parameters:
                 register: MWPD\BasicScaffold\Infrastructure\Registerable
                 activate: MWPD\BasicScaffold\Infrastructure\Activateable
                 deactivate: MWPD\BasicScaffold\Infrastructure\Deactivateable
+                activate_site: MWPD\BasicScaffold\Infrastructure\SiteActivateable
+                activate_network: MWPD\BasicScaffold\Infrastructure\NetworkActivateable
+                deactivate_site: MWPD\BasicScaffold\Infrastructure\SiteDeactivateable
+                deactivate_network: MWPD\BasicScaffold\Infrastructure\NetworkDeactivateable
+                initialize_site: MWPD\BasicScaffold\Infrastructure\SiteInitializable
+                uninitialize_site: MWPD\BasicScaffold\Infrastructure\SiteUninitializable
+                uninstall_site: MWPD\BasicScaffold\Infrastructure\SiteUninstallable
+                uninstall_network: MWPD\BasicScaffold\Infrastructure\NetworkUninstallable
             # Functions that tell what kind of request this is. register()
             # leaves them to Conditional::is_needed().
             contextFunctions:
