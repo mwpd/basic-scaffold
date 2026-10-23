@@ -34,6 +34,7 @@ use MWPD\BasicScaffold\Tests\Fixture\Resolver;
 use MWPD\BasicScaffold\Tests\Fixture\TestInjectorConfigurationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServiceBasedPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServicesPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\TestServiceRegistrationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedDependentService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceA;
@@ -42,6 +43,7 @@ use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceC;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingB;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingInjector;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceNeedingUnneeded;
+use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceWithMissingDependency;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededDelayedService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededService;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestUnneededServiceNeedingUnneeded;
@@ -185,6 +187,146 @@ class ServiceBasedPluginTest extends TestCase {
 		$this->assertTrue( $container->has( 'needs_b' ) );
 		$this->assertTrue( $container->has( 'service_a' ) );
 		$this->assertTrue( $container->has( 'service_b' ) );
+	}
+
+	/**
+	 * Invalid filter entries exercise each part of the validation boundary.
+	 *
+	 * @return array<string,array{array<mixed>,string}>
+	 */
+	public static function data_invalid_later_services(): array {
+		return [
+			'identifier'  => [ [ 42 => TestServiceB::class ], 'The identifier "42" is not a string' ],
+			'class name'  => [ [ 'invalid' => 42 ], 'The class name "42" is not a string' ],
+			'missing'     => [ [ 'invalid' => 'NoSuchService' ], 'which does not exist.' ],
+			'non-service' => [ [ 'invalid' => DummyClass::class ], 'which does not implement Service.' ],
+		];
+	}
+
+	/**
+	 * A later invalid entry must prevent both immediate and delayed scheduling,
+	 * as well as dependency checks on the earlier valid entries.
+	 *
+	 * @dataProvider data_invalid_later_services
+	 *
+	 * @param array<mixed> $invalid Invalid entries returned by the filter.
+	 * @param string       $message Expected validation error.
+	 */
+	public function test_the_complete_map_is_validated_before_scheduling( array $invalid, string $message ): void {
+		$recorder = new LifecycleRecorder();
+		$plugin   = new TestServiceRegistrationPlugin( $recorder );
+		Filters\expectApplied( ServiceBasedPlugin::SERVICES_FILTER )->once()->andReturn(
+			[
+				'earlier'   => TestServiceA::class,
+				'delayed'   => TestDelayedService::class,
+				'needs_b'   => TestServiceNeedingB::class,
+				'service_b' => TestServiceB::class,
+			] + $invalid
+		);
+
+		$this->expectException( InvalidService::class );
+		$this->expectExceptionMessage( $message );
+
+		try {
+			$plugin->register_services();
+		} finally {
+			$this->assertSame( [], $recorder->events() );
+			$this->assertSame( [], $plugin->dependency_maps );
+			$this->assertSame( [], $plugin->missing_dependency_maps );
+			$this->assertSame( [], $this->callbacks );
+			$this->assertFalse( $plugin->get_container()->has( 'earlier' ) );
+		}
+	}
+
+	/**
+	 * Both protected extension points must see resolved later declarations,
+	 * including on the first pass before those services are scheduled.
+	 */
+	public function test_dependency_overrides_receive_the_complete_normalized_map(): void {
+		$plugin = new TestServiceRegistrationPlugin( new LifecycleRecorder() );
+		Filters\expectApplied( ServiceBasedPlugin::SERVICES_FILTER )->once()->andReturn(
+			[
+				'needs_b'   => TestServiceNeedingB::class,
+				'service_b' => static fn(): string => TestServiceB::class,
+				'service_a' => static fn(): string => TestServiceA::class,
+			]
+		);
+
+		$plugin->register_services();
+
+		$normalized = [
+			'needs_b'   => TestServiceNeedingB::class,
+			'service_b' => TestServiceB::class,
+			'service_a' => TestServiceA::class,
+		];
+		$this->assertSame( [ $normalized, $normalized ], $plugin->dependency_maps );
+		$this->assertSame( [ $normalized, $normalized ], $plugin->missing_dependency_maps );
+	}
+
+	/**
+	 * Resolvers run once in declaration order before scheduling, which retains
+	 * its configured order with dependants set aside until dependencies exist.
+	 */
+	public function test_resolvers_finish_in_order_before_scheduling_begins(): void {
+		$recorder = new LifecycleRecorder();
+		$plugin   = new TestServiceRegistrationPlugin( $recorder );
+		$classes  = [
+			'service_a' => TestServiceA::class,
+			'needs_b'   => TestServiceNeedingB::class,
+			'service_b' => TestServiceB::class,
+			'delayed'   => TestDelayedService::class,
+		];
+		$services = [];
+		foreach ( $classes as $id => $class_name ) {
+			$services[ $id ] = static function () use ( $id, $class_name, $recorder ): string {
+				$recorder->record( "resolve:{$id}" );
+
+				return $class_name;
+			};
+		}
+		Filters\expectApplied( ServiceBasedPlugin::SERVICES_FILTER )->once()->andReturn( $services );
+
+		$plugin->register_services();
+		$plugin->register_services();
+		$this->fire( 'init' );
+
+		$this->assertSame(
+			[
+				'resolve:service_a',
+				'resolve:needs_b',
+				'resolve:service_b',
+				'resolve:delayed',
+				'schedule:service_a',
+				'schedule:service_b',
+				'schedule:delayed',
+				'schedule:needs_b',
+			],
+			$recorder->events()
+		);
+		foreach ( array_keys( $classes ) as $id ) {
+			$this->assertTrue( $plugin->get_container()->has( $id ) );
+		}
+	}
+
+	/**
+	 * Validation of a later declaration takes precedence over an unknown
+	 * dependency in an earlier declaration.
+	 */
+	public function test_a_later_invalid_service_precedes_an_earlier_unknown_dependency(): void {
+		$plugin = new TestServiceRegistrationPlugin( new LifecycleRecorder() );
+		Filters\expectApplied( ServiceBasedPlugin::SERVICES_FILTER )->once()->andReturn(
+			[
+				'unknown_dependency' => TestServiceWithMissingDependency::class,
+				'invalid'            => DummyClass::class,
+			]
+		);
+
+		$this->expectException( InvalidService::class );
+		$this->expectExceptionMessage(
+			'The service "invalid" names the class "' . DummyClass::class . '", which does not implement Service.'
+		);
+
+		$plugin->register_services();
 	}
 
 	/**

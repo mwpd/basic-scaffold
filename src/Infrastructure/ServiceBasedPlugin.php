@@ -304,6 +304,13 @@ abstract class ServiceBasedPlugin implements Plugin {
 	/**
 	 * Register the individual services of this plugin.
 	 *
+	 * All filtered declarations are resolved once, in declaration order, and
+	 * validated before dependency checks or scheduling configured services.
+	 * When updating a generated plugin, keep resolvers independent of service
+	 * registration: they now all run first. A later invalid entry can therefore
+	 * fail before an earlier unknown dependency. Injector setup and resolver
+	 * side effects are not rolled back if validation fails.
+	 *
 	 * @throws InvalidConfiguration If the services configuration is not an array.
 	 * @throws InvalidService If a service is not valid.
 	 */
@@ -375,22 +382,48 @@ abstract class ServiceBasedPlugin implements Plugin {
 			);
 		}
 
-		/**
-		 * The filter may return anything, so check the value and every entry
-		 * (principle 9).
-		 *
-		 * @var mixed $services
-		 */
-
-		if ( ! is_array( $services ) ) {
-			throw InvalidConfiguration::from_invalid_services( $services );
-		}
+		$services = $this->normalize_services( $services );
 
 		$this->services         = [];
 		$this->pending_services = [];
 
 		// The first pass goes through the services in the order they were
 		// provided, and sets aside those whose dependencies come later.
+		foreach ( $services as $id => $class_name ) {
+			$this->services[ $id ] = $class_name;
+
+			// Only services with dependencies can have to wait, so only those
+			// are checked, and only those ever become pending.
+			if ( is_a( $class_name, HasDependencies::class, true )
+				&& ! $this->dependencies_are_met( $id, $class_name, $services ) ) {
+				$this->pending_services[ $id ] = $class_name;
+				continue;
+			}
+
+			$this->schedule_potential_service_registration( $id, $class_name );
+		}
+
+		$this->register_pending_services();
+	}
+
+	/**
+	 * Normalize the whole filtered map so dependency overrides never receive
+	 * unchecked later entries (principle 9).
+	 *
+	 * @param mixed $services Filtered service declarations.
+	 *
+	 * @throws InvalidConfiguration If the services configuration is not an array.
+	 * @throws InvalidService If an identifier or resolved service is not valid.
+	 *
+	 * @return array<string,class-string> Validated services in declaration order.
+	 */
+	private function normalize_services( $services ): array {
+		if ( ! is_array( $services ) ) {
+			throw InvalidConfiguration::from_invalid_services( $services );
+		}
+
+		$normalized = [];
+
 		foreach ( $services as $id => $service ) {
 			if ( ! is_string( $id ) ) {
 				throw InvalidService::from_invalid_identifier( $id );
@@ -412,21 +445,10 @@ abstract class ServiceBasedPlugin implements Plugin {
 				throw InvalidService::from_non_service_class( $id, $class_name );
 			}
 
-			$services[ $id ]       = $class_name;
-			$this->services[ $id ] = $class_name;
-
-			// Only services with dependencies can have to wait, so only those
-			// are checked, and only those ever become pending.
-			if ( is_a( $class_name, HasDependencies::class, true )
-				&& ! $this->dependencies_are_met( $id, $class_name, $services ) ) {
-				$this->pending_services[ $id ] = $class_name;
-				continue;
-			}
-
-			$this->schedule_potential_service_registration( $id, $class_name );
+			$normalized[ $id ] = $class_name;
 		}
 
-		$this->register_pending_services();
+		return $normalized;
 	}
 
 	/**
@@ -1211,6 +1233,11 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 *
 	 * This only checks. Waiting for the dependencies that are not met yet is up
 	 * to register_services().
+	 *
+	 * During registration, the entire map has already been validated and its
+	 * resolvers have run, including entries after this service. Overrides in
+	 * generated plugins can rely on class names here and in
+	 * collect_missing_dependencies(), without resolving declarations again.
 	 *
 	 * @param string                              $id         Service ID of the service with dependencies.
 	 * @param class-string                        $class_name Service class name of the service with dependencies.
