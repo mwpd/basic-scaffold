@@ -29,14 +29,17 @@ Each rule lives at the cheapest level that can see what it checks:
 
 Every rule has an identifier such as `architecture.finalByDefault` and one
 entry in `tests/php/Architecture/RuleManifest.php`. The entry ties the
-identifier to the principle it enforces and to its section on this page.
+identifier to the principle it enforces, to its section on this page and,
+where one applies, to the [pattern](patterns.md) that meets the need the
+rejected code was after.
 
 Every failure has the same three parts:
 
 1. **What is wrong, and where**, naming the class or file.
 2. **What to do instead.**
-3. **Why**: the principle, and the rule's section on this page. PHPStan shows
-   this part as the tip under the error.
+3. **Why, how and what exactly**: the principle, the pattern when there is
+   one, and the rule's section on this page. PHPStan shows this part as the
+   tip under the error.
 
 ## When a rule stops you
 
@@ -75,7 +78,10 @@ cannot tell, such as the main plugin file and the view template directories,
    `docs/design-principles.md`, the configuration key, what checks it
    (`checked_by`: the PHPStan rule classes, or the test methods of the
    architecture suite), and fixed phrases of its messages (`signatures`),
-   which let the suppression check recognize ignores aimed at it.
+   which let the suppression check recognize ignores aimed at it. When a
+   section of `docs/patterns.md` shows how to meet the need the rule
+   protects, name its anchor as `pattern`, and list the rule under that
+   section's **Rules**; add a section if the need is new and recurs.
 2. Write the rule in `tests/php/PHPStan/Rule/`, using the identifier and
    `RuleManifest::get_explanation()` as the tip, or write the check as a test
    in `tests/php/Architecture/`.
@@ -86,7 +92,9 @@ cannot tell, such as the main plugin file and the view template directories,
    PHPStan's test case only finds classes it can autoload.
 4. Register it in `tests/php/PHPStan/rules.neon`, and put its settings under
    `parameters.architecture` in `phpstan.neon.dist`.
-5. Add its section below. `RuleManifestTest` fails until it exists.
+5. Add its section below, and link each pattern that lists the rule under
+   its **Fix**. `RuleManifestTest` fails until the section exists, and
+   `RuleRegistrationTest` until the rule and its patterns lead to each other.
 
 The tree must pass a new rule without a baseline. Fix what it finds, or file
 the findings as their own issues and land the rule after them.
@@ -177,7 +185,7 @@ WordPress reaches from outside the object graph.
 instance with `share()` when more than one object needs it. A cache belongs on
 the object that computes it.
 
-**Patterns:** [I need a singleton](patterns.md#i-need-a-singleton), [I need a service locator](patterns.md#i-need-a-service-locator).
+**Patterns:** [I need a singleton](patterns.md#i-need-a-singleton), [I need a service locator](patterns.md#i-need-a-service-locator), [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback).
 
 ### `architecture.noWordPressErrorMechanisms`
 
@@ -390,7 +398,7 @@ directories of the view templates that run in production. The exceptions' namesp
 in the composition root, or receive what you need through the constructor. In
 the infrastructure, add an interface the other class implements.
 
-**Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime).
+**Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime), [I need to add a feature](patterns.md#i-need-to-add-a-feature).
 
 ### `architecture.newOnlyWhereAllowed`
 
@@ -427,7 +435,7 @@ and bind the implementation in the composition root. Ask a factory for objects
 that can only be created later or are needed once per use. Add a class to
 `valueObjects` only if it represents a value rather than a collaborator.
 
-**Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need a default collaborator that can be replaced](patterns.md#i-need-a-default-collaborator-that-can-be-replaced), [I need WordPress state, such as the current post](patterns.md#i-need-wordpress-state-such-as-the-current-post).
+**Patterns:** [I need to create objects on demand](patterns.md#i-need-to-create-objects-on-demand), [I need a default collaborator that can be replaced](patterns.md#i-need-a-default-collaborator-that-can-be-replaced), [I need WordPress state, such as the current post](patterns.md#i-need-wordpress-state-such-as-the-current-post), [I need to choose an implementation at runtime](patterns.md#i-need-to-choose-an-implementation-at-runtime).
 
 ### `architecture.noHooksInConstructor`
 
@@ -492,7 +500,7 @@ functions: `is_admin`, `is_network_admin`, `is_user_admin`, `wp_doing_ajax`,
 **Fix:** implement `Conditional` and return the answer from `is_needed()`. The
 plugin then never builds the service in a request that does not need it.
 
-**Pattern:** [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests).
+**Patterns:** [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests), [I need to hook in later](patterns.md#i-need-to-hook-in-later).
 
 ### `architecture.prefixedNames`
 
@@ -571,7 +579,11 @@ step:
 - every PHPStan rule is registered, and named by an entry;
 - every signature still appears in a rule's messages;
 - no rule spells an identifier out instead of using its constant;
-- every section on this page belongs to a rule in the manifest.
+- every section on this page belongs to a rule in the manifest;
+- every rule a pattern lists under **Rules** is in the manifest, and leads
+  back to the pattern, as its `pattern` or through a link in its section on
+  this page; and every rule's `pattern` lists the rule. `RuleManifestTest`
+  checks that the `pattern` anchor exists.
 
 ### `architecture.compositionRootContracts`
 

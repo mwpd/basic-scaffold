@@ -25,6 +25,7 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 
 	private const TIP = 'Principle 13: One plugin, to arbitrary complexity, see '
 		. 'docs/design-principles.md#13-one-plugin-to-arbitrary-complexity. '
+		. 'Pattern: docs/patterns.md#i-need-a-name-in-a-space-wordpress-shares. '
 		. 'Rule: docs/architecture-rules.md#architectureprefixednames';
 
 	private const HOOKS_HOW = "the prefix constant, as in static::HOOK_PREFIX . 'name', or a name that starts with"

@@ -16,8 +16,8 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 
 /**
- * The explanation in every architecture failure links to a principle and to
- * a catalogue entry. A link that leads nowhere sends the reader searching, so
+ * The explanation in every architecture failure links to a principle, to a
+ * pattern where one applies, and to a catalogue entry. A link that leads nowhere sends the reader searching, so
  * every link in the manifest has to resolve.
  */
 final class RuleManifestTest extends TestCase {
@@ -57,6 +57,28 @@ final class RuleManifestTest extends TestCase {
 		}
 	}
 
+	public function test_every_pattern_a_rule_links_to_exists(): void {
+		$anchors = $this->get_heading_anchors( RuleManifest::PATTERNS );
+
+		foreach ( RuleManifest::get_rules() as $identifier => $rule ) {
+			if ( ! isset( $rule['pattern'] ) ) {
+				continue;
+			}
+
+			$this->assertContains(
+				$rule['pattern'],
+				$anchors,
+				sprintf(
+					'%1$s links to #%2$s, which is not a heading in %3$s. '
+					. 'Point pattern in RuleManifest at the section that meets the need the rule protects.',
+					$identifier,
+					$rule['pattern'],
+					RuleManifest::PATTERNS
+				)
+			);
+		}
+	}
+
 	/**
 	 * Get the anchors GitHub generates for the headings of a Markdown file.
 	 *
@@ -71,14 +93,6 @@ final class RuleManifestTest extends TestCase {
 
 		preg_match_all( '/^#{1,6}\s+(.+?)\s*$/m', $contents, $matches );
 
-		return array_map(
-			static function ( string $heading ): string {
-				$anchor = strtolower( $heading );
-				$anchor = (string) preg_replace( '/[^a-z0-9 _-]/', '', $anchor );
-
-				return str_replace( ' ', '-', $anchor );
-			},
-			$matches[1]
-		);
+		return array_map( [ RuleRegistry::class, 'get_anchor' ], $matches[1] );
 	}
 }
