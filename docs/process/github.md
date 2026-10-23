@@ -46,6 +46,8 @@ Labels that carry weight beyond their description:
   an interface or base class in `src/Infrastructure/`, a hook or service
   identifier convention, or the bootstrap contract. It needs a maintainer
   ruling on the issue before code is written.
+  A PR that changes `tests/php/Architecture/infrastructure-api.txt` needs
+  `breaking` unless the snapshot diff only adds API.
 - **`needs: design`** means the issue waits on **visual** design: a user
   interface, the project website, graphics. That work happens outside the
   coding-agent workflow, so the issue is not pickable until the design is in.

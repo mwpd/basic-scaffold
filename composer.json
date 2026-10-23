@@ -29,7 +29,8 @@
         "rector/rector": "^1.2",
         "brain/monkey": "^2",
         "shipmonk/composer-dependency-analyser": "^1.8",
-        "nette/neon": "^3.3"
+        "nette/neon": "^3.3",
+        "sebastian/diff": "^4.0"
     },
     "autoload": {
         "psr-4": {
@@ -45,6 +46,7 @@
         ]
     },
     "scripts": {
+        "api:snapshot": "@php scripts/snapshot-infrastructure-api.php",
         "check:autoloader": "@php scripts/check-bundled-autoloader.php",
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=unit",

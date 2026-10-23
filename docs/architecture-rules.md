@@ -17,6 +17,7 @@ composer test                  # includes the architecture test suite
 composer test:architecture     # only the architecture test suite
 composer test:phpstan-rules    # only the tests of the PHPStan rules
 composer check:autoloader      # source declarations through the bundled autoloader alone
+composer api:snapshot          # regenerate the infrastructure API listing after review
 ```
 
 CI also runs `php -n scripts/check-bundled-autoloader.php` on PHP 7.4 in a
@@ -129,8 +130,8 @@ says which rules enforce each principle, and what stays with review.
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor`, `bootstrapContract` | |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
-| [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve` | Whether comments explain why and cited lines still support the prose |
-| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength` | |
+| [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve`, `infrastructureApiSnapshot` | Whether comments explain why and cited lines still support the prose |
+| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
 
 ## Mistakes the checks catch
 
@@ -139,6 +140,7 @@ that names the fix. The fixtures and tests listed prove it.
 
 | Mistake | Fails with | Proven by |
 | --- | --- | --- |
+| An infrastructure signature changed without updating its reviewed snapshot | `infrastructureApiSnapshot` | `InfrastructureApiSnapshotTest::test_it_reports_a_difference_with_the_diff_and_regeneration_command` |
 | A service constructor reading an option or branching | `constructorsOnlyAssign` | `tests/php/PHPStan/Fixture/ConstructorsOnlyAssign/CallService.php`, `BranchService.php` |
 | A hook added in a constructor | `noHooksInConstructor` | `tests/php/PHPStan/Fixture/Hooks/Feature/BadService.php` |
 | A bootstrap applying a filter before other plugins can hook in | `bootstrapContract` | `tests/php/Fixture/BootstrapContract/filters-too-early.php`, `BootstrapContractTest::test_it_reports_a_filter_applied_at_include_time_with_the_fix` |
@@ -162,6 +164,40 @@ that names the fix. The fixtures and tests listed prove it.
 | A delayed service waiting for a misspelled action | `registrationActionKnown` | `tests/php/Fixture/CompositionRoot/TypoActionPlugin.php` |
 
 ## Rules
+
+### `architecture.infrastructureApiSnapshot`
+
+**Principle:** [Hard rule: infrastructure changes are API changes](../AGENTS.md#hard-rules).
+
+**Checks:** reflection of the infrastructure matches the committed listing in
+`tests/php/Architecture/infrastructure-api.txt`. Every type has a declaration
+line (including empty marker interfaces). Interfaces, traits, abstract classes
+and non-final classes contribute public and protected constants, properties
+and methods; final classes contribute public methods. Inherited userland
+members count too. Each line names its owning API type relative to the plugin's
+root namespace, and the lines are sorted. Signatures include visibility,
+static/abstract/final method modifiers, native types, reference returns and
+parameters, variadics and evaluated default values. Untyped declarations stay
+untyped, and uninitialized typed properties have no default.
+
+**Allows:** private members and final-class constants and properties can change
+without updating the snapshot. PHP-owned inherited methods are excluded: their
+signatures belong to the installed PHP version, not to this repository.
+Every type also lists the interfaces it implements or extends, inherited ones
+included, so dropping one is visible. Interfaces that PHP provides itself are
+left out, so PHP 8's implicit `Stringable` does not change the listing. Constants used as defaults are rendered as values,
+strings and arrays stay on one line, and repository paths become `<root>/...`.
+Exceptions and the composition root are outside this check.
+
+**Configuration:** `parameters.architecture.namespace` and
+`parameters.architecture.dependencyDirection.infrastructure` in
+`phpstan.neon.dist`, with source discovery from `RepositoryLayout`. Renaming
+the configured root namespace and the source together preserves the snapshot.
+
+**Fix:** review the printed diff, then run `composer api:snapshot` and include
+the updated listing in the PR. A snapshot diff that removes or changes existing
+API needs the `breaking` label and a maintainer ruling; a diff that only adds
+API does not. Regeneration acknowledges a change, not its compatibility.
 
 ### `architecture.citationsResolve`
 

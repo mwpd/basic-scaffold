@@ -1,0 +1,160 @@
+Infrastructure\Activateable interface
+Infrastructure\Activateable::public abstract function activate(): void
+Infrastructure\Autoloader final class
+Infrastructure\Autoloader::public function __destruct()
+Infrastructure\Autoloader::public function add_namespace( string $root, string $base_dir, string $prefix = "", string $suffix = ".php", bool $lowercase = false, bool $underscores = false ): self
+Infrastructure\Autoloader::public function autoload( string $class_string ): void
+Infrastructure\Autoloader::public function register(): void
+Infrastructure\Autoloader::public function unregister(): void
+Infrastructure\Conditional interface
+Infrastructure\Conditional::public abstract static function is_needed(): bool
+Infrastructure\Deactivateable interface
+Infrastructure\Deactivateable::public abstract function deactivate(): void
+Infrastructure\Delayed interface
+Infrastructure\Delayed::public abstract static function get_registration_action(): string
+Infrastructure\HasDependencies interface
+Infrastructure\HasDependencies::public abstract static function get_dependencies(): array
+Infrastructure\Injector extends Infrastructure\Service
+Infrastructure\Injector interface
+Infrastructure\Injector::public abstract function bind( string $from, string $to ): Infrastructure\Injector
+Infrastructure\Injector::public abstract function bind_argument( string $interface_or_class, string $argument_name, $value ): Infrastructure\Injector
+Infrastructure\Injector::public abstract function delegate( string $interface_or_class, callable $delegation ): Infrastructure\Injector
+Infrastructure\Injector::public abstract function make( string $interface_or_class, array $arguments = [] ): object
+Infrastructure\Injector::public abstract function share( string $interface_or_class ): Infrastructure\Injector
+Infrastructure\Injector\InjectionChain final class
+Infrastructure\Injector\InjectionChain::public function add_resolution( string $resolution ): self
+Infrastructure\Injector\InjectionChain::public function add_to_chain( string $class_name ): self
+Infrastructure\Injector\InjectionChain::public function get_chain(): array
+Infrastructure\Injector\InjectionChain::public function get_class(): string
+Infrastructure\Injector\InjectionChain::public function get_resolutions(): array
+Infrastructure\Injector\InjectionChain::public function has_resolution( string $resolution ): bool
+Infrastructure\Injector\SimpleInjector final class
+Infrastructure\Injector\SimpleInjector implements Infrastructure\Injector
+Infrastructure\Injector\SimpleInjector implements Infrastructure\Service
+Infrastructure\Injector\SimpleInjector::public function __construct( ?Infrastructure\Instantiator $instantiator = null )
+Infrastructure\Injector\SimpleInjector::public function bind( string $from, string $to ): Infrastructure\Injector
+Infrastructure\Injector\SimpleInjector::public function bind_argument( string $interface_or_class, string $argument_name, $value ): Infrastructure\Injector
+Infrastructure\Injector\SimpleInjector::public function delegate( string $interface_or_class, callable $delegation ): Infrastructure\Injector
+Infrastructure\Injector\SimpleInjector::public function make( string $interface_or_class, array $arguments = [] ): object
+Infrastructure\Injector\SimpleInjector::public function share( string $interface_or_class ): Infrastructure\Injector
+Infrastructure\Instantiator interface
+Infrastructure\Instantiator::public abstract function instantiate( string $class_name, array $dependencies = [] ): object
+Infrastructure\Plugin extends Infrastructure\Activateable
+Infrastructure\Plugin extends Infrastructure\Deactivateable
+Infrastructure\Plugin extends Infrastructure\Registerable
+Infrastructure\Plugin interface
+Infrastructure\Plugin::public abstract function activate(): void
+Infrastructure\Plugin::public abstract function deactivate(): void
+Infrastructure\Plugin::public abstract function get_container(): Infrastructure\ServiceContainer
+Infrastructure\Plugin::public abstract function register(): void
+Infrastructure\Registerable interface
+Infrastructure\Registerable::public abstract function register(): void
+Infrastructure\Renderable interface
+Infrastructure\Renderable::public abstract function render( array $context = [] ): string
+Infrastructure\Service interface
+Infrastructure\ServiceBasedPlugin abstract class
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Activateable
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Deactivateable
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Plugin
+Infrastructure\ServiceBasedPlugin implements Infrastructure\Registerable
+Infrastructure\ServiceBasedPlugin::protected Infrastructure\Injector $injector
+Infrastructure\ServiceBasedPlugin::protected Infrastructure\ServiceContainer $service_container
+Infrastructure\ServiceBasedPlugin::protected bool $enable_filters
+Infrastructure\ServiceBasedPlugin::protected const HOOK_PREFIX = ""
+Infrastructure\ServiceBasedPlugin::protected const REGISTRATION_ACTION = "plugins_loaded"
+Infrastructure\ServiceBasedPlugin::protected const SERVICE_PREFIX = ""
+Infrastructure\ServiceBasedPlugin::protected function collect_missing_dependencies( string $class_name, array $services ): array
+Infrastructure\ServiceBasedPlugin::protected function configure_injector( Infrastructure\Injector $injector ): Infrastructure\Injector
+Infrastructure\ServiceBasedPlugin::protected function dependencies_are_met( string $id, string $class_name, array &$services ): bool
+Infrastructure\ServiceBasedPlugin::protected function get_arguments(): array
+Infrastructure\ServiceBasedPlugin::protected function get_bindings(): array
+Infrastructure\ServiceBasedPlugin::protected function get_delegations(): array
+Infrastructure\ServiceBasedPlugin::protected function get_service_classes(): array
+Infrastructure\ServiceBasedPlugin::protected function get_shared_instances(): array
+Infrastructure\ServiceBasedPlugin::protected function instantiate_service( $class_name ): Infrastructure\Service
+Infrastructure\ServiceBasedPlugin::protected function maybe_register_service( string $id, string $class_name ): void
+Infrastructure\ServiceBasedPlugin::protected function maybe_resolve( $value )
+Infrastructure\ServiceBasedPlugin::protected function parse_arguments( $arguments, Infrastructure\Injector $injector ): Infrastructure\Injector
+Infrastructure\ServiceBasedPlugin::protected function parse_bindings( $bindings, Infrastructure\Injector $injector ): Infrastructure\Injector
+Infrastructure\ServiceBasedPlugin::protected function parse_delegations( $delegations, Infrastructure\Injector $injector ): Infrastructure\Injector
+Infrastructure\ServiceBasedPlugin::protected function parse_shared_instances( $shared_instances, Infrastructure\Injector $injector ): Infrastructure\Injector
+Infrastructure\ServiceBasedPlugin::protected function schedule_potential_service_registration( string $id, string $class_name ): void
+Infrastructure\ServiceBasedPlugin::public const ARGUMENTS_FILTER = "arguments"
+Infrastructure\ServiceBasedPlugin::public const BINDINGS_FILTER = "bindings"
+Infrastructure\ServiceBasedPlugin::public const DELEGATIONS_FILTER = "delegations"
+Infrastructure\ServiceBasedPlugin::public const INJECTOR_ID = "injector"
+Infrastructure\ServiceBasedPlugin::public const SERVICES_FILTER = "services"
+Infrastructure\ServiceBasedPlugin::public const SHARED_INSTANCES_FILTER = "shared_instances"
+Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null )
+Infrastructure\ServiceBasedPlugin::public function activate(): void
+Infrastructure\ServiceBasedPlugin::public function deactivate(): void
+Infrastructure\ServiceBasedPlugin::public function get_container(): Infrastructure\ServiceContainer
+Infrastructure\ServiceBasedPlugin::public function register(): void
+Infrastructure\ServiceBasedPlugin::public function register_services(): void
+Infrastructure\ServiceContainer interface
+Infrastructure\ServiceContainer::public abstract function get( string $id ): Infrastructure\Service
+Infrastructure\ServiceContainer::public abstract function has( string $id ): bool
+Infrastructure\ServiceContainer::public abstract function put( string $id, Infrastructure\Service $service ): void
+Infrastructure\ServiceContainer\LazilyInstantiatedService final class
+Infrastructure\ServiceContainer\LazilyInstantiatedService implements Infrastructure\Service
+Infrastructure\ServiceContainer\LazilyInstantiatedService::public function __construct( callable $instantiation )
+Infrastructure\ServiceContainer\LazilyInstantiatedService::public function instantiate(): Infrastructure\Service
+Infrastructure\ServiceContainer\SimpleServiceContainer final class
+Infrastructure\ServiceContainer\SimpleServiceContainer implements Infrastructure\ServiceContainer
+Infrastructure\ServiceContainer\SimpleServiceContainer::public function get( string $id ): Infrastructure\Service
+Infrastructure\ServiceContainer\SimpleServiceContainer::public function has( string $id ): bool
+Infrastructure\ServiceContainer\SimpleServiceContainer::public function put( string $id, Infrastructure\Service $service ): void
+Infrastructure\Service\DebugMode interface
+Infrastructure\Service\DebugMode::public abstract function is_debug_mode(): bool
+Infrastructure\Service\WordPressDebugMode final class
+Infrastructure\Service\WordPressDebugMode implements Infrastructure\Service\DebugMode
+Infrastructure\Service\WordPressDebugMode::public function is_debug_mode(): bool
+Infrastructure\View extends Infrastructure\Renderable
+Infrastructure\View interface
+Infrastructure\View::public abstract function __get( string $property )
+Infrastructure\View::public abstract function raw( $property )
+Infrastructure\View::public abstract function render( array $context = [] ): string
+Infrastructure\View::public abstract function render_partial( string $path, ?array $context = null ): string
+Infrastructure\ViewFactory interface
+Infrastructure\ViewFactory::public abstract function create( string $relative_path ): Infrastructure\View
+Infrastructure\View\SimpleView class
+Infrastructure\View\SimpleView implements Infrastructure\Renderable
+Infrastructure\View\SimpleView implements Infrastructure\View
+Infrastructure\View\SimpleView::protected $_context_ = []
+Infrastructure\View\SimpleView::protected Infrastructure\ViewFactory $view_factory
+Infrastructure\View\SimpleView::protected const VIEW_EXTENSION = "php"
+Infrastructure\View\SimpleView::protected function check_extension( string $path, string $extension ): string
+Infrastructure\View\SimpleView::protected function ensure_trailing_slash( string $path ): string
+Infrastructure\View\SimpleView::protected function escape( $value ): string
+Infrastructure\View\SimpleView::protected function is_debug_mode(): bool
+Infrastructure\View\SimpleView::protected function is_stringable( $value ): bool
+Infrastructure\View\SimpleView::protected function validate( string $path ): string
+Infrastructure\View\SimpleView::protected string $path
+Infrastructure\View\SimpleView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, ?Infrastructure\Service\DebugMode $debug_mode = null )
+Infrastructure\View\SimpleView::public function __get( string $property )
+Infrastructure\View\SimpleView::public function __isset( string $property ): bool
+Infrastructure\View\SimpleView::public function raw( $property )
+Infrastructure\View\SimpleView::public function render( array $context = [] ): string
+Infrastructure\View\SimpleView::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\SimpleViewFactory final class
+Infrastructure\View\SimpleViewFactory implements Infrastructure\Service
+Infrastructure\View\SimpleViewFactory implements Infrastructure\ViewFactory
+Infrastructure\View\SimpleViewFactory::public function create( string $relative_path ): Infrastructure\View
+Infrastructure\View\TemplatedView final class
+Infrastructure\View\TemplatedView implements Infrastructure\Renderable
+Infrastructure\View\TemplatedView implements Infrastructure\View
+Infrastructure\View\TemplatedView::public function __construct( string $path, Infrastructure\ViewFactory $view_factory, array $locations = [] )
+Infrastructure\View\TemplatedView::public function __get( string $property )
+Infrastructure\View\TemplatedView::public function __isset( string $property ): bool
+Infrastructure\View\TemplatedView::public function add_location( string $location ): self
+Infrastructure\View\TemplatedView::public function raw( $property )
+Infrastructure\View\TemplatedView::public function render( array $context = [] ): string
+Infrastructure\View\TemplatedView::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\TemplatedViewFactory final class
+Infrastructure\View\TemplatedViewFactory implements Infrastructure\Service
+Infrastructure\View\TemplatedViewFactory implements Infrastructure\ViewFactory
+Infrastructure\View\TemplatedViewFactory::public function __construct( array $locations = [] )
+Infrastructure\View\TemplatedViewFactory::public function create( string $relative_path ): Infrastructure\View
+Infrastructure\View\ViewLocations final class
+Infrastructure\View\ViewLocations::public function __construct( array $locations )
+Infrastructure\View\ViewLocations::public function confine( string $path ): string
