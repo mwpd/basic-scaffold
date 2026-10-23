@@ -116,9 +116,9 @@ says which rules enforce each principle, and what stays with review.
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
 | [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
-| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed` | Collaborators pulled from globals, HTML echoed from business logic, god classes |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed`, `noGlobalState` | HTML echoed from business logic, god classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
-| [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
+| [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
@@ -139,6 +139,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
 | A custom hook without the plugin's prefix | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
+| A service pulling a collaborator or request input from globals | `noGlobalState` | `tests/php/PHPStan/Fixture/NoGlobalState/Service.php` |
 | A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
 | A sample service depending on a concrete infrastructure class | `dependencyDirection` | `tests/php/PHPStan/Fixture/Layers/Feature/Service.php` |
 | A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
@@ -188,6 +189,37 @@ instance with `share()` when more than one object needs it. A cache belongs on
 the object that computes it.
 
 **Patterns:** [I need a singleton](patterns.md#i-need-a-singleton), [I need a service locator](patterns.md#i-need-a-service-locator), [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback).
+
+### `architecture.noGlobalState`
+
+**Principles:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns)
+and [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over).
+
+**Checks:** no `global` statements or `$GLOBALS` access in the plugin's
+namespace (excluding `excludedNamespaces`) or production view directories.
+This includes the namespaced bootstrap, file scope, functions, closures and
+anonymous classes. The request superglobals `$_GET`, `$_POST`, `$_REQUEST`,
+`$_COOKIE`, `$_SERVER`, `$_FILES` and `$_ENV` are only allowed inside listed
+input adapter classes. Reads and writes both count as access.
+
+**Allows:** constructor-injected values and calls to WordPress functions such
+as `get_post()`, even when those functions read globals internally. Other
+superglobals, such as `$_SESSION`, are outside this rule's scope. Listing an
+adapter never permits `global` or `$GLOBALS`.
+
+**Configuration:** `noGlobalState.inputAdapters` lists classes that sanitize
+and normalize request input into internal types; the scaffold needs none.
+Class names match without regard to case or a leading backslash; subclasses
+need their own entry. Closures inside a listed class may read input; functions
+and closures in templates without a class are not adapters.
+`dependencyDirection.views` supplies the production view directories.
+
+**Fix:** receive the value through the constructor. Configure a delegation in
+the composition root for collaborators such as `$wpdb` or `WP_Query`, as for
+`WP_Post` in `src/BasicScaffoldPlugin.php`. Read request input in a listed
+adapter and pass its normalized internal type to the service. Sanitization
+itself remains with WordPress Coding Standards' `ValidatedSanitizedInput`
+sniff and review. See [I need WordPress state, such as the current post](patterns.md#i-need-wordpress-state-such-as-the-current-post).
 
 ### `architecture.noWordPressErrorMechanisms`
 

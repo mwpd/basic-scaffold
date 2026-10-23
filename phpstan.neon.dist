@@ -41,6 +41,11 @@ parameters:
             # Methods allowed to keep static state (design principle 5).
             allowed:
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory::create
+        noGlobalState:
+            # Classes that read request input and sanitize and normalize it
+            # into internal types (design principles 7 and 9). This never
+            # permits global statements or $GLOBALS access.
+            inputAdapters: []
         exceptions:
             # Where the plugin's exceptions live, and the interface they all
             # implement (design principle 10).

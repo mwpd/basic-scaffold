@@ -15,6 +15,9 @@ parametersSchema:
         noStaticState: structure([
             allowed: listOf(string())
         ])
+        noGlobalState: structure([
+            inputAdapters: listOf(string())
+        ])
         exceptions: structure([
             namespace: string()
             marker: string()
@@ -76,6 +79,15 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             allowed: %architecture.noStaticState.allowed%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoGlobalStateRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            views: %architecture.dependencyDirection.views%
+            input_adapters: %architecture.noGlobalState.inputAdapters%
         tags:
             - phpstan.rules.rule
 

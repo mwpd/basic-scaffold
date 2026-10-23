@@ -417,9 +417,14 @@ The delegation is for values a service depends on.
 **Proven by:** `src/BasicScaffoldPlugin.php:159-192` and
 `src/SampleSubsystem/SampleLoopService.php:81`.
 
+For request input, a boundary adapter reads the superglobals, sanitizes and
+normalizes them into an internal type, and supplies that value to the service.
+List the adapter class in `parameters.architecture.noGlobalState.inputAdapters`;
+this permits request superglobals, never `global` or `$GLOBALS`.
+
 **Rules:** `architecture.newOnlyWhereAllowed` (WordPress classes such as
-`WP_Query` come from the injector too). `global`, `$GLOBALS` and superglobals
-are reported once #77 lands.
+`WP_Query` come from the injector too), and `architecture.noGlobalState` for
+`global`, `$GLOBALS` and request input outside listed adapters.
 
 ## I need a default collaborator that can be replaced
 
