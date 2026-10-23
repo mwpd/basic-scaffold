@@ -94,6 +94,8 @@ final class RuleManifest {
 
 	public const STRICT_TYPES = 'architecture.strictTypes';
 
+	public const EXPLICIT_NULLABLE_PARAMETERS = 'architecture.explicitNullableParameters';
+
 	public const DECLARATIONS_FOLLOW_PSR4 = 'architecture.declarationsFollowPsr4';
 
 	public const NO_SIDE_EFFECTS_ON_INCLUDE = 'architecture.noSideEffectsOnInclude';
@@ -285,6 +287,15 @@ final class RuleManifest {
 			'document'         => self::HARD_RULES,
 			'checked_by'       => [
 				RepositoryStructureTest::class . '::test_the_plugin_declares_strict_types',
+			],
+			'signatures'       => [],
+		],
+		self::EXPLICIT_NULLABLE_PARAMETERS          => [
+			'principle'        => 'Principle 1: Runs on PHP and WordPress alone',
+			'principle_anchor' => '1-runs-on-php-and-wordpress-alone',
+			'configuration'    => 'RepositoryLayout::PRODUCTION',
+			'checked_by'       => [
+				ExplicitNullableParametersTest::class . '::test_production_parameters_are_explicitly_nullable',
 			],
 			'signatures'       => [],
 		],

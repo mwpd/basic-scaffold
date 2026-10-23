@@ -109,7 +109,7 @@ says which rules enforce each principle, and what stays with review.
 
 | Principle | Checked by | Reviewed by hand |
 | --- | --- | --- |
-| [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4` | Loading without `vendor/` (#33) |
+| [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4`, `explicitNullableParameters` | Loading without `vendor/` (#33) |
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
@@ -288,6 +288,20 @@ main file and the view template directories.
 
 **Fix:** add `declare( strict_types=1 );` after the file header, or move a
 declaration out of a template into its own class file.
+
+### `architecture.explicitNullableParameters`
+
+**Principle:** [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone).
+
+**Checks:** typed parameters with a `null` default in production class
+directories declare their type explicitly nullable. The architecture test
+reads the syntax tree, so it also catches PHP 8.4 deprecations on PHP 7.4.
+
+**Allows:** untyped parameters and explicitly nullable types.
+
+**Configuration:** the production directories in `RepositoryLayout`.
+
+**Fix:** add `?` before the parameter type, keeping its `null` default.
 
 ### `architecture.declarationsFollowPsr4`
 

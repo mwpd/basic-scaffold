@@ -135,7 +135,7 @@ class SimpleView extends stdClass implements View {
 	 * @throws InvalidPath If the provided path was not valid.
 	 * @throws FailedToLoadView If the view could not be loaded.
 	 */
-	public function render_partial( string $path, array $context = null ): string {
+	public function render_partial( string $path, ?array $context = null ): string {
 		return $this->view_factory->create( $path )
 									->render( $context ?? $this->_context_ );
 	}
