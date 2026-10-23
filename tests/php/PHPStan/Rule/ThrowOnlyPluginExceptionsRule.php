@@ -17,7 +17,6 @@ use MWPD\BasicScaffold\Tests\Architecture\RuleManifest;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Throw_ as ThrowExpression;
 use PhpParser\Node\Expr\Variable;
-use PhpParser\Node\Stmt\Throw_ as ThrowStatement;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
@@ -38,11 +37,7 @@ use PHPStan\Type\VerbosityLevel;
  * created, and CreateOnlyPluginExceptionsRule checks every exception the
  * plugin creates.
  *
- * PHP-Parser 4, which PHPStan 1 uses, parses a throw statement as a
- * statement, and PHP-Parser 5, which PHPStan 2 uses, as an expression, so
- * the rule listens to both.
- *
- * @implements Rule<Node>
+ * @implements Rule<ThrowExpression>
  */
 final class ThrowOnlyPluginExceptionsRule implements Rule {
 
@@ -82,19 +77,18 @@ final class ThrowOnlyPluginExceptionsRule implements Rule {
 	 * @return string Node class name.
 	 */
 	public function getNodeType(): string {
-		return Node::class;
+		return ThrowExpression::class;
 	}
 
 	/**
 	 * Report a throw of anything that is not one of the plugin's exceptions.
 	 *
-	 * @param Node  $node  Node to inspect.
-	 * @param Scope $scope Scope of the node.
+	 * @param ThrowExpression $node  Throw to inspect.
+	 * @param Scope           $scope Scope of the node.
 	 * @return list<IdentifierRuleError> Errors found.
 	 */
 	public function processNode( Node $node, Scope $scope ): array {
-		if ( ! ( $node instanceof ThrowStatement || $node instanceof ThrowExpression )
-			|| $node->expr instanceof Variable
+		if ( $node->expr instanceof Variable
 			|| ! $this->plugin_namespace->contains_namespace( $scope->getNamespace() ) ) {
 			return [];
 		}
