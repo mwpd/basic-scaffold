@@ -68,7 +68,7 @@ Each lifecycle question a service has to answer is a small interface in
 
 The plugin itself only hooks into `plugins_loaded`
 (`src/Infrastructure/ServiceBasedPlugin.php:79`) and the activation and
-deactivation hooks (`basic-scaffold.php:112-118`). Everything else is decided
+deactivation hooks (`basic-scaffold.php:119-131`). Everything else is decided
 per service. `SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
 (`src/SampleSubsystem/SampleLoopService.php:55-72`), and no other code has to
@@ -91,7 +91,7 @@ asset pipeline before it runs: copy the plugin directory and activate it.
 Composer is a **development tool**, not a runtime dependency. The scaffold
 uses and supports it for tests, static analysis and coding standards, and loads
 its autoloader when one is present. When it is absent, the bundled
-`Infrastructure\Autoloader` takes over (`basic-scaffold.php:72-86`).
+`Infrastructure\Autoloader` takes over (`basic-scaffold.php:74-86`).
 
 In practice:
 
@@ -254,7 +254,7 @@ locator. It depends on which side of the graph's edge the code is on:
   that one concept. It never looks a service up in the container.
 - **At the edge**, where WordPress calls in from outside, a listed *bridge*
   gets the plugin through the plugin factory and delegates at once to instance
-  methods, as the activation hooks do (`basic-scaffold.php:115-121`). A bridge
+  methods, as the activation hooks do (`basic-scaffold.php:119-131`). A bridge
   holds no state and no logic of its own, and it is where exceptions have to
   be caught before control goes back to WordPress (principle 10); the
   activation hooks do not do that yet (#27).
@@ -284,7 +284,7 @@ book, shows the better alternative so that plugins built on it learn it too.
 | Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:71-77`). [Pattern](patterns.md#i-need-to-add-hooks) |
 | Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:38-56`). [Pattern](patterns.md#i-need-a-singleton) |
 | A service locator, such as a static `Services::get( 'id' )` | Each need behind it has its own answer: constructor injection, a factory, a typed registry, `share()`, or a bridge at the edge of the object graph (principle 5). [Pattern](patterns.md#i-need-a-service-locator) |
-| A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:115-121`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
+| A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:119-131`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
 | Creating collaborators with `new` inside a class, or pulling them from globals | Dependencies are injected through the constructor and configured as bindings in the composition root. [Pattern: creating objects](patterns.md#i-need-to-create-objects-on-demand), [WordPress state](patterns.md#i-need-wordpress-state-such-as-the-current-post) |
 | `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:45-52`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
 | Hooking to an early action just to wait for a later one | A service names its registration action through `Delayed`, and the plugin defers it. [Pattern](patterns.md#i-need-to-hook-in-later) |

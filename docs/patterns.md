@@ -352,7 +352,7 @@ A bridge outside the main plugin file follows the same contract:
 
 The uninstall bridge (#34) is the first bridge the scaffold itself adds.
 
-**Proven by:** `basic-scaffold.php:115-121`, and the factory at
+**Proven by:** `basic-scaffold.php:119-131`, and the factory at
 `src/BasicScaffoldPluginFactory.php:38-56`.
 
 **Rules:** `architecture.noStaticState` allows static state only in the
@@ -542,7 +542,7 @@ right action. The main plugin file is the only file with side effects, and it
 only loads the autoloader, hooks activation and deactivation, and registers
 the plugin.
 
-**Proven by:** `basic-scaffold.php:72-127`.
+**Proven by:** `basic-scaffold.php:74-137`.
 
 **Rules:** `architecture.noSideEffectsOnInclude`. What the main file itself
 may do on include is checked once #73 lands.
