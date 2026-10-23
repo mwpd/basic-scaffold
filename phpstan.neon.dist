@@ -6,6 +6,7 @@ parameters:
     level: max
     treatPhpDocTypesAsCertain: false
     paths:
+        - basic-scaffold.php
         - src
         - tests
         - views
@@ -61,6 +62,10 @@ parameters:
             compositionRoot:
                 - MWPD\BasicScaffold\BasicScaffoldPlugin
                 - MWPD\BasicScaffold\BasicScaffoldPluginFactory
+                # The bootstrap declares no class, so the rule names its code
+                # after the namespace and the file: it builds the fallback
+                # autoloader and asks the factory for the plugin.
+                - MWPD\BasicScaffold\basic-scaffold
             # Directories of the view templates that run in production.
             views:
                 - %currentWorkingDirectory%/views
