@@ -26,6 +26,7 @@ use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\Type;
 
 /**
@@ -33,8 +34,8 @@ use PHPStan\Type\Type;
  *
  * Several plugins built from this scaffold run side by side, so every name
  * they put into WordPress's shared spaces has to be their own: the hooks they
- * fire, their options, transients and meta keys, and their script and style
- * handles. Each kind of name has its own prefix, so each can follow the
+ * fire, their stored data, registered content, endpoints and admin pages.
+ * Each kind of name has its own prefix, so each can follow the
  * convention WordPress uses for it.
  *
  * A name passes when PHPStan knows it starts with the prefix, or when it is
@@ -48,35 +49,58 @@ use PHPStan\Type\Type;
 final class PrefixedNamesRule implements Rule {
 
 	/**
-	 * The functions checked: kind of name, position of the name, and whether
+	 * The functions checked: kind of name, positions of the names, and whether
 	 * the call only reads a name, so that names WordPress owns may be allowed.
 	 */
 	private const FUNCTIONS = [
-		'do_action'               => [ 'hooks', 0, true ],
-		'do_action_ref_array'     => [ 'hooks', 0, true ],
-		'apply_filters'           => [ 'hooks', 0, true ],
-		'apply_filters_ref_array' => [ 'hooks', 0, true ],
-		'add_option'              => [ 'options', 0, false ],
-		'update_option'           => [ 'options', 0, false ],
-		'delete_option'           => [ 'options', 0, false ],
-		'get_option'              => [ 'options', 0, true ],
-		'add_site_option'         => [ 'options', 0, false ],
-		'update_site_option'      => [ 'options', 0, false ],
-		'delete_site_option'      => [ 'options', 0, false ],
-		'get_site_option'         => [ 'options', 0, true ],
-		'set_transient'           => [ 'transients', 0, false ],
-		'get_transient'           => [ 'transients', 0, false ],
-		'delete_transient'        => [ 'transients', 0, false ],
-		'set_site_transient'      => [ 'transients', 0, false ],
-		'get_site_transient'      => [ 'transients', 0, false ],
-		'delete_site_transient'   => [ 'transients', 0, false ],
-		'register_meta'           => [ 'meta', 1, false ],
-		'register_post_meta'      => [ 'meta', 1, false ],
-		'register_term_meta'      => [ 'meta', 1, false ],
-		'wp_register_script'      => [ 'assets', 0, false ],
-		'wp_register_style'       => [ 'assets', 0, false ],
-		'wp_enqueue_script'       => [ 'assets', 0, true ],
-		'wp_enqueue_style'        => [ 'assets', 0, true ],
+		'do_action'                => [ 'hooks', [ 0 ], true ],
+		'do_action_ref_array'      => [ 'hooks', [ 0 ], true ],
+		'apply_filters'            => [ 'hooks', [ 0 ], true ],
+		'apply_filters_ref_array'  => [ 'hooks', [ 0 ], true ],
+		'add_option'               => [ 'options', [ 0 ], false ],
+		'update_option'            => [ 'options', [ 0 ], false ],
+		'delete_option'            => [ 'options', [ 0 ], false ],
+		'get_option'               => [ 'options', [ 0 ], true ],
+		'add_site_option'          => [ 'options', [ 0 ], false ],
+		'update_site_option'       => [ 'options', [ 0 ], false ],
+		'delete_site_option'       => [ 'options', [ 0 ], false ],
+		'get_site_option'          => [ 'options', [ 0 ], true ],
+		'set_transient'            => [ 'transients', [ 0 ], false ],
+		'get_transient'            => [ 'transients', [ 0 ], false ],
+		'delete_transient'         => [ 'transients', [ 0 ], false ],
+		'set_site_transient'       => [ 'transients', [ 0 ], false ],
+		'get_site_transient'       => [ 'transients', [ 0 ], false ],
+		'delete_site_transient'    => [ 'transients', [ 0 ], false ],
+		'register_meta'            => [ 'meta', [ 1 ], false ],
+		'register_post_meta'       => [ 'meta', [ 1 ], false ],
+		'register_term_meta'       => [ 'meta', [ 1 ], false ],
+		'wp_register_script'       => [ 'assets', [ 0 ], false ],
+		'wp_register_style'        => [ 'assets', [ 0 ], false ],
+		'wp_enqueue_script'        => [ 'assets', [ 0 ], true ],
+		'wp_enqueue_style'         => [ 'assets', [ 0 ], true ],
+		'register_post_type'       => [ 'postTypes', [ 0 ], false ],
+		'register_taxonomy'        => [ 'taxonomies', [ 0 ], false ],
+		'add_shortcode'            => [ 'shortcodes', [ 0 ], false ],
+		'register_rest_route'      => [ 'restRoutes', [ 0 ], false ],
+		'wp_schedule_event'        => [ 'cron', [ 2 ], false ],
+		'wp_schedule_single_event' => [ 'cron', [ 1 ], false ],
+		'wp_next_scheduled'        => [ 'cron', [ 0 ], true ],
+		'wp_clear_scheduled_hook'  => [ 'cron', [ 0 ], false ],
+		'wp_unschedule_event'      => [ 'cron', [ 1 ], false ],
+		'add_menu_page'            => [ 'adminPages', [ 3 ], false ],
+		'add_submenu_page'         => [ 'adminPages', [ 4 ], false ],
+		'add_options_page'         => [ 'adminPages', [ 3 ], false ],
+		'add_management_page'      => [ 'adminPages', [ 3 ], false ],
+		'register_setting'         => [ 'settings', [ 0, 1 ], false ],
+		'add_action'               => [ 'ajax', [ 0 ], false ],
+	];
+
+	/**
+	 * WordPress limits on the full name, including its prefix.
+	 */
+	private const MAX_LENGTHS = [
+		'postTypes'  => 20,
+		'taxonomies' => 32,
 	];
 
 	/**
@@ -136,8 +160,8 @@ final class PrefixedNamesRule implements Rule {
 			return [];
 		}
 
-		[ $kind, $position, $reads ] = self::FUNCTIONS[ $called ];
-		$settings                    = $this->kinds[ $kind ] ?? null;
+		[ $kind, $positions, $reads ] = self::FUNCTIONS[ $called ];
+		$settings                     = $this->kinds[ $kind ] ?? null;
 
 		if ( $settings === null ) {
 			return [];
@@ -148,16 +172,20 @@ final class PrefixedNamesRule implements Rule {
 			$reads = false;
 		}
 
-		$problem = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads );
+		$errors = [];
+		foreach ( $positions as $position ) {
+			$problem = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads );
+			if ( $problem === null ) {
+				continue;
+			}
 
-		return $problem === null
-			? []
-			: [
-				RuleErrorBuilder::message( $problem )
-					->identifier( RuleManifest::PREFIXED_NAMES )
-					->tip( RuleManifest::get_explanation( RuleManifest::PREFIXED_NAMES ) )
-					->build(),
-			];
+			$errors[] = RuleErrorBuilder::message( $problem )
+				->identifier( RuleManifest::PREFIXED_NAMES )
+				->tip( RuleManifest::get_explanation( RuleManifest::PREFIXED_NAMES ) )
+				->build();
+		}
+
+		return $errors;
 	}
 
 	/**
@@ -191,7 +219,7 @@ final class PrefixedNamesRule implements Rule {
 				if ( $index === $position ) {
 					$type = $scope->getType( $argument->value );
 
-					return $this->check( $argument->value, $type, $called, $kind, $settings, $reads );
+					return $this->check_name( $argument->value, $type, $scope, $called, $kind, $settings, $reads );
 				}
 
 				++$index;
@@ -200,12 +228,20 @@ final class PrefixedNamesRule implements Rule {
 
 			$arrays = $scope->getType( $argument->value )->getConstantArrays();
 			if ( count( $arrays ) !== 1 ) {
-				return $this->check( null, $scope->getType( $argument->value ), $called, $kind, $settings, $reads );
+				return $this->check_name(
+					null,
+					$scope->getType( $argument->value ),
+					$scope,
+					$called,
+					$kind,
+					$settings,
+					$reads
+				);
 			}
 
 			foreach ( $arrays[0]->getValueTypes() as $type ) {
 				if ( $index === $position ) {
-					return $this->check( null, $type, $called, $kind, $settings, $reads );
+					return $this->check_name( null, $type, $scope, $called, $kind, $settings, $reads );
 				}
 
 				++$index;
@@ -213,6 +249,116 @@ final class PrefixedNamesRule implements Rule {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Check a name, stripping WordPress's AJAX wrapper before checking its prefix.
+	 *
+	 * Other add_action() subscriptions belong to code outside the plugin and
+	 * are not names the plugin creates. A dynamic action is checked only when
+	 * its leading expression identifies it as AJAX.
+	 *
+	 * @param Expr|null $name     Expression that gives the name.
+	 * @param Type      $type     Type of the name.
+	 * @param Scope     $scope    Scope of the call.
+	 * @param string    $called   Function called.
+	 * @param string    $kind     Kind of name.
+	 * @param Kind      $settings Prefix, prefix constants and allowed names.
+	 * @param bool      $reads    Whether the call only reads the name.
+	 * @return string|null What is wrong and what to do instead, or null.
+	 */
+	private function check_name(
+		?Expr $name,
+		Type $type,
+		Scope $scope,
+		string $called,
+		string $kind,
+		array $settings,
+		bool $reads
+	): ?string {
+		if ( $kind !== 'ajax' ) {
+			return $this->check( $name, $type, $called, $kind, $settings, $reads );
+		}
+
+		if ( $name !== null && $this->ajax_uses_prefix_constant( $name, $scope, $settings['constants'] ) ) {
+			return null;
+		}
+
+		$strings = $type->getConstantStrings();
+		foreach ( $strings as $string ) {
+			$value  = $string->getValue();
+			$length = self::ajax_wrapper_length( $value );
+			if ( $length === 0 ) {
+				continue;
+			}
+
+			$problem = $this->check(
+				null,
+				new ConstantStringType( substr( $value, $length ) ),
+				$called,
+				$kind,
+				$settings,
+				false
+			);
+			if ( $problem !== null ) {
+				return $problem;
+			}
+		}
+
+		if ( $strings !== [] || $name === null ) {
+			return null;
+		}
+
+		while ( $name instanceof Concat ) {
+			$name    = $name->left;
+			$leading = $scope->getType( $name )->getConstantStrings();
+			foreach ( $leading as $string ) {
+				if ( self::ajax_wrapper_length( $string->getValue() ) > 0 ) {
+					return $this->check( null, $type, $called, $kind, $settings, false );
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Recognize a configured prefix constant after an AJAX wrapper.
+	 *
+	 * @param Expr          $name      Action name expression.
+	 * @param Scope         $scope     Scope of the call.
+	 * @param array<string> $constants Names of the prefix constants.
+	 * @return bool Whether the AJAX action starts with a prefix constant.
+	 */
+	private function ajax_uses_prefix_constant( Expr $name, Scope $scope, array $constants ): bool {
+		if ( ! $name instanceof Concat ) {
+			return false;
+		}
+
+		$strings = $scope->getType( $name->left )->getConstantStrings();
+		if ( count( $strings ) === 1
+			&& in_array( $strings[0]->getValue(), [ 'wp_ajax_', 'wp_ajax_nopriv_' ], true )
+			&& $this->starts_with_prefix_constant( $name->right, $constants ) ) {
+			return true;
+		}
+
+		return $this->ajax_uses_prefix_constant( $name->left, $scope, $constants );
+	}
+
+	/**
+	 * Get the length of WordPress's AJAX wrapper, or zero for other actions.
+	 *
+	 * @param string $name Action name.
+	 * @return int Length to strip before checking the plugin's prefix.
+	 */
+	private static function ajax_wrapper_length( string $name ): int {
+		foreach ( [ 'wp_ajax_nopriv_', 'wp_ajax_' ] as $wrapper ) {
+			if ( strpos( $name, $wrapper ) === 0 ) {
+				return strlen( $wrapper );
+			}
+		}
+
+		return 0;
 	}
 
 	/**
@@ -269,9 +415,10 @@ final class PrefixedNamesRule implements Rule {
 		$strings = $type->getConstantStrings();
 		if ( $strings === [] ) {
 			return sprintf(
-				'%1$s() gets a %2$s name the rule cannot check. Use %3$s, so the name is recognizably the'
+				'%1$s() gets %2$s %3$s name the rule cannot check. Use %4$s, so the name is recognizably the'
 				. ' plugin\'s own.',
 				$called,
+				in_array( $kind, [ 'assets', 'adminPages', 'ajax' ], true ) ? 'an' : 'a',
 				self::describe_kind( $kind ),
 				$how
 			);
@@ -279,6 +426,17 @@ final class PrefixedNamesRule implements Rule {
 
 		foreach ( $strings as $string ) {
 			$value = $string->getValue();
+			$limit = self::MAX_LENGTHS[ $kind ] ?? null;
+			if ( $limit !== null && strlen( $value ) > $limit ) {
+				return sprintf(
+					"%1\$s() uses the %2\$s name '%3\$s' which exceeds the WordPress limit of %4\$d characters."
+					. ' Shorten the full name, including the plugin prefix, to at most %4$d characters.',
+					$called,
+					self::describe_kind( $kind ),
+					$value,
+					$limit
+				);
+			}
 
 			if ( strpos( $value, $settings['prefix'] ) === 0
 				|| ( $reads && in_array( $value, $settings['allowed'], true ) ) ) {
@@ -334,6 +492,14 @@ final class PrefixedNamesRule implements Rule {
 			'transients' => 'transient',
 			'meta'       => 'meta key',
 			'assets'     => 'asset handle',
+			'postTypes'  => 'post type',
+			'taxonomies' => 'taxonomy',
+			'shortcodes' => 'shortcode',
+			'restRoutes' => 'REST namespace',
+			'cron'       => 'cron hook',
+			'adminPages' => 'admin page',
+			'settings'   => 'setting',
+			'ajax'       => 'AJAX action',
 		];
 
 		return $descriptions[ $kind ] ?? $kind;

@@ -207,3 +207,36 @@ parameters:
                     - wp-components
                     - wp-element
                     - wp-i18n
+
+            postTypes:
+                prefix: mwpd_bs_
+                constants: []
+                allowed: []
+            taxonomies:
+                prefix: mwpd_bs_
+                constants: []
+                allowed: []
+            shortcodes:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                allowed: []
+            restRoutes:
+                prefix: mwpd/basic-scaffold
+                constants: []
+                allowed: []
+            cron:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                allowed: []
+            adminPages:
+                prefix: mwpd-basic-scaffold-
+                constants: []
+                allowed: []
+            settings:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                allowed: []
+            ajax:
+                prefix: mwpd_basic_scaffold_
+                constants: []
+                allowed: []

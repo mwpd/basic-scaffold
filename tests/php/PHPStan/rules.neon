@@ -58,6 +58,8 @@ parametersSchema:
         queryContextNeedsDelay: structure([
             queryFunctions: listOf(string())
         ])
+        # An open map keeps every kind optional, including postTypes, taxonomies,
+        # shortcodes, restRoutes, cron, adminPages, settings and ajax.
         prefixedNames: arrayOf(
             structure([
                 prefix: string()
