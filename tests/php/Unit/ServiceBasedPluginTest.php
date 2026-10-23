@@ -15,6 +15,7 @@ use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClass;
 use MWPD\BasicScaffold\Tests\Fixture\DummyClassWithDependency;
 use MWPD\BasicScaffold\Tests\Fixture\DummyInterface;
+use MWPD\BasicScaffold\Tests\Fixture\ImmutableInjector;
 use MWPD\BasicScaffold\Tests\Fixture\TestInjectorConfigurationPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServiceBasedPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\TestServicesPlugin;
@@ -480,5 +481,26 @@ class ServiceBasedPluginTest extends TestCase {
 		$this->assertInstanceOf( TestServiceNeedingInjector::class, $service );
 		$this->assertSame( $injector, $service->get_injector() );
 		$this->assertSame( $injector, $injector->make( Injector::class ) );
+	}
+
+	/**
+	 * Test that an injector whose configuration methods return a configured
+	 * copy is handled: the copy is the injector the plugin keeps, and the one
+	 * that gets injected.
+	 */
+	public function test_an_injector_that_returns_copies_injects_the_configured_copy(): void {
+		$original = new ImmutableInjector();
+		$plugin   = new TestServicesPlugin(
+			[ 'needs_injector' => TestServiceNeedingInjector::class ],
+			$original
+		);
+		$plugin->register_services();
+
+		$injector = $this->get_registered_injector( $plugin );
+		$service  = $plugin->get_container()->get( 'needs_injector' );
+
+		$this->assertNotSame( $original, $injector );
+		$this->assertInstanceOf( TestServiceNeedingInjector::class, $service );
+		$this->assertSame( $injector, $service->get_injector() );
 	}
 }

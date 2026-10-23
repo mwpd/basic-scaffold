@@ -224,7 +224,7 @@ $report = $this->injector->make( Report::class );
 `:82-89`, `src/Infrastructure/View/TemplatedViewFactory.php:29` and `:58-60`,
 bound at `src/BasicScaffoldPlugin.php:95`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:241-244`, proven by
-`tests/php/Unit/ServiceBasedPluginTest.php:456-483`.
+`tests/php/Unit/ServiceBasedPluginTest.php:457-505`.
 
 **Rules:** `architecture.newOnlyWhereAllowed`; `architecture.dependencyDirection`
 keeps the consumer on the interface.

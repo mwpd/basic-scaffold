@@ -232,11 +232,11 @@ abstract class ServiceBasedPlugin implements Plugin {
 
 		/*
 		 * A constructor parameter typed Injector receives the plugin's own
-		 * injector, whichever implementation was passed in. This is what a
-		 * service takes when it has to make objects on demand, instead of
-		 * reaching for a static service locator (principle 5). It is set up
-		 * here, after the composition root's configuration, so that every
-		 * plugin gets it and no delegation can hand out a different injector.
+		 * injector, whichever implementation was passed in, instead of a
+		 * static service locator (principle 5). Set up after the composition
+		 * root's configuration, it reaches every plugin and replaces any
+		 * delegation for Injector. The callable reads the property, so it
+		 * also holds for an injector whose methods return a configured copy.
 		 */
 		$this->injector = $this->injector->delegate(
 			Injector::class,
