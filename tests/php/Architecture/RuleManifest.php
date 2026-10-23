@@ -86,6 +86,8 @@ final class RuleManifest {
 
 	public const RAW_IS_ESCAPED = 'architecture.rawIsEscaped';
 
+	public const OUTPUT_ONLY_THROUGH_VIEWS = 'architecture.outputOnlyThroughViews';
+
 	public const DEPENDENCY_DIRECTION = 'architecture.dependencyDirection';
 
 	public const NEW_ONLY_WHERE_ALLOWED = 'architecture.newOnlyWhereAllowed';
@@ -235,6 +237,18 @@ final class RuleManifest {
 			'signatures'       => [
 				'loses the caught exception',
 				'discards the caught exception',
+			],
+		],
+		self::OUTPUT_ONLY_THROUGH_VIEWS             => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-print-output',
+			'configuration'    => 'parameters.architecture.outputOnlyThroughViews',
+			'checked_by'       => [
+				Rule\OutputOnlyThroughViewsRule::class,
+			],
+			'signatures'       => [
+				'does not come directly from a Renderable or View method call',
 			],
 		],
 		self::RAW_IS_ESCAPED                        => [

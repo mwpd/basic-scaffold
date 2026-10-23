@@ -502,9 +502,10 @@ Post title: <?= esc_html( $current_post->post_title ) ?>
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:82-89` and
 `views/test-loop-service.php:7-17`.
 
-**Rules:** `architecture.rawIsEscaped` for raw values in templates, and PHPCS
-(WordPress Coding Standards) for escaping. Echo outside views is reported
-once #78 lands.
+**Rules:** `architecture.outputOnlyThroughViews` requires direct method
+calls on typed `Renderable` or `View` objects when printing from services.
+`architecture.rawIsEscaped` checks raw values in templates, and PHPCS
+(WordPress Coding Standards) checks escaping.
 
 ## I need to report a failure
 
