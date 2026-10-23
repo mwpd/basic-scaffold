@@ -9,6 +9,7 @@
 	findUnusedCode="false"
 >
 	<projectFiles>
+		<file name="basic-scaffold.php"/>
 		<directory name="src"/>
 		<directory name="tests"/>
 		<directory name="views"/>

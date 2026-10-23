@@ -3,6 +3,7 @@
     <description>Custom coding standards for MWPD Basic Scaffold</description>
 
     <!-- What to scan -->
+    <file>basic-scaffold.php</file>
     <file>src</file>
     <file>tests</file>
     <file>views</file>
