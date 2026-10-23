@@ -115,14 +115,14 @@ says which rules enforce each principle, and what stays with review.
 
 | Principle | Checked by | Reviewed by hand |
 | --- | --- | --- |
-| [The core idea: complexity that grows linearly](design-principles.md#the-core-idea-complexity-that-grows-linearly) | `hooksInLifecycleMethods`, `queryContextNeedsDelay`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | Each service deciding its own lifecycle through capability interfaces |
+| [The core idea: complexity that grows linearly](design-principles.md#the-core-idea-complexity-that-grows-linearly) | `hooksInLifecycleMethods`, `queryContextNeedsDelay`, `registrationActionKnown`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | Each service deciding its own lifecycle through capability interfaces |
 | [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4`, `explicitNullableParameters`; bundled autoloader CI check | Bootstrap Composer detection (#10) |
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
 | [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
-| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `constructorsOnlyAssign`, `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `constructorsOnlyAssign`, `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `registrationActionKnown`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | `namesWithoutTypeKind`; PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own; whether implementation names describe their distinguishing behaviour |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
@@ -158,6 +158,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A delayed service with nothing to register | `capabilitiesOnServices` | `tests/php/PHPStan/Fixture/Capabilities/DelayedService.php` |
 | A subsystem service missing from the composition root | `servicesDeclared` | `ServicesDeclaredTest::test_it_reports_an_undeclared_subsystem_service_with_the_fix` |
 | A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
+| A delayed service waiting for a misspelled action | `registrationActionKnown` | `tests/php/Fixture/CompositionRoot/TypoActionPlugin.php` |
 
 ## Rules
 
@@ -918,8 +919,9 @@ configured query-dependent function directly, the class also implements
 **Allows:** a `Conditional` that only calls request checks such as
 `is_admin()`, classes that do not implement `Conditional`, and calls in other
 methods, helpers, closures or arrow functions. Only direct calls in
-`is_needed()` count. This rule checks for `Delayed`; proving which action
-`get_registration_action()` returns is outside its scope (#82).
+`is_needed()` count. This rule checks for `Delayed`;
+`architecture.registrationActionKnown` checks whether its action is known.
+Neither proves that the action runs late enough for the condition.
 
 **Configuration:** `queryContextNeedsDelay.queryFunctions` lists the
 query-dependent functions: `is_singular`, `is_single`, `is_page`,
@@ -932,6 +934,41 @@ namespace comes from `dependencyDirection.infrastructure`.
 `is_needed()`, so the query has run when the condition reads it. See
 [I need to hook in later](patterns.md#i-need-to-hook-in-later) and
 [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests).
+
+### `architecture.registrationActionKnown`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns),
+and the capability interfaces of [the core idea](design-principles.md#how-services-map-to-it):
+a delayed service must name an action it can wait for.
+
+**Checks:** every declared `Delayed` service in the composition root returns
+either a configured core action or an action starting with the plugin's hook
+prefix. Failures name the service identifier, class and action, and state the
+prefix to use. Callable declarations are resolved through the root's own
+injector configuration.
+
+**Allows:** core actions in either configured list and plugin-prefixed actions,
+such as `mwpd.basic_scaffold.ready`. An empty hook prefix does not allow every
+action. Empty or whitespace-only actions are reported only by
+`architecture.compositionRootContracts`, which already requires an action.
+Whether a core action fires in the service's request type, whether it runs
+late enough for a condition, and dynamic actions WordPress builds from names
+(such as `load-{$page_hook}` and `admin_print_scripts-{$hook_suffix}`) are
+outside this check's scope.
+
+**Configuration:** `RepositoryLayout::COMPOSITION_ROOT` selects the root.
+`RepositoryLayout::REGISTRATION_ACTIONS` lists core actions with a fixed firing
+order; `RepositoryLayout::ADDITIONAL_CORE_ACTIONS` adds `admin_menu`,
+`admin_init`, `current_screen`, `rest_api_init`, `wp_enqueue_scripts`,
+`admin_enqueue_scripts`, `wp_head`, `wp_footer` and `admin_notices` without
+assigning them an order. Both lists form the known core set. A layout can
+override them through its optional `registration_actions` and
+`additional_core_actions` constructor arguments. The contract reads the
+root's protected `HOOK_PREFIX` constant through reflection, so generated
+plugins retain the check after renaming their namespace and prefix.
+
+**Fix:** correct the action to a core name, or start the plugin's own action
+with its hook prefix. See [I need to hook in later](patterns.md#i-need-to-hook-in-later).
 
 ### `architecture.prefixedNames`
 
@@ -1085,8 +1122,9 @@ deactivation reach (`tests/php/Unit/ServiceBasedPluginTest.php` covers that),
 or database and filesystem effects Brain Monkey cannot see. Dependency graph
 checks skip missing or invalid declarations already reported by the contract.
 Ordering checks silently skip an edge if either action is outside the known
-order; validating unknown actions belongs to #82. They do not evaluate whether
-a `Conditional` dependency is needed in a particular request.
+order; `architecture.registrationActionKnown` validates action names separately.
+They do not evaluate whether a `Conditional` dependency is needed in a
+particular request.
 
 **Configuration:** `RepositoryLayout::COMPOSITION_ROOT` names the composition
 root. A service added to it is checked without changing the test.

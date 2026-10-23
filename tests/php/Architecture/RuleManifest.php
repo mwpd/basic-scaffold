@@ -108,6 +108,8 @@ final class RuleManifest {
 
 	public const QUERY_CONTEXT_NEEDS_DELAY = 'architecture.queryContextNeedsDelay';
 
+	public const REGISTRATION_ACTION_KNOWN = 'architecture.registrationActionKnown';
+
 	public const PREFIXED_NAMES = 'architecture.prefixedNames';
 
 	public const STRICT_TYPES = 'architecture.strictTypes';
@@ -417,6 +419,18 @@ final class RuleManifest {
 			'signatures'       => [
 				'asks about the query before it is available',
 			],
+		],
+		self::REGISTRATION_ACTION_KNOWN             => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-hook-in-later',
+			'configuration'    => 'RepositoryLayout::COMPOSITION_ROOT, RepositoryLayout::REGISTRATION_ACTIONS, '
+				. 'RepositoryLayout::ADDITIONAL_CORE_ACTIONS, composition root HOOK_PREFIX',
+			'checked_by'       => [
+				CompositionRootContractTest::class . '::test_the_plugin_keeps_the_promises_of_its_composition_root',
+				CompositionRootContractTest::class . '::test_it_reports_an_unknown_registration_action_with_the_fix',
+			],
+			'signatures'       => [ 'returns the unknown action' ],
 		],
 		self::PREFIXED_NAMES                        => [
 			'principle'        => 'Principle 13: One plugin, to arbitrary complexity',

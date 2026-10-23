@@ -31,6 +31,11 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\SelfDependentPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\InvalidDependencyGraphPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\DependsOnB;
 use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\OverlappingCyclesPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\TypoActionService;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\TypoActionPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\PrefixedActionPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\AdminMenuPlugin;
+use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\EmptyHookPrefixPlugin;
 use stdClass;
 use WP_Post;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
@@ -256,6 +261,80 @@ final class CompositionRootContractTest extends TestCase {
 			[],
 			( new CompositionRootContract( MisorderedDependencyPlugin::class, $layout ) )->check()
 		);
+	}
+
+	public function test_it_reports_an_unknown_registration_action_with_the_fix(): void {
+		$this->assertSame(
+			[
+				'[architecture.registrationActionKnown] The service "delayed" (' . TypoActionService::class
+				. ') of ' . TypoActionPlugin::class . ' is Delayed, but returns the unknown action "wp_laoded".'
+				. ' Use a core action or one starting with the plugin\'s hook prefix "mwpd.basic_scaffold.".'
+				. ' Principle 7: Show the alternative to WordPress anti-patterns, see '
+				. 'docs/design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns.'
+				. ' Pattern: docs/patterns.md#i-need-to-hook-in-later.'
+				. ' Rule: docs/architecture-rules.md#architectureregistrationactionknown.',
+			],
+			( new CompositionRootContract( TypoActionPlugin::class ) )->check()
+		);
+	}
+
+	public function test_it_accepts_a_registration_action_with_the_roots_hook_prefix(): void {
+		$this->assertSame( [], ( new CompositionRootContract( PrefixedActionPlugin::class ) )->check() );
+	}
+
+	public function test_it_accepts_a_core_action_without_a_fixed_order(): void {
+		$this->assertSame( [], ( new CompositionRootContract( AdminMenuPlugin::class ) )->check() );
+	}
+
+	public function test_it_uses_the_layouts_additional_core_actions(): void {
+		$layout = new RepositoryLayout(
+			__DIR__,
+			'',
+			[],
+			[],
+			'',
+			[],
+			[],
+			[],
+			RepositoryLayout::REGISTRATION_ACTIONS,
+			[ 'wp_laoded' ]
+		);
+
+		$this->assertSame( [], ( new CompositionRootContract( TypoActionPlugin::class, $layout ) )->check() );
+	}
+
+	public function test_it_can_remove_additional_core_actions_through_the_layout(): void {
+		$layout   = new RepositoryLayout(
+			__DIR__,
+			'',
+			[],
+			[],
+			'',
+			[],
+			[],
+			[],
+			RepositoryLayout::REGISTRATION_ACTIONS,
+			[]
+		);
+		$problems = ( new CompositionRootContract( AdminMenuPlugin::class, $layout ) )->check();
+
+		$this->assertCount( 1, $problems );
+		$this->assertStringContainsString( 'returns the unknown action "admin_menu"', $problems[0] );
+	}
+
+	public function test_it_accepts_the_layouts_ordered_actions_as_known(): void {
+		$layout = new RepositoryLayout( __DIR__, '', [], [], '', [], [], [], [ 'wp_laoded' ] );
+
+		$this->assertSame( [], ( new CompositionRootContract( TypoActionPlugin::class, $layout ) )->check() );
+	}
+
+	public function test_it_rejects_an_unknown_action_when_the_hook_prefix_is_empty(): void {
+		$problems = ( new CompositionRootContract( EmptyHookPrefixPlugin::class ) )->check();
+
+		$this->assertCount( 1, $problems );
+		$this->assertStringContainsString( '[architecture.registrationActionKnown]', $problems[0] );
+		$this->assertStringContainsString( 'returns the unknown action "wp_laoded"', $problems[0] );
+		$this->assertStringContainsString( 'hook prefix ""', $problems[0] );
 	}
 
 	/**

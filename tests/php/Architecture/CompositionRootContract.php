@@ -199,7 +199,7 @@ final class CompositionRootContract {
 			foreach ( $dependencies as $dependency ) {
 				$action          = $actions[ $id ];
 				$dependency_hook = $actions[ $dependency ];
-				// Unknown actions belong to the registration-action check (#82).
+				// Action validity is checked separately; unordered actions cannot rank an edge.
 				if ( ! isset( $order[ $action ], $order[ $dependency_hook ] )
 					|| $order[ $action ] >= $order[ $dependency_hook ] ) {
 					continue;
@@ -322,6 +322,8 @@ final class CompositionRootContract {
 				'is Delayed, but get_registration_action() returns no action. Return the action whose firing the'
 				. ' service has to wait for, such as "init" or "wp".'
 			);
+		} elseif ( is_a( $class_name, Delayed::class, true ) ) {
+			$problems = array_merge( $problems, $this->check_registration_action( $id, $class_name ) );
 		}
 
 		if ( is_a( $class_name, HasDependencies::class, true ) ) {
@@ -341,6 +343,42 @@ final class CompositionRootContract {
 		}
 
 		return $problems;
+	}
+
+	/**
+	 * Check a nonempty action against core names and the root's own hook prefix.
+	 *
+	 * @param string                        $id         Service identifier.
+	 * @param class-string<Service&Delayed> $class_name Delayed service class.
+	 * @return array<string> Problems found.
+	 */
+	private function check_registration_action( string $id, string $class_name ): array {
+		$action = $class_name::get_registration_action();
+		$known  = array_merge(
+			$this->layout->get_registration_actions(),
+			$this->layout->get_additional_core_actions()
+		);
+		// Reading the protected constant follows a generated plugin's renaming.
+		$prefix = ( new ReflectionClass( $this->plugin_class ) )->getConstant( 'HOOK_PREFIX' );
+		assert( is_string( $prefix ) );
+
+		if ( in_array( $action, $known, true ) || ( $prefix !== '' && strpos( $action, $prefix ) === 0 ) ) {
+			return [];
+		}
+
+		return [
+			sprintf(
+				'[%1$s] The service "%2$s" (%3$s) of %4$s is Delayed, but returns the unknown action "%5$s".'
+				. ' Use a core action or one starting with the plugin\'s hook prefix "%6$s". %7$s.',
+				RuleManifest::REGISTRATION_ACTION_KNOWN,
+				$id,
+				$class_name,
+				$this->plugin_class,
+				$action,
+				$prefix,
+				RuleManifest::get_explanation( RuleManifest::REGISTRATION_ACTION_KNOWN )
+			),
+		];
 	}
 
 	/**
