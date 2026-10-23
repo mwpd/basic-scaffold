@@ -118,6 +118,8 @@ final class RuleManifest {
 
 	public const TESTS_ARE_DISCOVERED = 'architecture.testsAreDiscovered';
 
+	public const SAMPLES_ARE_TESTED = 'architecture.samplesAreTested';
+
 	public const NO_SUPPRESSION = 'architecture.noSuppression';
 
 	public const GATES_AT_STRENGTH = 'architecture.gatesAtStrength';
@@ -455,6 +457,15 @@ final class RuleManifest {
 			'document'         => self::HARD_RULES,
 			'checked_by'       => [
 				RepositoryStructureTest::class . '::test_the_plugin_puts_every_test_where_phpunit_finds_it',
+			],
+			'signatures'       => [],
+		],
+		self::SAMPLES_ARE_TESTED                    => [
+			'principle'        => 'Principle 14: The code teaches',
+			'principle_anchor' => '14-the-code-teaches',
+			'configuration'    => 'RepositoryLayout and parameters.architecture',
+			'checked_by'       => [
+				SamplesAreTestedTest::class . '::test_the_plugin_tests_every_sample_class_and_view',
 			],
 			'signatures'       => [],
 		],
