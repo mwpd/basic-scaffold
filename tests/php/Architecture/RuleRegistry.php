@@ -276,7 +276,18 @@ final class RuleRegistry {
 
 		foreach ( $manifest as $identifier => $rule ) {
 			$pattern = $rule['pattern'] ?? null;
-			if ( $pattern === null || ! isset( $patterns[ $pattern ] ) ) {
+			if ( $pattern === null ) {
+				continue;
+			}
+
+			if ( ! isset( $patterns[ $pattern ] ) ) {
+				$problems[] = sprintf(
+					'%1$s links its failures to %2$s#%3$s, which is not a pattern. Point the rule\'s pattern in'
+					. ' RuleManifest at a "## " section of %2$s.',
+					$identifier,
+					RuleManifest::PATTERNS,
+					$pattern
+				);
 				continue;
 			}
 
@@ -306,7 +317,7 @@ final class RuleRegistry {
 	 */
 	private static function split_sections( string $markdown, string $level ): array {
 		$sections = [];
-		$parts    = preg_split( '/^' . $level . '\s+/m', $markdown );
+		$parts    = preg_split( '/^' . $level . '\s+/m', self::strip_code_blocks( $markdown ) );
 
 		foreach ( array_slice( (array) $parts, 1 ) as $part ) {
 			$part    = (string) $part;
@@ -316,6 +327,19 @@ final class RuleRegistry {
 		}
 
 		return $sections;
+	}
+
+	/**
+	 * Remove fenced code blocks from a Markdown document.
+	 *
+	 * A line inside a fence that looks like a heading or a Rules paragraph is
+	 * an example, not part of the document's structure.
+	 *
+	 * @param string $markdown Contents of the document.
+	 * @return string The document without its fenced code blocks.
+	 */
+	public static function strip_code_blocks( string $markdown ): string {
+		return (string) preg_replace( '/^(`{3,}|~{3,})[^\n]*\n.*?^\1[ \t]*$/ms', '', $markdown );
 	}
 
 	/**

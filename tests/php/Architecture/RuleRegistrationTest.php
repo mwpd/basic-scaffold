@@ -139,6 +139,14 @@ final class RuleRegistrationTest extends TestCase {
 				'## I need another thing',
 				'',
 				'**Rules:** none yet.',
+				'',
+				'### A subsection',
+				'',
+				'```markdown',
+				'## I need a fake thing',
+				'',
+				'**Rules:** `architecture.fenced`.',
+				'```',
 			]
 		);
 		$catalogue = implode(
@@ -190,6 +198,8 @@ final class RuleRegistrationTest extends TestCase {
 				'architecture.linked'   => $entry( null ),
 				'architecture.unlinked' => $entry( null ),
 				'architecture.stray'    => $entry( 'i-need-another-thing' ),
+				'architecture.nested'   => $entry( 'a-subsection' ),
+				'architecture.fenced'   => $entry( 'i-need-a-fake-thing' ),
 			],
 			$found,
 			RuleRegistry::find_linked_patterns( $catalogue )
@@ -203,6 +213,9 @@ final class RuleRegistrationTest extends TestCase {
 					. ' list.',
 				'architecture.stray links its failures to docs/patterns.md#i-need-another-thing, but that pattern'
 					. ' does not list it under Rules.',
+				'architecture.nested links its failures to docs/patterns.md#a-subsection, which is not a pattern.',
+				'architecture.fenced links its failures to docs/patterns.md#i-need-a-fake-thing, which is not a'
+					. ' pattern.',
 			],
 			array_map( static fn( string $problem ): string => explode( '. ', $problem )[0] . '.', $problems )
 		);

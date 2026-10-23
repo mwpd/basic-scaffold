@@ -58,7 +58,10 @@ final class RuleManifestTest extends TestCase {
 	}
 
 	public function test_every_pattern_a_rule_links_to_exists(): void {
-		$anchors = $this->get_heading_anchors( RuleManifest::PATTERNS );
+		$contents = file_get_contents( dirname( __DIR__, 3 ) . '/' . RuleManifest::PATTERNS );
+		$this->assertIsString( $contents, RuleManifest::PATTERNS . ' cannot be read.' );
+
+		$anchors = array_keys( RuleRegistry::find_pattern_rules( $contents ) );
 
 		foreach ( RuleManifest::get_rules() as $identifier => $rule ) {
 			if ( ! isset( $rule['pattern'] ) ) {
@@ -69,7 +72,7 @@ final class RuleManifestTest extends TestCase {
 				$rule['pattern'],
 				$anchors,
 				sprintf(
-					'%1$s links to #%2$s, which is not a heading in %3$s. '
+					'%1$s links to #%2$s, which is not a "## " section of %3$s. '
 					. 'Point pattern in RuleManifest at the section that meets the need the rule protects.',
 					$identifier,
 					$rule['pattern'],
@@ -91,7 +94,7 @@ final class RuleManifestTest extends TestCase {
 
 		$this->assertIsString( $contents, "{$file} cannot be read." );
 
-		preg_match_all( '/^#{1,6}\s+(.+?)\s*$/m', $contents, $matches );
+		preg_match_all( '/^#{1,6}\s+(.+?)\s*$/m', RuleRegistry::strip_code_blocks( $contents ), $matches );
 
 		return array_map( [ RuleRegistry::class, 'get_anchor' ], $matches[1] );
 	}
