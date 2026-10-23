@@ -877,7 +877,7 @@ Calling a WordPress function inside an implementation detail is still fine
 The interface is for state a service depends on.
 
 **Proven by:** `src/SampleSubsystem/MainLoop.php:19-49` and
-`src/SampleSubsystem/WordPressMainLoop.php:27-62`, bound at
+`src/SampleSubsystem/WordPressMainLoop.php:27-67`, bound at
 `src/BasicScaffoldPlugin.php:153`, and asked at call time in
 `src/SampleSubsystem/SampleLoopService.php:123-141`.
 `tests/php/Unit/WordPressMainLoopTest.php` covers each state of the loop, and
@@ -1033,7 +1033,7 @@ try {
 ```
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`, thrown at
-`src/SampleSubsystem/WordPressMainLoop.php:57`,
+`src/SampleSubsystem/WordPressMainLoop.php:62`,
 `src/Infrastructure/View/SimpleView.php:119-155` and
 `src/Exception/FailedToLoadView.php:39`.
 

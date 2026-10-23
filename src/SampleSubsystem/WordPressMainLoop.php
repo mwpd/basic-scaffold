@@ -30,6 +30,11 @@ final class WordPressMainLoop implements MainLoop {
 	 * Check whether WordPress is rendering the queried post in the main loop
 	 * right now.
 	 *
+	 * One case looks the same as the main loop from here: a secondary query
+	 * run inside the main loop that lists the queried post again. Such a query
+	 * changes the current post but leaves the main query in place, so the
+	 * answer is yes for that copy of the post too.
+	 *
 	 * @return bool Whether the main loop is rendering the queried post.
 	 */
 	public function is_rendering_queried_post(): bool {
