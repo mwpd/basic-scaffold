@@ -135,7 +135,7 @@ says which rules enforce each principle, and what stays with review.
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor`, `bootstrapContract` | |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
 | [14. The code teaches](design-principles.md#14-the-code-teaches) | `samplesAreTested`, `testsAreDiscovered`, `citationsResolve`, `infrastructureApiSnapshot` | Whether comments explain why and cited lines still support the prose |
-| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
+| [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `suppressionsAreNamed`, `testsAreDiscovered`, `gatesAtStrength`, `infrastructureApiSnapshot` | API compatibility and maintainer rulings on breaking changes |
 
 ## Mistakes the checks catch
 
@@ -144,6 +144,7 @@ that names the fix. The fixtures and tests listed prove it.
 
 | Mistake | Fails with | Proven by |
 | --- | --- | --- |
+| An inline suppression hides every error on its line or in its file | `suppressionsAreNamed` | `SuppressionTest::test_it_reports_each_unnamed_suppression_with_the_full_message` |
 | An infrastructure signature changed without updating its reviewed snapshot | `infrastructureApiSnapshot` | `InfrastructureApiSnapshotTest::test_it_reports_a_difference_with_the_diff_and_regeneration_command` |
 | A service constructor reading an option or branching | `constructorsOnlyAssign` | `tests/php/PHPStan/Fixture/ConstructorsOnlyAssign/CallService.php`, `BranchService.php` |
 | A hook added in a constructor | `noHooksInConstructor` | `tests/php/PHPStan/Fixture/Hooks/Feature/BadService.php` |
@@ -1114,6 +1115,43 @@ to the WordPress limit.
 
 **Patterns:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares), [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins).
 
+### `architecture.suppressionsAreNamed`
+
+**Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the gates.
+
+**Checks:** suppressions in real PHP comments in the main plugin file,
+`src/`, `views/` and `tests/php/` name the errors they silence. Reports are
+per occurrence, at the offending comment line, including inside multiline
+comments.
+
+- PHPStan's line and next-line ignores are rejected because they cannot name
+  an identifier. `@phpstan-ignore` must name a dotted identifier such as
+  `argument.type`; comma separated identifiers and a parenthesised reason are
+  allowed.
+- `phpcs:ignore` and `phpcs:disable` must name a dotted sniff, such as
+  `WordPress.Security.EscapeOutput`, optionally with a code suffix. Comma
+  separated lists are allowed; text after ` -- ` is a reason, not a sniff
+  name. A leading `@` is recognized too. `phpcs:ignoreFile` is always rejected,
+  even with a name, because it silences the entire file.
+- `@psalm-suppress` must name an issue type such as `UnresolvableInclude`.
+
+**Allows:** named suppressions, with or without a written reason; writing a
+reason is recommended. Strings are not comments, and rule fixtures declared
+in `RepositoryLayout` are excluded. PHPStan's file ignore, `phpcs:enable`,
+`phpcs:set`, and configuration-level ignores in `phpstan.neon.dist` and
+`psalm.xml` are outside this rule's scope. Named suppressions of architecture
+rules are still rejected by
+[`architecture.noSuppression`](#architecturenosuppression).
+
+**Configuration:** the shared suppression-check scope and rule fixture
+exclusions in `RepositoryLayout`; no suppression allowances.
+
+**Fix:** fix the code or use a suppression that names the error at its point
+of use: `// @phpstan-ignore argument.type (reason)`,
+`// phpcs:ignore Category.Sniff -- reason`, or
+`@psalm-suppress IssueType reason`. Explain why it is needed so the next
+reader can assess whether it still applies.
+
 ### `architecture.noSuppression`
 
 **Principle:** the [hard rule](../AGENTS.md#hard-rules) not to weaken the
@@ -1126,7 +1164,9 @@ baseline it includes, has no `ignoreErrors` entry for one, and keeps
 `reportUnmatchedIgnoredErrors` on, so an ignore cannot outlive what it hid.
 
 **Allows:** the fixtures of the architecture rules, which break them on
-purpose. Ignores of other PHPStan, Psalm or PHPCS errors are not checked.
+purpose. Ignores of other PHPStan, Psalm or PHPCS errors must name what they
+silence, as checked by
+[`architecture.suppressionsAreNamed`](#architecturesuppressionsarenamed).
 
 **Configuration:** none.
 
