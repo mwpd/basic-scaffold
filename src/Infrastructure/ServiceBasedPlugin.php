@@ -15,6 +15,7 @@ namespace MWPD\BasicScaffold\Infrastructure;
 
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
+use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
 use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Exception\InvalidService;
@@ -109,6 +110,27 @@ abstract class ServiceBasedPlugin implements Plugin {
 	 * Service container instance.
 	 */
 	protected ServiceContainer $service_container;
+
+	/**
+	 * Services of this plugin, with their class names resolved.
+	 *
+	 * @var array<string,class-string>
+	 */
+	private array $services = [];
+
+	/**
+	 * Services that wait for their dependencies to be registered.
+	 *
+	 * @var array<string,class-string>
+	 */
+	private array $pending_services = [];
+
+	/**
+	 * Actions after which the pending services are checked again.
+	 *
+	 * @var array<non-empty-string,true>
+	 */
+	private array $resumption_actions = [];
 
 	/**
 	 * Instantiate a Plugin object.
@@ -224,13 +246,23 @@ abstract class ServiceBasedPlugin implements Plugin {
 			);
 		}
 
-		while ( null !== key( $services ) ) {
-			$id         = key( $services );
-			$class_name = $this->maybe_resolve( current( $services ) );
+		/**
+		 * The filter may return anything, so check every entry (principle 9).
+		 *
+		 * @var array<mixed> $services
+		 */
 
+		$this->services         = [];
+		$this->pending_services = [];
+
+		// The first pass goes through the services in the order they were
+		// provided, and sets aside those whose dependencies come later.
+		foreach ( $services as $id => $service ) {
 			if ( ! is_string( $id ) ) {
 				throw InvalidService::from_invalid_identifier( $id );
 			}
+
+			$class_name = $this->maybe_resolve( $service );
 
 			if ( ! is_string( $class_name ) ) {
 				throw InvalidService::from_invalid_class_name( $class_name );
@@ -242,52 +274,277 @@ abstract class ServiceBasedPlugin implements Plugin {
 			 * @var class-string $class_name
 			 */
 
-			if ( $class_name !== current( $services ) ) {
-				$services[ $id ] = $class_name;
-			}
+			$services[ $id ]       = $class_name;
+			$this->services[ $id ] = $class_name;
 
-			/**
-			 * The resolved value is guaranteed to be a class name at this point.
-			 *
-			 * @var class-string $class_name
-			 */
-
-			// Delay registering the service until all dependencies are met.
-			if ( is_a( $class_name, HasDependencies::class, true ) &&
-				! $this->dependencies_are_met( $id, $class_name, $services ) ) {
-				next( $services );
+			// Only services with dependencies can have to wait, so only those
+			// are checked, and only those ever become pending.
+			if ( is_a( $class_name, HasDependencies::class, true )
+				&& ! $this->dependencies_are_met( $id, $class_name, $services ) ) {
+				$this->pending_services[ $id ] = $class_name;
 				continue;
 			}
 
 			$this->schedule_potential_service_registration( $id, $class_name );
-			next( $services );
 		}
+
+		$this->register_pending_services();
+	}
+
+	/**
+	 * Register the pending services whose dependencies are met by now, then
+	 * wait for the others or report the ones that can never be registered.
+	 *
+	 * Scheduling a service can register it at once, which can meet the
+	 * dependencies of another pending service. So the passes over the pending
+	 * services repeat until one of them schedules nothing.
+	 *
+	 * The services left after that wait for a delayed service. This method runs
+	 * again after each registration action they wait for, once the delayed
+	 * services hooked to that action have been registered.
+	 *
+	 * @throws InvalidService If a dependency is not recognized.
+	 * @throws FailedToResolveDependencies If the dependencies of a service can
+	 *                                     never be met.
+	 */
+	private function register_pending_services(): void {
+		$services = $this->services;
+
+		do {
+			$scheduled_any = false;
+
+			foreach ( $this->pending_services as $id => $class_name ) {
+				if ( ! $this->dependencies_are_met( $id, $class_name, $services ) ) {
+					continue;
+				}
+
+				unset( $this->pending_services[ $id ] );
+				$this->schedule_potential_service_registration( $id, $class_name );
+				$scheduled_any = true;
+			}
+		} while ( $scheduled_any );
+
+		$this->drop_or_report_unregistrable_services();
+
+		foreach ( array_keys( $this->collect_awaited_actions() ) as $action ) {
+			if ( isset( $this->resumption_actions[ $action ] ) ) {
+				continue;
+			}
+
+			$this->resumption_actions[ $action ] = true;
+
+			// The latest priority, so that the delayed services hooked to this
+			// action are registered by the time the pending ones are checked.
+			\add_action(
+				$action,
+				function (): void {
+					$this->register_pending_services();
+				},
+				PHP_INT_MAX,
+				0
+			);
+		}
+	}
+
+	/**
+	 * Deal with the pending services that depend on a service that will not be
+	 * registered in this request.
+	 *
+	 * A Conditional service that is not needed is never registered, so a
+	 * service that depends on it can never be registered either. If that
+	 * service is not needed in this request itself, nothing is lost and it is
+	 * dropped. Otherwise it is a mistake that must not go unnoticed.
+	 *
+	 * Dropping a service can leave another one without a dependency, so the
+	 * passes repeat until one of them drops nothing.
+	 *
+	 * @throws FailedToResolveDependencies If a service that is needed depends on
+	 *                                     a service that is not registered.
+	 */
+	private function drop_or_report_unregistrable_services(): void {
+		do {
+			$dropped_any = false;
+
+			foreach ( $this->pending_services as $id => $class_name ) {
+				$dependency_id = $this->find_unregistered_dependency( $class_name );
+
+				if ( null === $dependency_id ) {
+					continue;
+				}
+
+				if ( is_a( $class_name, Conditional::class, true ) ) {
+					// A delayed service may only be asked whether it is needed
+					// once its registration action has run.
+					if ( is_a( $class_name, Delayed::class, true )
+						&& ! \did_action( $class_name::get_registration_action() ) ) {
+						continue;
+					}
+
+					if ( ! $class_name::is_needed() ) {
+						unset( $this->pending_services[ $id ] );
+						$dropped_any = true;
+						continue;
+					}
+				}
+
+				throw FailedToResolveDependencies::for_unregistered_dependency( $id, $dependency_id );
+			}
+		} while ( $dropped_any );
+	}
+
+	/**
+	 * Find a dependency of a service that is not registered and will not be in
+	 * this request.
+	 *
+	 * @param class-string $class_name Class of the service to check.
+	 *
+	 * @throws InvalidService If a dependency is not recognized.
+	 *
+	 * @return string|null ID of the dependency, or null if there is none.
+	 */
+	private function find_unregistered_dependency( string $class_name ): ?string {
+		$missing_dependencies = $this->collect_missing_dependencies( $class_name, $this->services );
+
+		foreach ( array_keys( $missing_dependencies ) as $dependency_id ) {
+			if ( ! isset( $this->pending_services[ $dependency_id ] )
+				&& null === $this->get_awaited_action( $dependency_id ) ) {
+				return $dependency_id;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Collect the registration actions that the pending services wait for.
+	 *
+	 * A pending service waits for the actions of the delayed services it
+	 * depends on, directly or through other pending services. A Conditional
+	 * service whose dependency will not be registered waits for its own action,
+	 * to find out whether it is needed at all.
+	 *
+	 * @throws InvalidService If a dependency is not recognized.
+	 * @throws FailedToResolveDependencies If pending services depend on each
+	 *                                     other.
+	 *
+	 * @return array<non-empty-string,true> Actions to wait for, as keys.
+	 */
+	private function collect_awaited_actions(): array {
+		$actions   = [];
+		$collected = [];
+
+		foreach ( array_keys( $this->pending_services ) as $id ) {
+			$actions += $this->collect_actions_awaited_by( $id, [], $collected );
+		}
+
+		return $actions;
+	}
+
+	/**
+	 * Collect the registration actions that one pending service waits for.
+	 *
+	 * Each service is only followed once, however many services depend on it,
+	 * so the work stays linear in the number of dependencies.
+	 *
+	 * @param string                                     $id        ID of the pending service.
+	 * @param array<int,string>                          $path      IDs of the pending services that
+	 *                                                              depend on this one, in the order
+	 *                                                              they were followed.
+	 * @param array<string,array<non-empty-string,true>> $collected Actions already collected, by the
+	 *                                                              ID of the service that waits for
+	 *                                                              them.
+	 *
+	 * @throws FailedToResolveDependencies If pending services depend on each
+	 *                                     other.
+	 *
+	 * @return array<non-empty-string,true> Actions to wait for, as keys.
+	 */
+	private function collect_actions_awaited_by( string $id, array $path, array &$collected ): array {
+		if ( isset( $collected[ $id ] ) ) {
+			return $collected[ $id ];
+		}
+
+		$path[]     = $id;
+		$class_name = $this->pending_services[ $id ];
+		$actions    = [];
+
+		$missing_dependencies = $this->collect_missing_dependencies( $class_name, $this->services );
+
+		foreach ( array_keys( $missing_dependencies ) as $dependency_id ) {
+			$cycle_start = array_search( $dependency_id, $path, true );
+
+			if ( false !== $cycle_start ) {
+				throw FailedToResolveDependencies::for_dependency_cycle(
+					array_merge( array_slice( $path, $cycle_start ), [ $dependency_id ] )
+				);
+			}
+
+			if ( isset( $this->pending_services[ $dependency_id ] ) ) {
+				$actions += $this->collect_actions_awaited_by( $dependency_id, $path, $collected );
+				continue;
+			}
+
+			$action = $this->get_awaited_action( $dependency_id );
+
+			if ( null !== $action ) {
+				$actions[ $action ] = true;
+				continue;
+			}
+
+			// The dependency will not be registered. Only a delayed Conditional
+			// service that cannot be asked yet whether it is needed is left
+			// pending in that case, see drop_or_report_unregistrable_services().
+			if ( ! is_a( $class_name, Delayed::class, true ) ) {
+				throw FailedToResolveDependencies::for_unregistered_dependency( $id, $dependency_id );
+			}
+
+			$actions[ $class_name::get_registration_action() ] = true;
+		}
+
+		$collected[ $id ] = $actions;
+
+		return $actions;
+	}
+
+	/**
+	 * Get the registration action that a scheduled service still waits for.
+	 *
+	 * @param string $id ID of a service that is not pending.
+	 *
+	 * @return non-empty-string|null Registration action, or null if the service does not
+	 *                               wait for one, because it is not delayed or its
+	 *                               action has already run.
+	 */
+	private function get_awaited_action( string $id ): ?string {
+		$class_name = $this->services[ $id ];
+
+		if ( ! is_a( $class_name, Delayed::class, true ) ) {
+			return null;
+		}
+
+		$action = $class_name::get_registration_action();
+
+		return \did_action( $action ) ? null : $action;
 	}
 
 	/**
 	 * The service registration works in three steps:
 	 *
 	 * 1. All services that need to be registered are gathered.
-	 * 2. A first pass over the services registers all those that either don't have
-	 *    dependencies or where all dependencies are met already.
-	 * 3. A second pass registers the remaining services as soon as their
-	 *    dependencies are met.
+	 * 2. Each service is scheduled once all of its dependencies are registered.
+	 * 3. A scheduled service is registered, if it is needed.
 	 *
-	 * The first pass is done directly from the register_services() method, as it
-	 * needs to ensure that the services are registered in the order they were
-	 * provided.
+	 * The second step starts in register_services(), which goes through the
+	 * services in the order they were provided and sets aside those whose
+	 * dependencies are not registered yet. register_pending_services() then
+	 * schedules them as their dependencies arrive, including dependencies that
+	 * are delayed to a later action.
 	 *
-	 * The second pass is done through schedule_potential_service_registration(),
-	 * which adds the service to the registration schedule. For regular services,
-	 * this means they are registered immediately. For delayed services, this means
-	 * they are only registered upon their registration action.
-	 *
-	 * Services that have delayed dependencies are registered as soon as all their
-	 * dependencies are available. This is done by registering a callback to each
-	 * dependency's registration action hook with a high priority. This means that
-	 * the service's registration is triggered by the first dependency that was
-	 * registered. It then checks if all other dependencies are available as well,
-	 * and if so, registers the service.
+	 * Scheduling is done here, so every service goes through it, whether or not
+	 * it had to wait for its dependencies. For regular services, this means they
+	 * are registered immediately. For delayed services, this means they are only
+	 * registered upon their own registration action, even when their
+	 * dependencies arrived earlier.
 	 *
 	 * @param string       $id         ID of the service to register.
 	 * @param class-string $class_name Class of the service to register.
@@ -766,85 +1023,21 @@ abstract class ServiceBasedPlugin implements Plugin {
 	}
 
 	/**
-	 * Determine if the dependencies for a service to be registered are met.
+	 * Determine if the dependencies for a service to be registered are met,
+	 * meaning that all of them are registered.
+	 *
+	 * This only checks. Waiting for the dependencies that are not met yet is up
+	 * to register_services().
 	 *
 	 * @param string                              $id         Service ID of the service with dependencies.
 	 * @param class-string                        $class_name Service class name of the service with dependencies.
-	 * @param array<string,class-string|callable> $services   List of services to be registered.
+	 * @param array<string,class-string|callable> $services   List of services to be registered. It is not changed.
 	 *
 	 * @throws InvalidService If the required service is not recognized.
 	 *
 	 * @return bool Whether the dependencies for the service have been met.
 	 */
 	protected function dependencies_are_met( string $id, string $class_name, array &$services ): bool {
-		$missing_dependencies = $this->collect_missing_dependencies( $class_name, $services );
-
-		if ( empty( $missing_dependencies ) ) {
-			return true;
-		}
-
-		$registration_actions = [];
-		foreach ( $missing_dependencies as $dependency_id => $dependency_class ) {
-			$resolved_dependency_class = $this->maybe_resolve( $dependency_class );
-
-			if ( ! is_string( $resolved_dependency_class ) ) {
-				throw InvalidService::from_invalid_identifier( $dependency_id );
-			}
-
-			/**
-			 * The resolved value is guaranteed to be a string at this point.
-			 *
-			 * @var class-string $resolved_dependency_class
-			 */
-
-			if ( $resolved_dependency_class !== $dependency_class ) {
-				$services[ $dependency_id ] = $resolved_dependency_class;
-				$dependency_class           = $resolved_dependency_class;
-			}
-
-			// Check if dependency is delayed.
-			if ( is_a( $dependency_class, Delayed::class, true ) ) {
-				$action = $dependency_class::get_registration_action();
-
-				if ( ! \did_action( $action ) ) {
-					$registration_actions[ $action ][] = [
-						'id'    => $dependency_id,
-						'class' => $dependency_class,
-					];
-				}
-			}
-		}
-
-		// If we have delayed dependencies, schedule registration after they're loaded.
-		if ( ! empty( $registration_actions ) ) {
-			foreach ( $registration_actions as $action => $dependencies ) {
-				\add_action(
-					$action,
-					function () use ( $id, $class_name, $services, $dependencies ): void {
-						// Check if all dependencies from this action are now available.
-						foreach ( $dependencies as $dependency ) {
-							if ( ! $this->service_container->has( $dependency['id'] ) ) {
-								return;
-							}
-						}
-
-						// Recheck all dependencies in case there are others.
-						if ( $this->dependencies_are_met( $id, $class_name, $services ) ) {
-							$this->maybe_register_service( $id, $class_name );
-						}
-					},
-					PHP_INT_MAX,
-					0
-				);
-			}
-			return false;
-		}
-
-		// Move this service to the end of the services array since its dependencies
-		// haven't been registered yet but will be encountered later.
-		unset( $services[ $id ] );
-		$services[ $id ] = $class_name;
-
-		return false;
+		return empty( $this->collect_missing_dependencies( $class_name, $services ) );
 	}
 }

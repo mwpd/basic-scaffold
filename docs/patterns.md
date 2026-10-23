@@ -423,7 +423,7 @@ public function __construct( string $path, ViewFactory $view_factory, ?DebugMode
 
 **Proven by:** `src/Infrastructure/View/SimpleView.php:73-76`, and the
 injector and container defaults of `ServiceBasedPlugin`
-(`src/Infrastructure/ServiceBasedPlugin.php:125-143`).
+(`src/Infrastructure/ServiceBasedPlugin.php:147-165`).
 
 **Rules:** `architecture.newOnlyWhereAllowed` allows `new` in exactly this
 shape: a nullable parameter typed to an interface the default implements.
