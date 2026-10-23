@@ -327,7 +327,10 @@ invokes belongs in a listed bridge: get the graph through the plugin factory
 and delegate immediately to instance services, nothing else. The bridge holds
 no state or feature logic; reviewing that contract remains a human check.
 See [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback)
-and [I need a service locator](patterns.md#i-need-a-service-locator).
+and [I need a service locator](patterns.md#i-need-a-service-locator). Themes
+and other plugins get no bridge; they use the plugin's hooks, as
+[I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins)
+shows.
 
 ### `architecture.noGlobalState`
 
@@ -1105,7 +1108,7 @@ the scaffold renames these settings together with `HOOK_PREFIX` and
 constant. Shorten overlong post type and taxonomy names, including the prefix,
 to the WordPress limit.
 
-**Pattern:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares).
+**Patterns:** [I need a name in a space WordPress shares](patterns.md#i-need-a-name-in-a-space-wordpress-shares), [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins).
 
 ### `architecture.noSuppression`
 

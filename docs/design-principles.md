@@ -227,7 +227,7 @@ There are exactly two ways to defer part of that tree:
   injector instead is allowed but not required: the factory is assumed to
   know best how to build its product. The same goes for managing instances:
   `BasicScaffoldPluginFactory` keeps the one plugin instance in a static
-  variable (`src/BasicScaffoldPluginFactory.php:38-52`). That works around a
+  variable (`src/BasicScaffoldPluginFactory.php:40-54`). That works around a
   limitation of WordPress core, which needs static access to the plugin from
   outside the object graph, for example for the activation hooks. Because the
   state is encapsulated in the factory, it does not leak into the rest of the
@@ -258,9 +258,17 @@ locator. It depends on which side of the graph's edge the code is on:
   holds no state and no logic of its own, and it is where exceptions have to
   be caught before control goes back to WordPress (principle 10); the
   activation hooks do not do that yet (#27).
+- **Outside the plugin**, in a theme or another plugin, there is no bridge.
+  That code integrates through the plugin's hooks (principle 13), never by
+  reaching into the graph. The plugin factory and `Plugin::get_container()`
+  are public because the plugin's own edges and its tests need them, not as
+  an API for other code: the container holds the injector next to the
+  registered services, and whether a given service is in it depends on the
+  request and on how far the lifecycle has run.
 
 The [patterns](patterns.md#i-need-a-service-locator) show each case with
-code.
+code, and [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins)
+shows the hooks.
 
 ## 6. Final by default
 
@@ -282,7 +290,7 @@ book, shows the better alternative so that plugins built on it learn it too.
 | Common anti-pattern | What the scaffold does instead |
 | --- | --- |
 | Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:71-77`). [Pattern](patterns.md#i-need-to-add-hooks) |
-| Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:38-56`). [Pattern](patterns.md#i-need-a-singleton) |
+| Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:40-58`). [Pattern](patterns.md#i-need-a-singleton) |
 | A service locator, such as a static `Services::get( 'id' )` | Each need behind it has its own answer: constructor injection, a factory, a typed registry, `share()`, or a bridge at the edge of the object graph (principle 5). [Pattern](patterns.md#i-need-a-service-locator) |
 | A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:119-131`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
 | Creating collaborators with `new` inside a class, or pulling them from globals | Dependencies are injected through the constructor and configured as bindings in the composition root. [Pattern: creating objects](patterns.md#i-need-to-create-objects-on-demand), [WordPress state](patterns.md#i-need-wordpress-state-such-as-the-current-post) |
@@ -457,8 +465,16 @@ The scaffold solves everything a single plugin needs, however large that
 plugin grows. It deliberately contains no mechanisms for interoperability,
 collaboration or synchronization between plugins.
 
-- A plugin's filters and service identifiers are its public extension surface
-  for other code. That is the extent of cross-plugin support.
+- A plugin's hooks are its public integration surface for other code: the
+  filters it applies to its own configuration while it registers, and the
+  actions and filters its services offer where they act. That is the extent
+  of cross-plugin support. For now, the scaffold supplies no other public
+  PHP API, such as a static facade, template-tag functions or a service
+  lookup. Whether extensions need one is an open question (#144).
+- Service identifiers name services in that configuration: they key the
+  `services` filter and are what `HasDependencies` lists. They are not
+  handles for fetching services out of the container from outside the
+  plugin.
 - When plugins genuinely need to share infrastructure or coordinate, that
   belongs in a separate, dedicated mechanism or boilerplate, not here.
 

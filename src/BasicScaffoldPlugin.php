@@ -207,7 +207,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 
 	/*
 	 * --------------------------------------------------------------------------
-	 * -- 3. Define prefixes and identifiers for outside access.               --
+	 * -- 3. Define prefixes and identifiers for hooks and services.           --
 	 * --------------------------------------------------------------------------
 	 */
 
@@ -215,7 +215,7 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	 * Prefixes to use.
 	 *
 	 * These are provided so that if multiple plugins use the same boilerplate
-	 * code, there hooks and service identifiers are scoped and don't clash.
+	 * code, their hooks and service identifiers are scoped and don't clash.
 	 */
 	protected const HOOK_PREFIX = 'mwpd.basic_scaffold.';
 
@@ -224,8 +224,11 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 	/*
 	 * Service identifiers we know about.
 	 *
-	 * These can be used from outside code as well to directly refer to a
-	 * service when talking to the service container.
+	 * They name the services in the plugin's configuration: they key the
+	 * services filter, and other services list them as dependencies. Another
+	 * plugin can use them to replace or remove a service through that filter.
+	 * They are not handles for fetching a service from the container outside
+	 * the plugin, which is not a supported API (principle 13).
 	 */
 	public const SAMPLE_BACKEND_SERVICE_ID = self::SERVICE_PREFIX . 'sample-subsystem.sample-backend-service';
 

@@ -96,8 +96,8 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
 /*
  * We use a factory to instantiate the actual plugin.
  *
- * The factory keeps the object as a shared instance, so that you can also
- * get outside access to that same plugin instance through the factory.
+ * The factory keeps the object as a shared instance, so that the activation
+ * and deactivation hooks below reach that same plugin instance through it.
  *
  * This is similar to a Singleton, but without all the drawbacks the Singleton
  * anti-pattern brings along.

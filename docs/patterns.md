@@ -34,6 +34,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need a service locator](#i-need-a-service-locator)
 - [I need a singleton](#i-need-a-singleton)
 - [I need to reach the plugin from a static WordPress callback](#i-need-to-reach-the-plugin-from-a-static-wordpress-callback)
+- [I need a public API for themes or other plugins](#i-need-a-public-api-for-themes-or-other-plugins)
 - [I need WordPress state, such as the current post](#i-need-wordpress-state-such-as-the-current-post)
 - [I need a default collaborator that can be replaced](#i-need-a-default-collaborator-that-can-be-replaced)
 - [I need to start simple and add implementations later](#i-need-to-start-simple-and-add-implementations-later)
@@ -381,7 +382,7 @@ keeps the container out of feature subsystems.
 | One of several implementations, chosen by a value | [A typed registry](#i-need-to-choose-an-implementation-at-runtime) |
 | The same instance in several places | [`share()`](#i-need-a-singleton) |
 | Access from code WordPress calls statically, outside the object graph | [An edge bridge](#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
-| A public PHP API for themes or other plugins | Not settled yet: #93 |
+| Access from a theme or another plugin | [The plugin's hooks](#i-need-a-public-api-for-themes-or-other-plugins) |
 
 **Proven by:** the sections linked above.
 
@@ -460,12 +461,111 @@ A bridge outside the main plugin file follows the same contract:
 The uninstall bridge (#34) is the first bridge the scaffold itself adds.
 
 **Proven by:** `basic-scaffold.php:119-131`, and the factory at
-`src/BasicScaffoldPluginFactory.php:38-56`.
+`src/BasicScaffoldPluginFactory.php:40-58`.
 
 **Rules:** `architecture.noStaticState` allows static state only in the
 factory. [`architecture.pluginFactoryOnlyAtEdges`](architecture-rules.md#architecturepluginfactoryonlyatedges)
 reports calls to the factory outside the main file and methods listed in
 `parameters.architecture.pluginFactoryOnlyAtEdges.bridges`.
+
+## I need a public API for themes or other plugins
+
+**What people reach for:** a static `MyPlugin::get( 'reports' )`, a file of
+global template-tag functions, or telling other developers to call
+`BasicScaffoldPluginFactory::create()->get_container()->get( $id )`, because
+nothing stops them.
+
+**Why not here:** [principle 13](design-principles.md#13-one-plugin-to-arbitrary-complexity)
+makes the plugin's hooks its public integration surface, and
+[principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
+gives code outside the plugin no way into the object graph. A static lookup
+by identifier is the service locator from the
+[principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns)
+table. A typed facade or template-tag functions could avoid that, but each
+would be a new public API with its own contract to keep, and none is part of
+the supported surface for now. The container door has three problems of its
+own:
+
+- **It hands out more than services.** Next to the registered services, the
+  container holds the injector that builds their collaborators, under
+  `mwpd.basic_scaffold.injector`
+  (`src/Infrastructure/ServiceBasedPlugin.php:351-354`), so outside code could
+  call `bind()`, `share()` or `delegate()` on it, which
+  `architecture.noServiceLocator` forbids even the plugin's own subsystems.
+- **Whether a service is there depends on the moment.** `get()` throws
+  `InvalidService` (`src/Infrastructure/ServiceContainer/SimpleServiceContainer.php:40-42`)
+  before `plugins_loaded`, for a `Conditional` service that this request does
+  not need, and for a `Delayed` service whose action has not fired yet. None
+  of that is visible from the identifier.
+- **It returns concrete classes.** Services are `final` classes, so every
+  public method on one would become API by accident.
+
+**Instead:** integrate through hooks. There are two kinds:
+
+- **The plugin's configuration filters.** While it registers, the plugin
+  applies its `services` filter and the injector filters `bindings`,
+  `arguments`, `shared_instances` and `delegations`, each with its hook
+  prefix (`mwpd.basic_scaffold.services`, and so on). That happens at
+  `plugins_loaded`, once every plugin has been loaded but before the theme
+  is, so these filters are for other plugins. A service added this way is
+  built by the plugin's injector and receives its collaborators through its
+  constructor, like any other service.
+- **The hooks your services offer.** When a feature should be open to other
+  code, its service applies a prefixed filter or fires a prefixed action at
+  the point where it acts, and you document it, including when it fires. A
+  hook that fires after the theme has loaded, such as one on `init`, `wp` or
+  a rendering hook, serves themes as well as plugins; one that fires during
+  registration at `plugins_loaded` comes too early for a theme. Treat what
+  comes back from a filter as untrusted input
+  ([principle 9](design-principles.md#9-never-trust-what-wordpress-hands-over)).
+
+A theme can also change the plugin's markup without any hook: the views
+look in the child theme, then the parent theme, before the plugin
+(`src/Infrastructure/View/TemplatedViewFactory.php:21-28`).
+
+```php
+// In another plugin, before plugins_loaded: add a service to this plugin.
+\add_filter(
+	'mwpd.basic_scaffold.services',
+	static function ( $services ) {
+		if ( is_array( $services ) ) {
+			$services['acme.reports.reports-service'] = ReportsService::class;
+		}
+
+		return $services; // Anything else is left for the plugin to reject.
+	}
+);
+```
+
+Service identifiers are how these filters name services: they key the
+`services` array, and `HasDependencies` lists them. They are not handles for
+fetching a service from outside.
+
+**Not supplied, for now.** The plugin offers no other public PHP API: no
+static facade, no template-tag functions file, no generic service lookup and
+no hook that hands an API object over. `BasicScaffoldPluginFactory::create()`
+and `Plugin::get_container()` stay public because the main file, the listed
+bridges and the tests need them; that makes them callable, not supported for
+other code. Two investigations are open, and neither is approved:
+
+- #144 looks at an API for extensions that need more than hooks, including
+  the order in which several extensions register. It waits for a concrete
+  extension that hooks cannot serve.
+- #145 looks at helpers that a template calls through `$this` while the
+  plugin renders it. They would only reach the plugin's own views, including
+  a theme's overrides of them, never a theme's other files or another plugin.
+
+**Proven by:** the configuration filters at
+`src/Infrastructure/ServiceBasedPlugin.php:372-375` and `:835-887`, and
+`tests/php/Unit/ServiceBasedPluginTest.php:575-597`, where a filter added
+after the plugin was constructed, as a plugin loaded later would add it,
+takes effect at `plugins_loaded`.
+
+**Rules:** none checks code outside the plugin, so this boundary is held by
+documentation. Inside the plugin, `architecture.pluginFactoryOnlyAtEdges`
+keeps factory calls to the main file and listed bridges, and
+`architecture.prefixedNames` checks that the hooks your services add carry the
+plugin's prefix.
 
 ## I need WordPress state, such as the current post
 
