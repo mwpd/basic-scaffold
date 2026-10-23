@@ -72,6 +72,8 @@ final class RuleManifest {
 
 	public const NO_STATIC_STATE = 'architecture.noStaticState';
 
+	public const PLUGIN_FACTORY_ONLY_AT_EDGES = 'architecture.pluginFactoryOnlyAtEdges';
+
 	public const NO_GLOBAL_STATE = 'architecture.noGlobalState';
 
 	public const NO_WORDPRESS_ERROR_MECHANISMS = 'architecture.noWordPressErrorMechanisms';
@@ -154,6 +156,18 @@ final class RuleManifest {
 			],
 			'signatures'       => [
 				'keeps state outside any object',
+			],
+		],
+		self::PLUGIN_FACTORY_ONLY_AT_EDGES          => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-to-reach-the-plugin-from-a-static-wordpress-callback',
+			'configuration'    => 'parameters.architecture.pluginFactoryOnlyAtEdges',
+			'checked_by'       => [
+				Rule\PluginFactoryOnlyAtEdgesRule::class,
+			],
+			'signatures'       => [
+				'uses the plugin factory as a service locator',
 			],
 		],
 		self::NO_GLOBAL_STATE                       => [
@@ -538,7 +552,7 @@ final class RuleManifest {
 	 * @return string Path of the document, relative to the plugin root.
 	 */
 	public static function get_principle_document( string $identifier ): string {
-		return self::RULES[ $identifier ]['document'] ?? self::DESIGN_PRINCIPLES;
+		return self::get_rules()[ $identifier ]['document'] ?? self::DESIGN_PRINCIPLES;
 	}
 
 	/**

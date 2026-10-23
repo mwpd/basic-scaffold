@@ -448,8 +448,9 @@ The uninstall bridge (#34) is the first bridge the scaffold itself adds.
 `src/BasicScaffoldPluginFactory.php:38-56`.
 
 **Rules:** `architecture.noStaticState` allows static state only in the
-factory. Calls to the factory outside the main file and listed bridges are
-reported once #86 lands.
+factory. [`architecture.pluginFactoryOnlyAtEdges`](architecture-rules.md#architecturepluginfactoryonlyatedges)
+reports calls to the factory outside the main file and methods listed in
+`parameters.architecture.pluginFactoryOnlyAtEdges.bridges`.
 
 ## I need WordPress state, such as the current post
 

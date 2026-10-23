@@ -114,9 +114,9 @@ says which rules enforce each principle, and what stays with review.
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
-| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
+| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
-| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `pluginFactoryOnlyAtEdges`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | `noGlobalState` (request input only in adapters), `rawIsEscaped`, PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `noFalseOnFailure`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors`, `exceptionsKeepCause` | Graceful degradation at the boundary (#27, #30) |
@@ -139,6 +139,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A bare SPL exception thrown | `throwOnlyPluginExceptions` | `tests/php/PHPStan/Fixture/Errors/Service.php` |
 | A custom hook without the plugin's prefix | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
+| A service calling the plugin factory as a static service locator | `pluginFactoryOnlyAtEdges` | `tests/php/PHPStan/Fixture/PluginFactoryOnlyAtEdges/Service.php` |
 | A service pulling a collaborator or request input from globals | `noGlobalState` | `tests/php/PHPStan/Fixture/NoGlobalState/Service.php` |
 | HTML or a string printed directly by a service | `outputOnlyThroughViews` | `tests/php/PHPStan/Fixture/OutputOnlyThroughViews/Service.php` |
 | A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
@@ -193,6 +194,36 @@ instance with `share()` when more than one object needs it. A cache belongs on
 the object that computes it.
 
 **Patterns:** [I need a singleton](patterns.md#i-need-a-singleton), [I need a service locator](patterns.md#i-need-a-service-locator), [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback).
+
+### `architecture.pluginFactoryOnlyAtEdges`
+
+**Principles:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph)
+and [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns).
+
+**Checks:** no direct static call to a configured plugin factory from the
+plugin's namespace or production views. Inside the object graph, the factory
+would be a static service locator. Calls through `self`, `static` and `parent`
+are resolved to their class too.
+
+**Allows:** the main plugin file declared by `RepositoryLayout::BOOTSTRAP`,
+and calls directly inside a listed bridge method. Other methods of the same
+class and closures inside a bridge are still checked. Tests and unrelated
+namespaces are outside the rule's scope; unrelated static calls are untouched.
+Calls through a class expression chosen at runtime are not checked.
+
+**Configuration:** `pluginFactoryOnlyAtEdges.factories` lists factory classes;
+the scaffold lists `MWPD\BasicScaffold\BasicScaffoldPluginFactory`.
+`pluginFactoryOnlyAtEdges.bridges` lists reviewed methods as `Class::method`
+and is empty by default. Class and method names match without regard to case
+or a leading backslash. `dependencyDirection.views` supplies the production
+view directories, as for `noGlobalState`.
+
+**Fix:** receive what is needed through the constructor. For on-demand
+creation, receive a factory or the injector. A static callable that WordPress
+invokes belongs in a listed bridge: get the graph through the plugin factory
+and delegate immediately to instance services, nothing else. The bridge holds
+no state or feature logic; reviewing that contract remains a human check.
+See [I need to reach the plugin from a static WordPress callback](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback).
 
 ### `architecture.noGlobalState`
 
