@@ -47,6 +47,7 @@ parametersSchema:
         hooks: structure([
             lifecycleMethods: arrayOf(string(), string())
             contextFunctions: listOf(string())
+            timingFunctions: listOf(string())
         ])
         queryContextNeedsDelay: structure([
             queryFunctions: listOf(string())
@@ -288,6 +289,7 @@ services:
         arguments:
             plugin_namespace: @architecturePluginNamespace
             context_functions: %architecture.hooks.contextFunctions%
+            timing_functions: %architecture.hooks.timingFunctions%
             reflection: @PHPStan\Reflection\ReflectionProvider
         tags:
             - phpstan.rules.rule

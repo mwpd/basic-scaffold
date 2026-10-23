@@ -336,12 +336,13 @@ final class RuleManifest {
 			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
 			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
 			'pattern'          => 'i-need-a-service-only-in-some-requests',
-			'configuration'    => 'parameters.architecture.hooks.contextFunctions',
+			'configuration'    => 'parameters.architecture.hooks',
 			'checked_by'       => [
 				Rule\NoContextChecksInRegisterRule::class,
 			],
 			'signatures'       => [
 				'decides at registration whether the service applies',
+				'waits for an action itself',
 			],
 		],
 		self::QUERY_CONTEXT_NEEDS_DELAY             => [
