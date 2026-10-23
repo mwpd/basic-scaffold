@@ -478,14 +478,17 @@ nothing stops them.
 **Why not here:** [principle 13](design-principles.md#13-one-plugin-to-arbitrary-complexity)
 makes the plugin's hooks its public integration surface, and
 [principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
-gives code outside the plugin no way into the object graph. A static facade or
-lookup is the service locator from the
+gives code outside the plugin no way into the object graph. A static lookup
+by identifier is the service locator from the
 [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns)
-table, and a functions file runs on include. The container door has three
-problems of its own:
+table. A typed facade or template-tag functions could avoid that, but each
+would be a new public API with its own contract to keep, and none is part of
+the supported surface for now. The container door has three problems of its
+own:
 
-- **It hands out the whole graph.** The container also holds the injector,
-  under `mwpd.basic_scaffold.injector`
+- **It hands out more than services.** Next to the registered services, the
+  container holds the injector that builds their collaborators, under
+  `mwpd.basic_scaffold.injector`
   (`src/Infrastructure/ServiceBasedPlugin.php:351-354`), so outside code could
   call `bind()`, `share()` or `delegate()` on it, which
   `architecture.noServiceLocator` forbids even the plugin's own subsystems.
@@ -509,9 +512,11 @@ problems of its own:
   constructor, like any other service.
 - **The hooks your services offer.** When a feature should be open to other
   code, its service applies a prefixed filter or fires a prefixed action at
-  the point where it acts, and you document it. Because it runs when the
-  feature runs, a theme can use it as well as a plugin. Treat what comes back
-  from a filter as untrusted input
+  the point where it acts, and you document it, including when it fires. A
+  hook that fires after the theme has loaded, such as one on `init`, `wp` or
+  a rendering hook, serves themes as well as plugins; one that fires during
+  registration at `plugins_loaded` comes too early for a theme. Treat what
+  comes back from a filter as untrusted input
   ([principle 9](design-principles.md#9-never-trust-what-wordpress-hands-over)).
 
 A theme can also change the plugin's markup without any hook: the views

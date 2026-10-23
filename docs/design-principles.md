@@ -262,9 +262,9 @@ locator. It depends on which side of the graph's edge the code is on:
   That code integrates through the plugin's hooks (principle 13), never by
   reaching into the graph. The plugin factory and `Plugin::get_container()`
   are public because the plugin's own edges and its tests need them, not as
-  an API for other code: the container holds the whole graph, the injector
-  included, and whether a given service is in it depends on the request and
-  on how far the lifecycle has run.
+  an API for other code: the container holds the injector next to the
+  registered services, and whether a given service is in it depends on the
+  request and on how far the lifecycle has run.
 
 The [patterns](patterns.md#i-need-a-service-locator) show each case with
 code, and [I need a public API for themes or other plugins](patterns.md#i-need-a-public-api-for-themes-or-other-plugins)

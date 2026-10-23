@@ -26,7 +26,7 @@ namespace MWPD\BasicScaffold\Infrastructure;
  * Additionally, it gives access to the plugin's container, which collects all
  * the services it is made up of. That access is for the plugin's own edges,
  * such as its main file and listed bridges, and for its tests. It is not an
- * API for outside code: the container holds the whole object graph, and which
+ * API for outside code: the container also holds the injector, and which
  * services it holds depends on the request. Themes and other plugins integrate
  * through the plugin's hooks instead (principle 13).
  */
