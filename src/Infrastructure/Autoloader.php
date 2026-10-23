@@ -22,15 +22,6 @@ use Exception;
  *
  * WordPress being far from ideal, though, it makes sense to include this for
  * the average plugin.
- *
- * @phpstan-type AutoloaderNamespace array{
- *     root: string,
- *     base_dir: string,
- *     prefix: string,
- *     suffix: string,
- *     lowercase: bool,
- *     underscores: bool,
- * }
  */
 final class Autoloader {
 
@@ -57,7 +48,14 @@ final class Autoloader {
 	/**
 	 * Array containing the registered namespace structures.
 	 *
-	 * @var array<int, AutoloaderNamespace>
+	 * @var array<int, array{
+	 *     root: string,
+	 *     base_dir: string,
+	 *     prefix: string,
+	 *     suffix: string,
+	 *     lowercase: bool,
+	 *     underscores: bool,
+	 * }>
 	 */
 	private array $namespaces = [];
 
