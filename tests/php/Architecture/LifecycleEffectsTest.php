@@ -14,7 +14,7 @@ use MWPD\BasicScaffold\Tests\Fixture\CompositionRoot\IdenticalRegistration;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 
 /**
- * Hook state follows WordPress identity rather than Brain Monkey's call log.
+ * Lifecycle state follows WordPress identity rather than Brain Monkey's call log.
  */
 final class LifecycleEffectsTest extends TestCase {
 
@@ -148,6 +148,146 @@ final class LifecycleEffectsTest extends TestCase {
 			[ 'fires the action "init" again', 'fires the filter "the_content" again' ],
 			$effects->changes_since( $before )
 		);
+	}
+
+	public function test_cron_scheduling_replaces_identical_events_and_retains_recurrence(): void {
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		$this->assertTrue( wp_schedule_event( 100, 'daily', 'fixture_event', [ 42 ] ) );
+		$this->assertTrue( wp_schedule_single_event( 200, 'fixture_event', [ 42 ] ) );
+		$before = $effects->snapshot();
+
+		$this->assertSame(
+			[
+				100 => [ md5( 'a:1:{i:0;i:42;}' ) => 'daily' ],
+				200 => [ md5( 'a:1:{i:0;i:42;}' ) => false ],
+			],
+			$before['changes the cron events of "fixture_event" again']
+		);
+		$this->assertTrue( wp_schedule_event( 100, 'daily', 'fixture_event', [ 42 ] ) );
+		$this->assertTrue( wp_schedule_single_event( 200, 'fixture_event', [ 42 ] ) );
+		$this->assertSame( [], $effects->changes_since( $before ) );
+
+		wp_schedule_event( 100, 'hourly', 'fixture_event', [ 42 ] );
+		$this->assertSame(
+			[ 'changes the cron events of "fixture_event" again' ],
+			$effects->changes_since( $before )
+		);
+	}
+
+	public function test_cron_events_distinguish_timestamps_arguments_and_hooks(): void {
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		wp_schedule_event( 100, 'daily', 'fixture_event', [ 42 ] );
+		$before = $effects->snapshot();
+		wp_schedule_event( 200, 'daily', 'fixture_event', [ 42 ] );
+		$this->assertSame(
+			[ 'changes the cron events of "fixture_event" again' ],
+			$effects->changes_since( $before )
+		);
+
+		$before = $effects->snapshot();
+		wp_schedule_event( 100, 'daily', 'fixture_event', [ '42' ] );
+		$this->assertSame(
+			[ 'changes the cron events of "fixture_event" again' ],
+			$effects->changes_since( $before )
+		);
+
+		$before = $effects->snapshot();
+		wp_schedule_single_event( 100, 'fixture_other', [ 42 ] );
+		$this->assertSame(
+			[ 'changes the cron events of "fixture_other" again' ],
+			$effects->changes_since( $before )
+		);
+	}
+
+	public function test_next_scheduled_returns_the_earliest_timestamp_for_the_hook_and_arguments(): void {
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		$this->assertFalse( wp_next_scheduled( 'fixture_event' ) );
+		wp_schedule_event( 200, 'daily', 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 100, 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 50, 'fixture_event', [ 43 ] );
+		wp_schedule_single_event( 25, 'fixture_other', [ 42 ] );
+
+		$this->assertSame( 100, wp_next_scheduled( 'fixture_event', [ 42 ] ) );
+		$this->assertSame( 50, wp_next_scheduled( 'fixture_event', [ 43 ] ) );
+		$this->assertSame( 25, wp_next_scheduled( 'fixture_other', [ 42 ] ) );
+		$this->assertFalse( wp_next_scheduled( 'fixture_event', [ '42' ] ) );
+		$this->assertFalse( wp_next_scheduled( 'fixture_event' ) );
+	}
+
+	public function test_clearing_cron_events_matches_arguments_and_counts_removals(): void {
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		wp_schedule_event( 100, 'daily', 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 200, 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 100, 'fixture_event', [ 43 ] );
+		wp_schedule_single_event( 100, 'fixture_other', [ 42 ] );
+		$before = $effects->snapshot();
+
+		$this->assertSame( 0, wp_clear_scheduled_hook( 'fixture_event' ) );
+		$this->assertSame( [], $effects->changes_since( $before ) );
+		$this->assertSame( 2, wp_clear_scheduled_hook( 'fixture_event', [ 42 ] ) );
+		$this->assertSame(
+			[ 'changes the cron events of "fixture_event" again' ],
+			$effects->changes_since( $before )
+		);
+		$this->assertFalse( wp_next_scheduled( 'fixture_event', [ 42 ] ) );
+		$this->assertSame( 100, wp_next_scheduled( 'fixture_event', [ 43 ] ) );
+		$this->assertSame( 100, wp_next_scheduled( 'fixture_other', [ 42 ] ) );
+		$before = $effects->snapshot();
+		$this->assertSame( 0, wp_clear_scheduled_hook( 'fixture_event', [ 42 ] ) );
+		$this->assertSame( [], $effects->changes_since( $before ) );
+		$this->assertSame( 1, wp_clear_scheduled_hook( 'fixture_event', [ 43 ] ) );
+		$this->assertFalse( wp_next_scheduled( 'fixture_event', [ 43 ] ) );
+	}
+
+	public function test_unscheduling_matches_timestamp_hook_and_arguments_even_when_missing(): void {
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		wp_schedule_event( 100, 'daily', 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 200, 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 100, 'fixture_event', [ 43 ] );
+		wp_schedule_single_event( 100, 'fixture_other', [ 42 ] );
+		$before = $effects->snapshot();
+
+		$this->assertTrue( wp_unschedule_event( 100, 'fixture_event' ) );
+		$this->assertTrue( wp_unschedule_event( 300, 'fixture_event', [ 42 ] ) );
+		$this->assertTrue( wp_unschedule_event( 100, 'fixture_missing', [ 42 ] ) );
+		$this->assertSame( [], $effects->changes_since( $before ) );
+		$this->assertTrue( wp_unschedule_event( 100, 'fixture_event', [ 42 ] ) );
+		$this->assertSame(
+			[ 'changes the cron events of "fixture_event" again' ],
+			$effects->changes_since( $before )
+		);
+		$this->assertSame( 200, wp_next_scheduled( 'fixture_event', [ 42 ] ) );
+		$this->assertSame( 100, wp_next_scheduled( 'fixture_event', [ 43 ] ) );
+		$this->assertSame( 100, wp_next_scheduled( 'fixture_other', [ 42 ] ) );
+		$before = $effects->snapshot();
+		$this->assertTrue( wp_unschedule_event( 100, 'fixture_event', [ 42 ] ) );
+		$this->assertSame( [], $effects->changes_since( $before ) );
+		$this->assertTrue( wp_unschedule_event( 200, 'fixture_event', [ 42 ] ) );
+		$this->assertTrue( wp_unschedule_event( 100, 'fixture_event', [ 43 ] ) );
+		$this->assertFalse( wp_next_scheduled( 'fixture_event', [ 43 ] ) );
+	}
+
+	public function test_cron_snapshots_compare_events_independently_of_insertion_order(): void {
+		$effects = new LifecycleEffects();
+		$effects->watch();
+		$empty = $effects->snapshot();
+		wp_schedule_event( 200, 'daily', 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 100, 'fixture_event', [ 43 ] );
+		wp_schedule_single_event( 100, 'fixture_event', [ 42 ] );
+		$before = $effects->snapshot();
+
+		wp_clear_scheduled_hook( 'fixture_event', [ 42 ] );
+		wp_clear_scheduled_hook( 'fixture_event', [ 43 ] );
+		$this->assertSame( [], $effects->changes_since( $empty ) );
+		wp_schedule_single_event( 100, 'fixture_event', [ 42 ] );
+		wp_schedule_single_event( 100, 'fixture_event', [ 43 ] );
+		wp_schedule_event( 200, 'daily', 'fixture_event', [ 42 ] );
+		$this->assertSame( [], $effects->changes_since( $before ) );
 	}
 
 	public function __invoke( string $content ): string {

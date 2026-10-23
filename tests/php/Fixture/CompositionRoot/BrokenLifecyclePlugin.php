@@ -17,6 +17,8 @@ final class BrokenLifecyclePlugin extends ServiceBasedPlugin {
 			'fixture.AppendingActivation'          => AppendingActivation::class,
 			'fixture.ChangingDeactivation'         => ChangingDeactivation::class,
 			'fixture.ChangingTransient'            => ChangingTransient::class,
+			'fixture.ChangingCronTimestamp'        => ChangingCronTimestamp::class,
+			'fixture.ChangingCronArguments'        => ChangingCronArguments::class,
 			'fixture.AppendingScopedLifecycle'     => AppendingScopedLifecycle::class,
 			'fixture.ThrowingLifecycle'            => ThrowingLifecycle::class,
 		];

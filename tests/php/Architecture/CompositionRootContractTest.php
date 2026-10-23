@@ -173,6 +173,8 @@ final class CompositionRootContractTest extends TestCase {
 			[ 'ChangingDeactivation', 'deactivate', 'changes the option "fixture_runs" again' ],
 			[ 'ChangingTransient', 'activate', 'changes the transient "fixture_runs" again' ],
 			[ 'ChangingTransient', 'activate', 'changes the user meta "fixture_runs" for object 42 again' ],
+			[ 'ChangingCronTimestamp', 'activate', 'changes the cron events of "fixture_event" again' ],
+			[ 'ChangingCronArguments', 'activate', 'changes the cron events of "fixture_event" again' ],
 			[
 				'AppendingScopedLifecycle',
 				'activate_network',

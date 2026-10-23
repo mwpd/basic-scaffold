@@ -12,11 +12,13 @@ final class IdempotentLifecyclePlugin extends ServiceBasedPlugin {
 
 	protected function get_service_classes(): array {
 		return [
-			'fixture.GuardedActivation'     => GuardedActivation::class,
-			'fixture.SettingLifecycle'      => SettingLifecycle::class,
-			'fixture.IdenticalRegistration' => IdenticalRegistration::class,
-			'fixture.RemovingDeactivation'  => RemovingDeactivation::class,
-			'fixture.CleaningUninstall'     => CleaningUninstall::class,
+			'fixture.GuardedActivation'       => GuardedActivation::class,
+			'fixture.GuardedCronActivation'   => GuardedCronActivation::class,
+			'fixture.IdenticalCronActivation' => IdenticalCronActivation::class,
+			'fixture.SettingLifecycle'        => SettingLifecycle::class,
+			'fixture.IdenticalRegistration'   => IdenticalRegistration::class,
+			'fixture.RemovingDeactivation'    => RemovingDeactivation::class,
+			'fixture.CleaningUninstall'       => CleaningUninstall::class,
 		];
 	}
 }

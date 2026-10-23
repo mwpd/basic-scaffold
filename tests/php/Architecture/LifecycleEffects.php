@@ -59,6 +59,14 @@ final class LifecycleEffects {
 	 */
 	private array $callbacks = [];
 
+	/**
+	 * Recurrences keyed by hook, timestamp and md5( serialize( $args ) ).
+	 * WordPress replaces events with the same identity, even if recurrence changes.
+	 *
+	 * @var array<string,array<int,array<string,string|false>>>
+	 */
+	private array $cron = [];
+
 	public function watch(): void {
 		foreach ( [ 'action', 'filter' ] as $type ) {
 			Functions\when( 'add_' . $type )->alias(
@@ -142,6 +150,89 @@ final class LifecycleEffects {
 
 		foreach ( [ 'post', 'user', 'term', 'comment' ] as $type ) {
 			$this->watch_meta( $type );
+		}
+		$this->watch_cron();
+	}
+
+	private function watch_cron(): void {
+		Functions\when( 'wp_schedule_event' )->alias(
+			/** @param array<mixed> $args Event arguments, whose serialization identifies the event. */
+			function ( int $timestamp, string $recurrence, string $hook, array $args = [] ): bool {
+				$this->cron[ $hook ][ $timestamp ][ self::cron_key( $args ) ] = $recurrence;
+
+				return true;
+			}
+		);
+		Functions\when( 'wp_schedule_single_event' )->alias(
+			/** @param array<mixed> $args */
+			function ( int $timestamp, string $hook, array $args = [] ): bool {
+				$this->cron[ $hook ][ $timestamp ][ self::cron_key( $args ) ] = false;
+
+				return true;
+			}
+		);
+		Functions\when( 'wp_next_scheduled' )->alias(
+			/**
+			 * @param array<mixed> $args
+			 * @return int|false
+			 */
+			function ( string $hook, array $args = [] ) {
+				$key  = self::cron_key( $args );
+				$next = false;
+				foreach ( $this->cron[ $hook ] ?? [] as $timestamp => $events ) {
+					if ( isset( $events[ $key ] ) && ( $next === false || $timestamp < $next ) ) {
+						$next = $timestamp;
+					}
+				}
+
+				return $next;
+			}
+		);
+		Functions\when( 'wp_unschedule_event' )->alias(
+			/** @param array<mixed> $args */
+			function ( int $timestamp, string $hook, array $args = [] ): bool {
+				$this->remove_cron_event( $hook, $timestamp, self::cron_key( $args ) );
+
+				// WordPress writes the cron array back even when no event matched.
+				return true;
+			}
+		);
+		Functions\when( 'wp_clear_scheduled_hook' )->alias(
+			/** @param array<mixed> $args */
+			function ( string $hook, array $args = [] ): int {
+				$key     = self::cron_key( $args );
+				$removed = 0;
+				foreach ( $this->cron[ $hook ] ?? [] as $timestamp => $events ) {
+					if ( isset( $events[ $key ] ) ) {
+						$this->remove_cron_event( $hook, $timestamp, $key );
+						++$removed;
+					}
+				}
+
+				return $removed;
+			}
+		);
+	}
+
+	/**
+	 * Preserve WordPress's distinction between argument types and array order.
+	 *
+	 * @param array<mixed> $args Event arguments.
+	 */
+	private static function cron_key( array $args ): string {
+		// WordPress identifies an event by this exact serialization; the arguments are test input.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Mirrors wp_schedule_event().
+		return md5( serialize( $args ) );
+	}
+
+	private function remove_cron_event( string $hook, int $timestamp, string $key ): void {
+		unset( $this->cron[ $hook ][ $timestamp ][ $key ] );
+		// Empty buckets must compare the same as a hook that never had events.
+		if ( ( $this->cron[ $hook ][ $timestamp ] ?? [] ) === [] ) {
+			unset( $this->cron[ $hook ][ $timestamp ] );
+		}
+		if ( ( $this->cron[ $hook ] ?? [] ) === [] ) {
+			unset( $this->cron[ $hook ] );
 		}
 	}
 
@@ -237,6 +328,15 @@ final class LifecycleEffects {
 		/** @var array<string,array<string,array<string,array<mixed>>>> $hooks */
 		$hooks = $property->getValue( $storage );
 		$state = array_merge( $this->writes, $this->calls );
+
+		foreach ( $this->cron as $hook => $timestamps ) {
+			ksort( $timestamps );
+			foreach ( $timestamps as &$events ) {
+				ksort( $events );
+			}
+			unset( $events );
+			$state[ sprintf( 'changes the cron events of "%s" again', $hook ) ] = $timestamps;
+		}
 
 		foreach ( $this->hooks as $name => $priorities ) {
 			// Compare sets independently of the order entries were added in.

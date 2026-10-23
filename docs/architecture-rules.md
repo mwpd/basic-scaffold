@@ -1323,9 +1323,9 @@ through the plugin's own injector configuration:
   method of the scoped lifecycle interfaces it implements, such as
   `activate_site()` or `uninstall_network()`, called with the context of site
   1 on network 1. The check records
-  hook additions and removals, option and transient writes, and post, user,
-  term and comment meta writes. Failures name the service, method and effect;
-  exceptions in either call are reported as problems.
+  hook additions and removals, cron events, option and transient writes, and
+  post, user, term and comment meta writes. Failures name the service, method
+  and effect; exceptions in either call are reported as problems.
 
 **Allows:** the tests stub the WordPress functions the wiring calls, such as
 `get_stylesheet_directory()`, and use stand-ins for WordPress classes such as
@@ -1337,8 +1337,15 @@ the same callback at the same priority replaces the entry; a fresh closure,
 a different object or method, or a different priority adds an entry. Removing
 an existing entry changes state; removing a missing entry leaves it unchanged.
 Actions and filters share hook entries, and fired hooks retain their call
-history. This does not check the plugin's own
-`register_services()` orchestration (#26), which services activation,
+history. Cron events are keyed by hook, timestamp and `md5( serialize( $args ) )`,
+with recurrence stored per event. Scheduling the same event replaces it;
+a different timestamp or argument array adds one. `wp_next_scheduled()` returns the
+earliest timestamp matching the hook and arguments, or `false`.
+`wp_clear_scheduled_hook()` removes events matching the hook and arguments
+and returns the number removed; `wp_unschedule_event()` also matches the
+timestamp and returns `true` even when nothing matched. Single events use the
+same model without the ten-minute duplicate window. This does not check the
+plugin's own `register_services()` orchestration (#26), which services activation,
 deactivation and uninstall reach and in which sites
 (`tests/php/Unit/ServiceBasedPluginTest.php`, `tests/php/Unit/ScopedLifecycleTest.php`
 and `tests/php/Unit/UninstallLifecycleTest.php` cover that),
