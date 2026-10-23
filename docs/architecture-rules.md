@@ -123,7 +123,7 @@ says which rules enforce each principle, and what stays with review.
 | [11. Lifecycle steps are idempotent](design-principles.md#11-lifecycle-steps-are-idempotent) | `compositionRootContracts` | Plugin registration orchestration (#26); effects outside Brain Monkey |
 | [12. Extension points at a hook](design-principles.md#12-extension-points-run-at-a-hook-never-at-include-time) | `noSideEffectsOnInclude`, `noHooksInConstructor` | Filters applied too early in the lifecycle |
 | [13. One plugin, to arbitrary complexity](design-principles.md#13-one-plugin-to-arbitrary-complexity) | `prefixedNames` | Prefixes of service identifiers and view override paths (#29) |
-| [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run | Whether comments explain why |
+| [14. The code teaches](design-principles.md#14-the-code-teaches) | `testsAreDiscovered`, so the samples' tests run; `citationsResolve` | Whether comments explain why and cited lines still support the prose |
 | [Hard rules](../AGENTS.md#hard-rules) | `strictTypes`, `noSuppression`, `testsAreDiscovered`, `gatesAtStrength` | |
 
 ## Mistakes the checks catch
@@ -140,6 +140,7 @@ that names the fix. The fixtures and tests listed prove it.
 | A public WordPress name without the plugin's prefix, or an overlong post type/taxonomy name | `prefixedNames` | `tests/php/PHPStan/Fixture/Names/Service.php`, `Registrations.php`, `NameLengths.php` |
 | A test file outside a test suite | `testsAreDiscovered` | `RepositoryStructureTest::test_it_reports_tests_phpunit_never_runs` |
 | A service calling the plugin factory as a static service locator | `pluginFactoryOnlyAtEdges` | `tests/php/PHPStan/Fixture/PluginFactoryOnlyAtEdges/Service.php` |
+| A documentation citation naming a missing file, an out-of-bounds line or a reversed range | `citationsResolve` | `RepositoryStructureTest::test_it_reports_broken_documentation_citations_with_full_messages` |
 | A service pulling a collaborator or request input from globals | `noGlobalState` | `tests/php/PHPStan/Fixture/NoGlobalState/Service.php` |
 | HTML or a string printed directly by a service | `outputOnlyThroughViews` | `tests/php/PHPStan/Fixture/OutputOnlyThroughViews/Service.php` |
 | A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
@@ -150,6 +151,32 @@ that names the fix. The fixtures and tests listed prove it.
 | A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
 
 ## Rules
+
+### `architecture.citationsResolve`
+
+**Principle:** [14. The code teaches](design-principles.md#14-the-code-teaches).
+
+**Checks:** repository-relative file citations in inline code spans in
+`AGENTS.md`, `README.md` and every Markdown document below `docs/`. A citation
+names a path with a recognizable file extension followed by a colon and a
+line number or line range. The file must exist, line numbers start at 1,
+neither endpoint may exceed the file's line count, and ranges cannot run
+backwards. Failure messages name the document, citation and problem.
+
+**Allows:** ordinary prose, fenced code blocks, URLs, host-and-port pairs,
+static references, absolute paths and parent-relative paths. Single- and
+multiple-backtick inline spans, including multiline spans, are checked.
+This checks file and line existence; whether the cited lines still support
+the prose stays with review. Citations in issue bodies are outside its scope.
+
+**Configuration:** `RepositoryLayout::DOCUMENTATION` lists individual Markdown
+files and directories to search recursively. The check uses repository paths
+without depending on the plugin's namespace or prefixes. Recognized file
+extensions are `php`, `md`, `txt`, `json`, `lock`, `neon`, `yml`, `yaml`, `xml`,
+`dist`, `ini`, `sh`, `js`, `ts`, `css`, `html` and `svg`.
+
+**Fix:** correct the path or line numbers to cite existing lines in the
+repository. Check that those lines also support the surrounding explanation.
 
 ### `architecture.finalByDefault`
 
