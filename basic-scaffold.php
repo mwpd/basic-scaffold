@@ -8,9 +8,9 @@
  * @link      https://www.mwpd.io/
  * @copyright 2019 Alain Schlesser
  *
- *------------------------------------------------------------------------------
- *-- 1. Provide the plugin meta information that WordPress needs.             --
- *------------------------------------------------------------------------------
+ * ------------------------------------------------------------------------------
+ * -- 1. Provide the plugin meta information that WordPress needs.             --
+ * ------------------------------------------------------------------------------
  *
  * @wordpress-plugin
  * Plugin Name:  MWPD Basic Plugin Scaffold
@@ -56,9 +56,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 
 
-/*------------------------------------------------------------------------------
+/*
+ *------------------------------------------------------------------------------
  *-- 2. Prepare the environment so that it is ready to execute our OOP code.  --
- *----------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------
+ */
 
 /*
  * We try to load the Composer if it exists.
@@ -85,9 +87,11 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
 
 
 
-/*------------------------------------------------------------------------------
+/*
+ *------------------------------------------------------------------------------
  *-- 3. Instantiate and kick off our "composition root" (our "Plugin" class). --
- *----------------------------------------------------------------------------*/
+ *----------------------------------------------------------------------------
+ */
 
 /*
  * We use a factory to instantiate the actual plugin.
@@ -112,13 +116,19 @@ if ( ! class_exists( __NAMESPACE__ . '\\PluginFactory' ) ) {
  * We register activation and deactivation hooks by using closures, as these
  * need static access to work correctly.
  */
-\register_activation_hook( __FILE__, static function () {
-	BasicScaffoldPluginFactory::create()->activate();
-} );
+\register_activation_hook(
+	__FILE__,
+	static function () {
+		BasicScaffoldPluginFactory::create()->activate();
+	}
+);
 
-\register_deactivation_hook( __FILE__, static function () {
-	BasicScaffoldPluginFactory::create()->deactivate();
-} );
+\register_deactivation_hook(
+	__FILE__,
+	static function () {
+		BasicScaffoldPluginFactory::create()->deactivate();
+	}
+);
 
 /*
  * Finally, we run the plugin's register method to Hook the plugin into the
