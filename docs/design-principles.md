@@ -62,12 +62,12 @@ Each lifecycle question a service has to answer is a small interface in
 | --- | --- | --- |
 | Is it needed in this request at all? | `Conditional::is_needed()` | Checked before the service is built; if `false`, it never exists. |
 | When does it hook in? | `Delayed::get_registration_action()` | Registration waits for that action, or runs at once if it has already fired. |
-| Which services must exist first? | `HasDependencies::get_dependencies()` | Registration waits until those services are registered. |
+| Which services must exist first? | `HasDependencies::get_dependencies()` | Registration waits until those services are registered, and fails with `FailedToResolveDependencies` when they never can be. |
 | What does it hook into? | `Registerable::register()` | Called once the service is built, to add its actions and filters. |
 | What happens on activation or deactivation? | `Activateable`, `Deactivateable` | Called from the plugin's activation and deactivation hooks. |
 
 The plugin itself only hooks into `plugins_loaded`
-(`src/Infrastructure/ServiceBasedPlugin.php:78`) and the activation and
+(`src/Infrastructure/ServiceBasedPlugin.php:79`) and the activation and
 deactivation hooks (`basic-scaffold.php:112-118`). Everything else is decided
 per service. `SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
@@ -119,7 +119,7 @@ In the code:
   (`src/Infrastructure/ServiceContainer/SimpleServiceContainer.php:29`).
 - `ServiceBasedPlugin` accepts both through its constructor and only falls back
   to the simple versions when none is passed
-  (`src/Infrastructure/ServiceBasedPlugin.php:125-143`). Swapping in an adapter
+  (`src/Infrastructure/ServiceBasedPlugin.php:147-165`). Swapping in an adapter
   for a full-featured container changes one constructor call, not the plugin.
 - `ViewFactory` is bound to `TemplatedViewFactory` in the composition root
   (`src/BasicScaffoldPlugin.php:95`) and can be rebound the same way.
@@ -140,7 +140,7 @@ the built-in implementation as the fallback:
 
 - `ServiceBasedPlugin` accepts any `Injector` and `ServiceContainer`, and falls
   back to `SimpleInjector` and `SimpleServiceContainer`
-  (`src/Infrastructure/ServiceBasedPlugin.php:125-143`). The code calls this a
+  (`src/Infrastructure/ServiceBasedPlugin.php:147-165`). The code calls this a
   poka-yoke: a design that makes the easy path also the correct one.
 - `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
   (`src/Infrastructure/View/SimpleView.php:76`).
@@ -207,7 +207,7 @@ There are exactly two ways to defer part of that tree:
 - **Lazy instantiation**, for performance or to break a circular dependency.
   A service that does not need to hook into WordPress is stored as a
   `LazilyInstantiatedService` and only built when first retrieved
-  (`src/Infrastructure/ServiceBasedPlugin.php:375-379`). `Conditional` and
+  (`src/Infrastructure/ServiceBasedPlugin.php:615-619`). `Conditional` and
   `Delayed` services are not built at all until they are needed.
 - **On-demand instantiation through the injector**, when an object can only be
   created later or is needed once per use. Such objects are still produced by
@@ -267,7 +267,7 @@ code.
 Concrete classes are `final`. Variation happens through interfaces and
 injected collaborators, not through inheritance. Only classes deliberately
 designed as a base are open: `ServiceBasedPlugin` is abstract so the
-composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:27`),
+composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:28`),
 and `SimpleView` is the base that `TemplatedView` builds on
 (`src/Infrastructure/View/SimpleView.php:34`). Every other class in `src/` is
 `final`, and new classes follow suit unless they are designed for extension
@@ -335,7 +335,7 @@ At every boundary where data comes from WordPress:
 In the code: the service list passes through a filter that any plugin can
 hook, so `ServiceBasedPlugin` checks each identifier and class name before
 using it and throws `InvalidService` on anything unexpected
-(`src/Infrastructure/ServiceBasedPlugin.php:221-236`). Bindings, arguments,
+(`src/Infrastructure/ServiceBasedPlugin.php:243-269`). Bindings, arguments,
 shared instances and delegations receive the same treatment after their
 filters, raising `InvalidConfiguration`, `InvalidService` or `InvalidArgument`.
 
@@ -410,8 +410,8 @@ Registering, activating and deactivating are safe to run more than once.
 WordPress can reach the same step through more than one path: activation, for
 example, registers the services itself because `plugins_loaded` has already
 fired in that request. So the plugin skips registration when it has already
-happened (`src/Infrastructure/ServiceBasedPlugin.php:195-198`), and never
-registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:330-333`).
+happened (`src/Infrastructure/ServiceBasedPlugin.php:217-220`), and never
+registers the same service twice (`src/Infrastructure/ServiceBasedPlugin.php:570-573`).
 A step that runs a second time must leave the plugin exactly as the first run
 did.
 
@@ -423,7 +423,7 @@ plugin file is being included. At include time, plugins loaded after this one
 have had no chance to add their callbacks, so an extension point that runs
 then only works for code that happens to load earlier. The `services` filter
 shows the right timing: it runs during registration at `plugins_loaded`
-(`src/Infrastructure/ServiceBasedPlugin.php:221-224`).
+(`src/Infrastructure/ServiceBasedPlugin.php:243-246`).
 
 ## 13. One plugin, to arbitrary complexity
 
