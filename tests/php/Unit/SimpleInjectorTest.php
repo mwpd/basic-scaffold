@@ -225,7 +225,7 @@ final class SimpleInjectorTest extends TestCase {
 				42
 			)
 			->bind_argument(
-				SimpleInjector::GLOBAL_ARGUMENTS, // @phpstan-ignore-line
+				SimpleInjector::GLOBAL_ARGUMENTS, // @phpstan-ignore argument.type (a sentinel, not a class-string)
 				'argument_b',
 				'Mr Alderson'
 			)
