@@ -11,6 +11,7 @@ namespace MWPD\BasicScaffold\Tests\Architecture;
 
 use Brain\Monkey\Container;
 use Brain\Monkey\Functions;
+use InvalidArgumentException;
 use ReflectionProperty;
 
 /**
@@ -54,14 +55,14 @@ final class LifecycleEffects {
 	/**
 	 * Retain callbacks so PHP cannot reuse an object's hash during the check.
 	 *
-	 * @var array<string,string|object|array{0:object|string,1:string}>
+	 * @var array<string,mixed>
 	 */
 	private array $callbacks = [];
 
 	public function watch(): void {
 		foreach ( [ 'action', 'filter' ] as $type ) {
 			Functions\when( 'add_' . $type )->alias(
-				/** @param string|object|array{0:object|string,1:string} $callback */
+				/** @param mixed $callback Hook callback, as the code under test passed it. */
 				function ( string $hook, $callback, int $priority = 10, int $accepted_args = 1 ) use ( $type ): bool {
 					$identity                                       = self::callback_identity( $callback );
 					$this->hooks[ $hook ][ $priority ][ $identity ] = $accepted_args;
@@ -72,7 +73,7 @@ final class LifecycleEffects {
 				}
 			);
 			Functions\when( 'remove_' . $type )->alias(
-				/** @param string|object|array{0:object|string,1:string} $callback */
+				/** @param mixed $callback Hook callback, as the code under test passed it. */
 				function ( string $hook, $callback, int $priority = 10 ): bool {
 					$identity = self::callback_identity( $callback );
 					$exists   = isset( $this->hooks[ $hook ][ $priority ][ $identity ] );
@@ -147,7 +148,11 @@ final class LifecycleEffects {
 	/**
 	 * Use the callback identity WordPress's _wp_filter_build_unique_id() builds.
 	 *
-	 * @param string|object|array{0:object|string,1:string} $callback Hook callback.
+	 * Brain Monkey hands the callback over as the code under test passed it,
+	 * so this checks its shape instead of assuming it.
+	 *
+	 * @param mixed $callback Hook callback.
+	 * @throws InvalidArgumentException If WordPress could not identify the callback either.
 	 */
 	private static function callback_identity( $callback ): string {
 		if ( is_string( $callback ) ) {
@@ -156,10 +161,16 @@ final class LifecycleEffects {
 		if ( is_object( $callback ) ) {
 			return spl_object_hash( $callback );
 		}
+		if ( is_array( $callback ) && isset( $callback[0], $callback[1] ) && is_string( $callback[1] ) ) {
+			if ( is_object( $callback[0] ) ) {
+				return spl_object_hash( $callback[0] ) . $callback[1];
+			}
+			if ( is_string( $callback[0] ) ) {
+				return $callback[0] . '::' . $callback[1];
+			}
+		}
 
-		return is_object( $callback[0] )
-			? spl_object_hash( $callback[0] ) . $callback[1]
-			: $callback[0] . '::' . $callback[1];
+		throw new InvalidArgumentException( 'A hook callback must be a string, an object or a method array.' );
 	}
 
 	private function watch_meta( string $type ): void {

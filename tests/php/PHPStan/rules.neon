@@ -287,6 +287,13 @@ services:
         arguments:
             context: @architectureDependencyContext
             container: %architecture.noServiceLocator.container%
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\NoInjectorConfigurationRule
+        arguments:
+            context: @architectureDependencyContext
             injector: %architecture.noServiceLocator.injector%
             allowed_injector_methods: %architecture.noServiceLocator.allowedInjectorMethods%
         tags:

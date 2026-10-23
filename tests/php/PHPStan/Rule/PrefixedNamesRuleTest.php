@@ -34,31 +34,41 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 	private bool $without_kinds = false;
 
 	protected function getRule(): Rule {
-		$kind = static fn( string $prefix, array $constants = [], array $allowed = [] ): array => [
+		return new PrefixedNamesRule(
+			new PluginNamespace( 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Names' ),
+			$this->without_kinds ? [] : [
+				'hooks'      => self::kind( 'acme.plugin.', [ 'HOOK_PREFIX' ] ),
+				'options'    => self::kind( 'acme_plugin_', [], [ 'date_format' ] ),
+				'transients' => self::kind( 'acme_plugin_' ),
+				'meta'       => self::kind( 'acme_plugin_' ),
+				'assets'     => self::kind( 'acme-plugin-', [], [ 'jquery' ] ),
+				'postTypes'  => self::kind( 'acme_', [ 'POST_TYPE_PREFIX' ] ),
+				'taxonomies' => self::kind( 'acme_', [ 'TAXONOMY_PREFIX' ] ),
+				'shortcodes' => self::kind( 'acme_plugin_', [ 'SHORTCODE_PREFIX' ] ),
+				'restRoutes' => self::kind( 'acme/plugin', [ 'REST_PREFIX' ] ),
+				'cron'       => self::kind( 'acme_plugin_', [ 'CRON_PREFIX' ], [ 'core_event' ] ),
+				'adminPages' => self::kind( 'acme-plugin-', [ 'ADMIN_PREFIX' ] ),
+				'settings'   => self::kind( 'acme_plugin_', [ 'SETTING_PREFIX' ] ),
+				'ajax'       => self::kind( 'acme_plugin_', [ 'AJAX_PREFIX' ] ),
+			],
+			$this->createReflectionProvider()
+		);
+	}
+
+	/**
+	 * Build the configuration of one kind of name.
+	 *
+	 * @param string        $prefix    Prefix the names must start with.
+	 * @param array<string> $constants Constants that hold the prefix.
+	 * @param array<string> $allowed   Names allowed without the prefix.
+	 * @return array{prefix: string, constants: array<string>, allowed: array<string>}
+	 */
+	private static function kind( string $prefix, array $constants = [], array $allowed = [] ): array {
+		return [
 			'prefix'    => $prefix,
 			'constants' => $constants,
 			'allowed'   => $allowed,
 		];
-
-		return new PrefixedNamesRule(
-			new PluginNamespace( 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Names' ),
-			$this->without_kinds ? [] : [
-				'hooks'      => $kind( 'acme.plugin.', [ 'HOOK_PREFIX' ] ),
-				'options'    => $kind( 'acme_plugin_', [], [ 'date_format' ] ),
-				'transients' => $kind( 'acme_plugin_' ),
-				'meta'       => $kind( 'acme_plugin_' ),
-				'assets'     => $kind( 'acme-plugin-', [], [ 'jquery' ] ),
-				'postTypes'  => $kind( 'acme_', [ 'POST_TYPE_PREFIX' ] ),
-				'taxonomies' => $kind( 'acme_', [ 'TAXONOMY_PREFIX' ] ),
-				'shortcodes' => $kind( 'acme_plugin_', [ 'SHORTCODE_PREFIX' ] ),
-				'restRoutes' => $kind( 'acme/plugin', [ 'REST_PREFIX' ] ),
-				'cron'       => $kind( 'acme_plugin_', [ 'CRON_PREFIX' ], [ 'core_event' ] ),
-				'adminPages' => $kind( 'acme-plugin-', [ 'ADMIN_PREFIX' ] ),
-				'settings'   => $kind( 'acme_plugin_', [ 'SETTING_PREFIX' ] ),
-				'ajax'       => $kind( 'acme_plugin_', [ 'AJAX_PREFIX' ] ),
-			],
-			$this->createReflectionProvider()
-		);
 	}
 
 	public function test_it_reports_names_without_the_plugins_prefix(): void {

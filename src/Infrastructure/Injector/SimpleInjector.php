@@ -540,7 +540,6 @@ final class SimpleInjector implements Injector {
 	 *
 	 * @param class-string $class_name Class to reflect upon.
 	 * @return ReflectionClass<object> Native class reflection.
-	 * @throws Throwable If reflection or an autoloader fails.
 	 */
 	private function create_class_reflection( string $class_name ): ReflectionClass {
 		return new ReflectionClass( $class_name );
