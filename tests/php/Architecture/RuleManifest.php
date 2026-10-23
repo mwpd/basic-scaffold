@@ -141,12 +141,25 @@ final class RuleManifest {
 
 	public const CITATIONS_RESOLVE = 'architecture.citationsResolve';
 
+	public const INFRASTRUCTURE_API_SNAPSHOT = 'architecture.infrastructureApiSnapshot';
+
 	/**
 	 * All rules, keyed by their identifier.
 	 *
 	 * @var array<string, RuleEntry>
 	 */
 	private const RULES = [
+		self::INFRASTRUCTURE_API_SNAPSHOT           => [
+			'principle'        => 'Hard rule: infrastructure changes are API changes',
+			'principle_anchor' => 'hard-rules',
+			'configuration'    => 'parameters.architecture.namespace and '
+				. 'parameters.architecture.dependencyDirection.infrastructure',
+			'document'         => self::HARD_RULES,
+			'checked_by'       => [
+				InfrastructureApiSnapshotTest::class . '::test_the_infrastructure_api_matches_the_snapshot',
+			],
+			'signatures'       => [],
+		],
 		self::CITATIONS_RESOLVE                     => [
 			'principle'        => 'Principle 14: The code teaches',
 			'principle_anchor' => '14-the-code-teaches',

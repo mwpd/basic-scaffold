@@ -45,6 +45,7 @@
         ]
     },
     "scripts": {
+        "api:snapshot": "@php scripts/snapshot-infrastructure-api.php",
         "check:autoloader": "@php scripts/check-bundled-autoloader.php",
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=unit",
