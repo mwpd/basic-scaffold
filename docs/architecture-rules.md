@@ -109,13 +109,14 @@ says which rules enforce each principle, and what stays with review.
 
 | Principle | Checked by | Reviewed by hand |
 | --- | --- | --- |
+| [The core idea: complexity that grows linearly](design-principles.md#the-core-idea-complexity-that-grows-linearly) | `hooksInLifecycleMethods`, `queryContextNeedsDelay`, `compositionRootContracts` | Each service deciding its own lifecycle through capability interfaces |
 | [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4`, `explicitNullableParameters` | Loading without `vendor/` (#33) |
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
 | [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
-| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed` | Collaborators pulled from globals, HTML echoed from business logic, god classes |
+| [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed` | Collaborators pulled from globals, HTML echoed from business logic, god classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
 | [9. Never trust what WordPress hands over](design-principles.md#9-never-trust-what-wordpress-hands-over) | PHPCS (WordPress Coding Standards) for escaping output | Validating input at the boundary |
 | [10. Errors are exceptions](design-principles.md#10-errors-are-exceptions) | `noWordPressErrorMechanisms`, `throwOnlyPluginExceptions`, `exceptionShape`, `exceptionsThroughNamedConstructors` | Graceful degradation at the boundary (#27, #30) |
@@ -515,6 +516,34 @@ functions: `is_admin`, `is_network_admin`, `is_user_admin`, `wp_doing_ajax`,
 plugin then never builds the service in a request that does not need it.
 
 **Patterns:** [I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests), [I need to hook in later](patterns.md#i-need-to-hook-in-later).
+
+### `architecture.queryContextNeedsDelay`
+
+**Principle:** [7. Show the alternative to WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns),
+and the capability interfaces of [the core idea](design-principles.md#how-services-map-to-it):
+the plugin waits until a service's condition can answer before building it.
+
+**Checks:** when `is_needed()` of a class implementing `Conditional` calls a
+configured query-dependent function directly, the class also implements
+`Delayed`.
+
+**Allows:** a `Conditional` that only calls request checks such as
+`is_admin()`, classes that do not implement `Conditional`, and calls in other
+methods, helpers, closures or arrow functions. Only direct calls in
+`is_needed()` count. This rule checks for `Delayed`; proving which action
+`get_registration_action()` returns is outside its scope (#82).
+
+**Configuration:** `queryContextNeedsDelay.queryFunctions` lists the
+query-dependent functions: `is_singular`, `is_single`, `is_page`,
+`is_front_page`, `is_home`, `is_archive`, `is_search`, `is_404`,
+`is_attachment`, `is_feed` and `is_main_query`. The capability interfaces'
+namespace comes from `dependencyDirection.infrastructure`.
+
+**Fix:** implement `Delayed` and return `wp` or a later action from
+`get_registration_action()`. The plugin waits for that action before asking
+`is_needed()`, so the query has run when the condition reads it. See
+[I need to hook in later](patterns.md#i-need-to-hook-in-later) and
+[I need a service only in some requests](patterns.md#i-need-a-service-only-in-some-requests).
 
 ### `architecture.prefixedNames`
 

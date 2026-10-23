@@ -90,6 +90,8 @@ final class RuleManifest {
 
 	public const NO_CONTEXT_CHECKS_IN_REGISTER = 'architecture.noContextChecksInRegister';
 
+	public const QUERY_CONTEXT_NEEDS_DELAY = 'architecture.queryContextNeedsDelay';
+
 	public const PREFIXED_NAMES = 'architecture.prefixedNames';
 
 	public const STRICT_TYPES = 'architecture.strictTypes';
@@ -265,6 +267,18 @@ final class RuleManifest {
 			],
 			'signatures'       => [
 				'decides at registration whether the service applies',
+			],
+		],
+		self::QUERY_CONTEXT_NEEDS_DELAY             => [
+			'principle'        => 'Principle 7: Show the alternative to WordPress anti-patterns',
+			'principle_anchor' => '7-show-the-alternative-to-wordpress-anti-patterns',
+			'pattern'          => 'i-need-to-hook-in-later',
+			'configuration'    => 'parameters.architecture.queryContextNeedsDelay.queryFunctions',
+			'checked_by'       => [
+				Rule\QueryContextNeedsDelayRule::class,
+			],
+			'signatures'       => [
+				'asks about the query before it is available',
 			],
 		],
 		self::PREFIXED_NAMES                        => [

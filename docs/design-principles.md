@@ -60,7 +60,7 @@ Each lifecycle question a service has to answer is a small interface in
 
 | Lifecycle question | Interface | How the plugin uses it |
 | --- | --- | --- |
-| Is it needed in this request at all? | `Conditional::is_needed()` | Checked before the service is built; if `false`, it never exists. |
+| Is it needed in this request at all? | `Conditional::is_needed()` | Checked before the service is built; if `false`, it never exists. A query-dependent condition also needs `Delayed` to wait for `wp` or later. |
 | When does it hook in? | `Delayed::get_registration_action()` | Registration waits for that action, or runs at once if it has already fired. |
 | Which services must exist first? | `HasDependencies::get_dependencies()` | Registration waits until those services are registered, and fails with `FailedToResolveDependencies` when they never can be. |
 | What does it hook into? | `Registerable::register()` | Called once the service is built, to add its actions and filters. |
@@ -288,6 +288,7 @@ book, shows the better alternative so that plugins built on it learn it too.
 | Creating collaborators with `new` inside a class, or pulling them from globals | Dependencies are injected through the constructor and configured as bindings in the composition root. [Pattern: creating objects](patterns.md#i-need-to-create-objects-on-demand), [WordPress state](patterns.md#i-need-wordpress-state-such-as-the-current-post) |
 | `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:45-52`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
 | Hooking to an early action just to wait for a later one | A service names its registration action through `Delayed`, and the plugin defers it. [Pattern](patterns.md#i-need-to-hook-in-later) |
+| Asking query-dependent conditions before the query has run | A `Conditional` service also implements `Delayed` and returns `wp` or a later action from `get_registration_action()`, so the plugin waits before asking `is_needed()`. [Pattern](patterns.md#i-need-to-hook-in-later) |
 | Doing work when a file is included | Only `basic-scaffold.php` has side effects; everything else is autoloadable declarations. [Pattern](patterns.md#i-need-to-run-code-when-the-plugin-file-loads) |
 | One god class holding the whole plugin | A composition root wires small services, each with one responsibility. [Pattern](patterns.md#i-need-to-add-a-feature) |
 | Echoing HTML from business logic | Output goes through views from a `ViewFactory`, escaped by default. [Pattern](patterns.md#i-need-to-print-output) |
