@@ -1054,7 +1054,9 @@ each other's files.
 
 **Rules:** `architecture.prefixedNames` covers hooks, stored keys, asset
 handles, post types, taxonomies, shortcodes, REST namespaces, cron hooks,
-admin pages, settings and AJAX actions. Service identifiers and the value of
+admin pages, settings and AJAX actions. `architecture.serviceIdsPrefixed`
+checks declared service identifiers against the composition root's own
+`SERVICE_PREFIX`. IDs added by runtime filters and the value of
 `VIEW_OVERRIDE_DIRECTORY` are reviewed by hand.
 
 ## I need to see why a service did not run
