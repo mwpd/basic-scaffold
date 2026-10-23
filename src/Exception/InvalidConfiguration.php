@@ -51,6 +51,21 @@ final class InvalidConfiguration extends InvalidArgumentException implements Bas
 	}
 
 	/**
+	 * Create a new instance of the exception for a reserved Injector binding.
+	 *
+	 * @param string $injector Name of the reserved injector interface.
+	 */
+	public static function from_reserved_injector_binding( string $injector ): self {
+		return new self(
+			\sprintf(
+				'"%s" is reserved: services receive the plugin\'s own injector. '
+				. 'Remove the binding and pass a custom implementation through the plugin constructor.',
+				$injector
+			)
+		);
+	}
+
+	/**
 	 * Create a new instance of the exception for an invalid arguments array.
 	 *
 	 * @param mixed $arguments Arguments that are not an array.

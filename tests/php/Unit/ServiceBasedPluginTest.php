@@ -949,6 +949,90 @@ class ServiceBasedPluginTest extends TestCase {
 	}
 
 	/**
+	 * @return array<string,array{class-string}>
+	 */
+	public static function data_reserved_injector_binding_targets(): array {
+		/**
+		 * An unloadable target still needs the reserved-source diagnostic.
+		 *
+		 * @var class-string $missing
+		 */
+		$missing = __NAMESPACE__ . '\\NoSuchInjector';
+
+		return [
+			'implementation' => [ SimpleInjector::class ],
+			'self mapping'   => [ Injector::class ],
+			'unrelated type' => [ DummyClass::class ],
+			'unknown type'   => [ $missing ],
+		];
+	}
+
+	/**
+	 * The reserved source must be rejected before its target is validated or
+	 * applied, even when the target would otherwise be a valid binding.
+	 *
+	 * @dataProvider data_reserved_injector_binding_targets
+	 *
+	 * @param class-string $target Binding target.
+	 */
+	public function test_a_reserved_injector_binding_in_the_composition_root_throws( string $target ): void {
+		$injector = $this->createMock( Injector::class );
+		$injector->expects( $this->never() )->method( 'bind' );
+		$plugin = new TestInjectorConfigurationPlugin( [ Injector::class => $target ], [], [], [], $injector );
+
+		$this->expectException( InvalidConfiguration::class );
+		$this->expectExceptionMessage(
+			'"' . Injector::class . '" is reserved: services receive the plugin\'s own injector. '
+			. 'Remove the binding and pass a custom implementation through the plugin constructor.'
+		);
+
+		$plugin->register_services();
+	}
+
+	/**
+	 * Filters cannot replace the injector that services receive either.
+	 *
+	 * @dataProvider data_reserved_injector_binding_targets
+	 *
+	 * @param class-string $target Binding target.
+	 */
+	public function test_a_reserved_injector_binding_from_the_bindings_filter_throws( string $target ): void {
+		Filters\expectApplied( ServiceBasedPlugin::BINDINGS_FILTER )
+			->once()
+			->with( [] )
+			->andReturn( [ Injector::class => $target ] );
+
+		$injector = $this->createMock( Injector::class );
+		$injector->expects( $this->never() )->method( 'bind' );
+		$plugin = new TestInjectorConfigurationPlugin( [], [], [], [], $injector );
+
+		$this->expectException( InvalidConfiguration::class );
+		$this->expectExceptionMessage(
+			'"' . Injector::class . '" is reserved: services receive the plugin\'s own injector. '
+			. 'Remove the binding and pass a custom implementation through the plugin constructor.'
+		);
+
+		$plugin->register_services();
+	}
+
+	/**
+	 * An ordinary binding supplied through the same filter remains usable.
+	 */
+	public function test_an_ordinary_binding_from_the_bindings_filter_is_accepted(): void {
+		Filters\expectApplied( ServiceBasedPlugin::BINDINGS_FILTER )
+			->once()
+			->with( [] )
+			->andReturn( [ DummyInterface::class => DummyClassWithDependency::class ] );
+		$plugin = new TestInjectorConfigurationPlugin();
+		$plugin->register_services();
+
+		$this->assertInstanceOf(
+			DummyClassWithDependency::class,
+			$this->get_registered_injector( $plugin )->make( DummyInterface::class )
+		);
+	}
+
+	/**
 	 * Test that a binding to a class implementing the bound interface is
 	 * accepted.
 	 */

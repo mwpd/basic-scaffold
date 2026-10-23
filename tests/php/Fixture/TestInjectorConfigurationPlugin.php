@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MWPD\BasicScaffold\Tests\Fixture;
 
+use MWPD\BasicScaffold\Infrastructure\Injector;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
 
 /**
@@ -37,18 +38,20 @@ final class TestInjectorConfigurationPlugin extends ServiceBasedPlugin {
 	 * @param array<class-string|callable>              $shared_instances Shared instances.
 	 * @param array<array<string,mixed>>                $arguments        Argument bindings.
 	 * @param array<class-string,callable>              $delegations      Delegations.
+	 * @param Injector|null                            $injector        Optional. Injector to use.
 	 */
 	public function __construct(
 		array $bindings = [],
 		array $shared_instances = [],
 		array $arguments = [],
-		array $delegations = []
+		array $delegations = [],
+		?Injector $injector = null
 	) {
 		$this->bindings         = $bindings;
 		$this->shared_instances = $shared_instances;
 		$this->arguments        = $arguments;
 		$this->delegations      = $delegations;
-		parent::__construct();
+		parent::__construct( true, $injector );
 	}
 
 	protected function get_bindings(): array {
