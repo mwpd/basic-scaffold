@@ -104,6 +104,7 @@ Infrastructure\PluginLifecycle interface
 Infrastructure\PluginLifecycle::public abstract function activate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\PluginLifecycle::public abstract function deactivate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\PluginLifecycle::public abstract function uninstall(): void
+Infrastructure\Presenter interface
 Infrastructure\QueryMonitor\CollectorFactory interface
 Infrastructure\QueryMonitor\CollectorFactory::public abstract function create(): \QM_Collector
 Infrastructure\QueryMonitor\OutputFactory interface
@@ -243,13 +244,13 @@ Infrastructure\TemplateScope interface
 Infrastructure\TemplateScope::public abstract function __get( string $property )
 Infrastructure\TemplateScope::public abstract function __isset( string $property ): bool
 Infrastructure\TemplateScope::public abstract function raw( $property )
-Infrastructure\TemplateScope::public abstract function render_partial( string $path, ?array $context = null ): string
+Infrastructure\TemplateScope::public abstract function render_partial( string $path, ?array $context = null, ?Infrastructure\Presenter $presenter = null ): string
 Infrastructure\View extends Infrastructure\Renderable
 Infrastructure\View interface
 Infrastructure\View::public abstract function __get( string $property )
 Infrastructure\View::public abstract function raw( $property )
-Infrastructure\View::public abstract function render( array $context = [] ): string
-Infrastructure\View::public abstract function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View::public abstract function render( array $context = [], ?Infrastructure\Presenter $presenter = null ): string
+Infrastructure\View::public abstract function render_partial( string $path, ?array $context = null, ?Infrastructure\Presenter $presenter = null ): string
 Infrastructure\ViewFactory interface
 Infrastructure\ViewFactory::public abstract function create( string $relative_path ): Infrastructure\View
 Infrastructure\View\EmptyView final class
@@ -257,16 +258,20 @@ Infrastructure\View\EmptyView implements Infrastructure\Renderable
 Infrastructure\View\EmptyView implements Infrastructure\View
 Infrastructure\View\EmptyView::public function __get( string $property )
 Infrastructure\View\EmptyView::public function raw( $property )
-Infrastructure\View\EmptyView::public function render( array $context = [] ): string
-Infrastructure\View\EmptyView::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\EmptyView::public function render( array $context = [], ?Infrastructure\Presenter $presenter = null ): string
+Infrastructure\View\EmptyView::public function render_partial( string $path, ?array $context = null, ?Infrastructure\Presenter $presenter = null ): string
+Infrastructure\View\SafeHtml final class
+Infrastructure\View\SafeHtml::public function __construct( string $html )
+Infrastructure\View\SafeHtml::public function __toString(): string
 Infrastructure\View\SimpleTemplateScope final class
 Infrastructure\View\SimpleTemplateScope implements Infrastructure\TemplateScope
-Infrastructure\View\SimpleTemplateScope::public function __construct( Infrastructure\View $view )
+Infrastructure\View\SimpleTemplateScope::public function __call( string $method, array $arguments )
+Infrastructure\View\SimpleTemplateScope::public function __construct( Infrastructure\View $view, \Closure $escape, ?Infrastructure\Presenter $presenter = null, array $methods = [] )
 Infrastructure\View\SimpleTemplateScope::public function __get( string $property )
 Infrastructure\View\SimpleTemplateScope::public function __isset( string $property ): bool
 Infrastructure\View\SimpleTemplateScope::public function __set( string $property, $value ): void
 Infrastructure\View\SimpleTemplateScope::public function raw( $property )
-Infrastructure\View\SimpleTemplateScope::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\SimpleTemplateScope::public function render_partial( string $path, ?array $context = null, ?Infrastructure\Presenter $presenter = null ): string
 Infrastructure\View\SimpleView class
 Infrastructure\View\SimpleView implements Infrastructure\Renderable
 Infrastructure\View\SimpleView implements Infrastructure\View
@@ -284,8 +289,8 @@ Infrastructure\View\SimpleView::public function __construct( string $path, Infra
 Infrastructure\View\SimpleView::public function __get( string $property )
 Infrastructure\View\SimpleView::public function __isset( string $property ): bool
 Infrastructure\View\SimpleView::public function raw( $property )
-Infrastructure\View\SimpleView::public function render( array $context = [] ): string
-Infrastructure\View\SimpleView::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\SimpleView::public function render( array $context = [], ?Infrastructure\Presenter $presenter = null ): string
+Infrastructure\View\SimpleView::public function render_partial( string $path, ?array $context = null, ?Infrastructure\Presenter $presenter = null ): string
 Infrastructure\View\SimpleViewFactory final class
 Infrastructure\View\SimpleViewFactory implements Infrastructure\Service
 Infrastructure\View\SimpleViewFactory implements Infrastructure\ViewFactory
@@ -299,8 +304,8 @@ Infrastructure\View\TemplatedView::public function __get( string $property )
 Infrastructure\View\TemplatedView::public function __isset( string $property ): bool
 Infrastructure\View\TemplatedView::public function add_location( string $location ): self
 Infrastructure\View\TemplatedView::public function raw( $property )
-Infrastructure\View\TemplatedView::public function render( array $context = [] ): string
-Infrastructure\View\TemplatedView::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\TemplatedView::public function render( array $context = [], ?Infrastructure\Presenter $presenter = null ): string
+Infrastructure\View\TemplatedView::public function render_partial( string $path, ?array $context = null, ?Infrastructure\Presenter $presenter = null ): string
 Infrastructure\View\TemplatedViewFactory final class
 Infrastructure\View\TemplatedViewFactory implements Infrastructure\Service
 Infrastructure\View\TemplatedViewFactory implements Infrastructure\ViewFactory

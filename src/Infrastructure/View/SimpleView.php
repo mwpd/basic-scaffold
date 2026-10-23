@@ -17,8 +17,10 @@ use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
+use MWPD\BasicScaffold\Exception\InvalidPresenterMethod;
 use MWPD\BasicScaffold\Exception\InvalidViewConfiguration;
 use Closure;
+use MWPD\BasicScaffold\Infrastructure\Presenter;
 use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 use MWPD\BasicScaffold\Infrastructure\View;
 use MWPD\BasicScaffold\Infrastructure\ViewFactory;
@@ -71,6 +73,11 @@ class SimpleView extends stdClass implements View {
 	private ?ViewConfiguration $configuration;
 
 	/**
+	 * Presenter of the current render, if any, to pass onto partial views.
+	 */
+	private ?Presenter $presenter = null;
+
+	/**
 	 * Instantiate a SimpleView object.
 	 *
 	 * @param string             $path          Path to the view file to render,
@@ -101,16 +108,23 @@ class SimpleView extends stdClass implements View {
 	/**
 	 * Render the current view with a given context.
 	 *
-	 * @param array<string, mixed> $context Context in which to render.
+	 * @param array<string, mixed> $context   Context in which to render.
+	 * @param ?Presenter           $presenter Presenter whose declared methods the
+	 *                                        template can call. Optional.
 	 *
 	 * @return string Rendered HTML, or an empty string if the template failed
 	 *                outside of debug mode.
 	 * @throws FailedToLoadView If the template failed (in debug mode).
 	 */
-	public function render( array $context = [] ): string {
+	public function render( array $context = [], ?Presenter $presenter = null ): string {
 		// Add entire context as array to the current instance to pass onto
-		// partial views.
-		$this->_context_ = $context;
+		// partial views, and the presenter with it. The presenter only holds
+		// for this render: a presenter method can render this same view
+		// again, and the partials of this render must not inherit that
+		// inner render's presenter.
+		$previous_presenter = $this->presenter;
+		$this->_context_    = $context;
+		$this->presenter    = $presenter;
 
 		// Save the current buffering level so the view can return to it
 		// afterwards. The template might open or close buffering levels of
@@ -119,7 +133,7 @@ class SimpleView extends stdClass implements View {
 		\ob_start();
 
 		try {
-			$this->include_template( new SimpleTemplateScope( $this ) );
+			$this->include_template( $this->create_scope( $presenter ) );
 
 			// Buffers the template opened and left open hold part of its
 			// output, so they are flushed into the view's own buffer rather
@@ -149,6 +163,8 @@ class SimpleView extends stdClass implements View {
 			}
 
 			return '';
+		} finally {
+			$this->presenter = $previous_presenter;
 		}
 
 		// If the template closed the view's own buffer, there is nothing left
@@ -161,6 +177,48 @@ class SimpleView extends stdClass implements View {
 		$buffer = \ob_get_clean();
 
 		return false === $buffer ? '' : $buffer;
+	}
+
+	/**
+	 * Create the scope to render the template in.
+	 *
+	 * A presenter method that shares its name with one of the scope's own
+	 * methods could never be called, so it fails the view, inside render()'s
+	 * failure handling, rather than being silently unreachable.
+	 *
+	 * @param ?Presenter $presenter Presenter the view is rendered with, if any.
+	 * @return TemplateScope Scope to render the template in.
+	 * @throws InvalidPresenterMethod If the presenter declares a reserved method name.
+	 */
+	private function create_scope( ?Presenter $presenter ): TemplateScope {
+		$escape = Closure::fromCallable( [ $this, 'escape' ] );
+
+		if ( null === $presenter ) {
+			return new SimpleTemplateScope( $this, $escape );
+		}
+
+		$reserved = \array_change_key_case( \array_flip( \get_class_methods( SimpleTemplateScope::class ) ) );
+		$methods  = [];
+
+		// For an object, class_implements() always returns a list, if an empty
+		// one; its false is for a class name that cannot be loaded.
+		$interfaces = \class_implements( $presenter );
+
+		foreach ( \is_array( $interfaces ) ? $interfaces : [] as $interface ) {
+			if ( ! \is_subclass_of( $interface, Presenter::class ) ) {
+				continue;
+			}
+
+			foreach ( \get_class_methods( $interface ) as $method ) {
+				if ( isset( $reserved[ \strtolower( $method ) ] ) ) {
+					throw InvalidPresenterMethod::for_reserved_name( $method, \get_class( $presenter ) );
+				}
+
+				$methods[ \strtolower( $method ) ] = $method;
+			}
+		}
+
+		return new SimpleTemplateScope( $this, $escape, $presenter, $methods );
 	}
 
 	/**
@@ -246,11 +304,12 @@ class SimpleView extends stdClass implements View {
 	 * This can be used from within a currently rendered view, to include
 	 * nested partials.
 	 *
-	 * The passed-in context is optional, and will fall back to the parent's
-	 * context if omitted.
+	 * The passed-in context and presenter are optional, and each falls back to
+	 * the parent's if omitted.
 	 *
-	 * @param string                    $path    Path of the partial to render.
-	 * @param array<string, mixed>|null $context Context in which to render the partial.
+	 * @param string                    $path      Path of the partial to render.
+	 * @param array<string, mixed>|null $context   Context in which to render the partial.
+	 * @param ?Presenter                $presenter Presenter for the partial.
 	 *
 	 * @return string Rendered HTML, or an empty string if the partial failed
 	 *                outside of debug mode.
@@ -258,9 +317,9 @@ class SimpleView extends stdClass implements View {
 	 *                     with the built-in view factories).
 	 * @throws FailedToLoadView If the partial failed (in debug mode).
 	 */
-	public function render_partial( string $path, ?array $context = null ): string {
+	public function render_partial( string $path, ?array $context = null, ?Presenter $presenter = null ): string {
 		return $this->view_factory->create( $path )
-									->render( $context ?? $this->_context_ );
+									->render( $context ?? $this->_context_, $presenter ?? $this->presenter );
 	}
 
 	/**

@@ -10,6 +10,7 @@ use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidPath;
 use MWPD\BasicScaffold\Infrastructure\View\TemplatedViewFactory;
 use MWPD\BasicScaffold\SampleSubsystem\MainLoop;
+use MWPD\BasicScaffold\SampleSubsystem\QueriedPostHeader;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\Tests\ViewHelper;
 use stdClass;
@@ -104,7 +105,8 @@ final class SampleLoopServiceTest extends TestCase {
 
 		$service = new SampleLoopService(
 			new TemplatedViewFactory( [ ViewHelper::VIEWS_FOLDER . 'failing' ], $this->debug_mode( true ) ),
-			$main_loop
+			$main_loop,
+			new QueriedPostHeader( $main_loop )
 		);
 
 		// The failing template would throw in debug mode, so the content
@@ -116,9 +118,11 @@ final class SampleLoopServiceTest extends TestCase {
 	 * @dataProvider failing_templates
 	 */
 	public function test_a_failing_header_leaves_the_content_unchanged_in_production( string $location ): void {
-		$service = new SampleLoopService(
+		$main_loop = $this->main_loop_rendering( $this->post( 'A title' ) );
+		$service   = new SampleLoopService(
 			new TemplatedViewFactory( [ $location ], $this->debug_mode( false ) ),
-			$this->main_loop_rendering( $this->post( 'A title' ) )
+			$main_loop,
+			new QueriedPostHeader( $main_loop )
 		);
 
 		$this->assertSame( '<p>Content.</p>', $service->prepend_post_header( '<p>Content.</p>' ) );
@@ -133,9 +137,11 @@ final class SampleLoopServiceTest extends TestCase {
 		string $location,
 		string $expected
 	): void {
-		$service = new SampleLoopService(
+		$main_loop = $this->main_loop_rendering( $this->post( 'A title' ) );
+		$service   = new SampleLoopService(
 			new TemplatedViewFactory( [ $location ], $this->debug_mode( true ) ),
-			$this->main_loop_rendering( $this->post( 'A title' ) )
+			$main_loop,
+			new QueriedPostHeader( $main_loop )
 		);
 
 		try {

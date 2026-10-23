@@ -14,6 +14,8 @@ declare( strict_types=1 );
 namespace MWPD\BasicScaffold;
 
 use MWPD\BasicScaffold\SampleSubsystem\MainLoop;
+use MWPD\BasicScaffold\SampleSubsystem\PostHeader;
+use MWPD\BasicScaffold\SampleSubsystem\QueriedPostHeader;
 use MWPD\BasicScaffold\SampleSubsystem\SampleBackendService;
 use MWPD\BasicScaffold\SampleSubsystem\SampleLoopService;
 use MWPD\BasicScaffold\SampleSubsystem\WordPressMainLoop;
@@ -151,6 +153,13 @@ final class BasicScaffoldPlugin extends ServiceBasedPlugin {
 			 * at call time rather than receiving a post when it is built.
 			 */
 			MainLoop::class         => WordPressMainLoop::class,
+
+			/*
+			 * The presenter SampleLoopService passes to its header template.
+			 * It asks the main loop for the queried post as well, each time
+			 * the template calls it.
+			 */
+			PostHeader::class       => QueriedPostHeader::class,
 
 			// Add your bindings here.
 		];

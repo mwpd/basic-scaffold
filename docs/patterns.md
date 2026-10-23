@@ -40,6 +40,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need a default collaborator that can be replaced](#i-need-a-default-collaborator-that-can-be-replaced)
 - [I need to start simple and add implementations later](#i-need-to-start-simple-and-add-implementations-later)
 - [I need to print output](#i-need-to-print-output)
+- [I need a template to ask for more than its context](#i-need-a-template-to-ask-for-more-than-its-context)
 - [I need to report a failure](#i-need-to-report-a-failure)
 - [I need to run code when the plugin file loads](#i-need-to-run-code-when-the-plugin-file-loads)
 - [I need a name in a space WordPress shares](#i-need-a-name-in-a-space-wordpress-shares)
@@ -73,7 +74,7 @@ protected function get_service_classes(): array {
 }
 ```
 
-**Proven by:** `src/BasicScaffoldPlugin.php:80-98` declares the two sample
+**Proven by:** `src/BasicScaffoldPlugin.php:82-100` declares the two sample
 services; neither knows about the other.
 
 **Rules:** `architecture.compositionRootContracts` builds every declared
@@ -210,7 +211,7 @@ as soon as they are, at the end of the action they arrive on. The plugin does
 not reject that combination, and does not run an action again to make up for a
 priority that has passed.
 
-**Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-75`, and the
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-80`, and the
 priority and dependency cases in
 `tests/php/Unit/ServiceBasedPluginTest.php:533-660`.
 
@@ -537,7 +538,7 @@ $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
 `:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
-bound at `src/BasicScaffoldPlugin.php:128`. The injector is made injectable at
+bound at `src/BasicScaffoldPlugin.php:130`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:1168-1171`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
 
@@ -646,7 +647,7 @@ protected function get_shared_instances(): array {
 The one exception is the plugin itself, which WordPress needs to reach from
 outside the object graph: see the next section.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:203-213` is where shared instances
+**Proven by:** `src/BasicScaffoldPlugin.php:212-222` is where shared instances
 are declared; `Injector::share()` (`src/Infrastructure/Injector.php:78`) is
 what the plugin calls for each one.
 
@@ -780,15 +781,15 @@ static facade, no template-tag functions file, no generic service lookup and
 no hook that hands an API object over. `BasicScaffoldPluginFactory::create()`
 and `Plugin::get_container()` stay public because the main file, the listed
 bridges and the tests need them; that makes them callable, not supported for
-other code. One investigation is open and not approved, and one addition is planned:
+other code. #144, which is open and not approved, looks at an API for
+extensions that need more than hooks, including the order in which several
+extensions register. It waits for a concrete extension that hooks cannot
+serve.
 
-- #144 looks at an API for extensions that need more than hooks, including
-  the order in which several extensions register. It waits for a concrete
-  extension that hooks cannot serve.
-- #173 adds presenters: objects a service passes with a render, whose
-  declared methods a template calls through `$this`. They only reach the
-  plugin's own views, including a theme's overrides of them, never a theme's
-  other files or another plugin.
+Presenters are not an API for other code either. A service passes one with a
+render, and only the plugin's own views reach it, including a theme's
+overrides of them, never a theme's other files or another plugin. See
+[I need a template to ask for more than its context](#i-need-a-template-to-ask-for-more-than-its-context).
 
 **Proven by:** the configuration filters at
 `src/Infrastructure/ServiceBasedPlugin.php:1230-1233` and `:1691-1772`, and
@@ -884,10 +885,10 @@ The interface is for state a service depends on.
 
 **Proven by:** `src/SampleSubsystem/MainLoop.php:19-49` and
 `src/SampleSubsystem/WordPressMainLoop.php:27-67`, bound at
-`src/BasicScaffoldPlugin.php:153`, and asked at call time in
-`src/SampleSubsystem/SampleLoopService.php:123-141`.
+`src/BasicScaffoldPlugin.php:155`, and asked at call time in
+`src/SampleSubsystem/SampleLoopService.php:137-155`.
 `tests/php/Unit/WordPressMainLoopTest.php` covers each state of the loop, and
-`tests/php/Integration/SampleLoopServiceTest.php:52-113` shows the header on
+`tests/php/Integration/SampleLoopServiceTest.php:53-115` shows the header on
 the queried post only.
 
 For request input, a boundary adapter reads the superglobals, sanitizes and
@@ -923,7 +924,7 @@ public function __construct(
 }
 ```
 
-**Proven by:** `src/Infrastructure/View/SimpleView.php:88-99`, and the
+**Proven by:** `src/Infrastructure/View/SimpleView.php:95-106`, and the
 injector and container defaults of `ServiceBasedPlugin`
 (`src/Infrastructure/ServiceBasedPlugin.php:270-302`).
 
@@ -986,19 +987,80 @@ production, so a broken template leaves its own place on the page empty while
 the rest of the page renders. See [I need to report a failure](#i-need-to-report-a-failure).
 
 ```php
-// views/test-loop-service.php
-$current_post = $this->raw( 'post' );
+// views/test-backend-service.php
+$raw_plugin = $this->raw( 'plugin' );
 ?>
-Post title: <?= esc_html( $current_post->post_title ) ?>
+<p>Hello World! from the <b><?= $this->plugin ?></b> plugin!</p>
+<p><em>Raw value: <b><?= esc_html( $raw_plugin ) ?></b></em></p>
 ```
 
 **Proven by:** `src/SampleSubsystem/SampleBackendService.php:82-99` and
-`views/test-loop-service.php:7-17`.
+`views/test-backend-service.php:5-15`.
 
 **Rules:** `architecture.outputOnlyThroughViews` requires direct method
 calls on typed `Renderable` or `View` objects when printing from services.
 `architecture.rawIsEscaped` checks raw values in templates, and PHPCS
 (WordPress Coding Standards) checks escaping.
+
+## I need a template to ask for more than its context
+
+**What people reach for:** WordPress or plugin functions called straight from
+the template, a global helper or `Plugin::instance()` lookup, or one "helpers"
+object that every template can reach.
+
+**Why not here:** [principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
+and [principle 7](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns)
+rule out globals and lookups for collaborators. A plugin-wide helpers object
+would also grow with every subsystem and let every template call everything,
+which breaks the linear growth the scaffold is built on.
+
+**Instead:** give the template a presenter. Declare what it asks as an
+interface that extends `Presenter`, implement it, bind it in the composition
+root, inject it into the service that renders the template, and pass it with
+the render. Name both types in the template's annotation, so PHPStan and
+Psalm check each call:
+
+```php
+// The service passes its presenter with the render.
+$this->view_factory->create( 'views/test-loop-service' )->render( [], $this->post_header );
+
+// views/test-loop-service.php
+/** @var TemplateScope&PostHeader $this */
+?>
+Post title: <?= $this->title() ?>
+```
+
+Use the context for values the service already has, and a presenter for
+queries: ones that take arguments, need collaborators, or should be answered
+when the template asks.
+
+- Only methods declared on an interface that extends `Presenter` are callable.
+  Any other public method of the implementation fails the view.
+- A string or stringable result is escaped for HTML text, like a context
+  property, and anything else, such as a boolean for an `if`, comes back as it
+  is. A presenter that builds markup on purpose returns `SafeHtml`, and is then
+  responsible for escaping every part of it. A value printed into a URL, an
+  attribute or JavaScript still needs that context's `esc_*` function.
+- A partial inherits the presenter, unless `render_partial()` is given its own
+  as the third argument. The presenter holds for that render only.
+- Calling a method with no presenter, an undeclared method or a presenter that
+  throws fails the view: an exception in debug mode, an empty view in
+  production. A presenter method named like one of the scope's own methods
+  (`raw`, `render_partial`) fails the same way, as templates could never call
+  it.
+- Arguments are passed by position. Parameters by reference do not work
+  through `$this`.
+- Theme overrides call presenter methods by name, so renaming one breaks them.
+
+**Proven by:** `src/SampleSubsystem/PostHeader.php:29-48` and
+`src/SampleSubsystem/QueriedPostHeader.php:25-62`, bound at
+`src/BasicScaffoldPlugin.php:162`, passed at
+`src/SampleSubsystem/SampleLoopService.php:151-152` and called in
+`views/test-loop-service.php:6-18`. `tests/php/Unit/SimpleViewPresenterTest.php`
+covers results, failures and partials.
+
+**Rules:** PHPStan and Psalm check presenter calls in templates against the
+`@var` annotation.
 
 ## I need to report a failure
 
@@ -1050,7 +1112,7 @@ try {
 
 **Proven by:** `src/Exception/FailedToFindPost.php:27`, thrown at
 `src/SampleSubsystem/WordPressMainLoop.php:62`,
-`src/Infrastructure/View/SimpleView.php:121-152` and
+`src/Infrastructure/View/SimpleView.php:135-168` and
 `src/Exception/FailedToLoadView.php:39`.
 
 **Rules:** `architecture.noWordPressErrorMechanisms`, `architecture.noFalseOnFailure`,
@@ -1113,7 +1175,7 @@ a plugin, usually to its slug. Themes that already override the plugin's
 views move their files into that directory: a file directly in the theme's
 `views/` folder is no longer picked up.
 
-**Proven by:** `src/BasicScaffoldPlugin.php:317-328`, and
+**Proven by:** `src/BasicScaffoldPlugin.php:326-337`, and
 `tests/php/Unit/TemplatedViewFactoryTest.php`, which shows that a bare theme
 `views/` file is not selected and that two override directories do not see
 each other's files.

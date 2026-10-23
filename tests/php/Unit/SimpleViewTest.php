@@ -8,6 +8,7 @@ use MWPD\BasicScaffold\Exception\FailedToEscapeValue;
 use MWPD\BasicScaffold\Exception\FailedToLoadView;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
 use MWPD\BasicScaffold\Exception\InvalidPath;
+use MWPD\BasicScaffold\Exception\InvalidPresenterMethod;
 use MWPD\BasicScaffold\Exception\InvalidViewConfiguration;
 use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
 use MWPD\BasicScaffold\Infrastructure\View\SimpleView;
@@ -745,7 +746,8 @@ final class SimpleViewTest extends TestCase {
 			$result = $view->render( [ 'method' => 'escape' ] );
 		} catch ( FailedToLoadView $exception ) {
 			$this->assertTrue( $debug_mode, 'Only debug mode should throw.' );
-			$this->assertInstanceOf( Error::class, $exception->getPrevious() );
+			// The scope has no such method and no presenter to offer it.
+			$this->assertInstanceOf( InvalidPresenterMethod::class, $exception->getPrevious() );
 
 			return;
 		}
