@@ -381,8 +381,7 @@ final class SimpleInjectorTest extends TestCase {
 
 	public function test_it_keeps_the_reflection_failure_as_previous(): void {
 		// Deliberately violate the class-string contract to exercise the runtime boundary.
-		/** @var class-string $missing_class */
-		$missing_class = __NAMESPACE__ . '\\MissingClass';
+		$missing_class = self::missing_class( 'MissingClass' );
 
 		try {
 			( new SimpleInjector() )->make( $missing_class );
@@ -532,6 +531,19 @@ final class SimpleInjectorTest extends TestCase {
 		}
 
 		/** @var class-string $class */
+		return $class;
+	}
+
+	/**
+	 * Name a class in this namespace that no autoloader can load.
+	 *
+	 * @param string $name Short name of the missing class.
+	 * @return class-string The name, typed as a class name it is not.
+	 */
+	private static function missing_class( string $name ): string {
+		/** @var class-string $class */
+		$class = __NAMESPACE__ . '\\' . $name;
+
 		return $class;
 	}
 }

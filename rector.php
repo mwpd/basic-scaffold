@@ -31,11 +31,8 @@ return RectorConfig::configure()
         SetList::PHP_73,
         SetList::PHP_74,
         SetList::CODE_QUALITY,
-        SetList::STRICT_BOOLEANS,
         SetList::PRIVATIZATION,
         SetList::CODING_STYLE,
-        SetList::EARLY_RETURN,
-        SetList::INSTANCEOF,
         SetList::TYPE_DECLARATION,
         SetList::DEAD_CODE,
     ]);

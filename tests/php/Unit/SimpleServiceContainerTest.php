@@ -62,8 +62,12 @@ final class SimpleServiceContainerTest extends TestCase {
 		$container->put( 'lazy', $lazy );
 		$this->assertTrue( $container->has( 'lazy' ) );
 		$this->assertSame( 0, $calls );
-		$this->assertSame( $service, $container->get( 'lazy' ) );
-		$this->assertSame( $service, $container->get( 'lazy' ) );
+		// Retrieve twice before asserting. Otherwise PHPStan assumes the second
+		// call returns what the first assertion proved, and calls it redundant.
+		$first  = $container->get( 'lazy' );
+		$second = $container->get( 'lazy' );
+		$this->assertSame( $service, $first );
+		$this->assertSame( $service, $second );
 		$this->assertSame( 1, $calls );
 		$this->assertSame( $service, $container->offsetGet( 'lazy' ) );
 	}

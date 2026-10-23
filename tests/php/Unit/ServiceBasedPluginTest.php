@@ -101,6 +101,8 @@ class ServiceBasedPluginTest extends TestCase {
 	/**
 	 * Fire an action the way WordPress does: count it as done, then run its
 	 * callbacks by priority, including those added while it runs.
+	 *
+	 * @param non-empty-string $action Action to fire.
 	 */
 	private function fire( string $action ): void {
 		do_action( $action );
@@ -598,7 +600,7 @@ class ServiceBasedPluginTest extends TestCase {
 		/**
 		 * Brain Monkey has just defined the function, so the name is callable.
 		 *
-		 * @var callable $function_name
+		 * @var callable-string $function_name
 		 */
 		$function_name = $name;
 
@@ -900,12 +902,7 @@ class ServiceBasedPluginTest extends TestCase {
 	 * services are registered, naming the service.
 	 */
 	public function test_a_service_class_that_does_not_exist_throws(): void {
-		/**
-		 * A class name that no autoloader can load.
-		 *
-		 * @var class-string $missing
-		 */
-		$missing = __NAMESPACE__ . '\\NoSuchService';
+		$missing = self::missing_class( 'NoSuchService' );
 
 		$plugin = new TestServicesPlugin( [ 'missing' => $missing ] );
 
@@ -952,18 +949,12 @@ class ServiceBasedPluginTest extends TestCase {
 	 * @return array<string,array{class-string}>
 	 */
 	public static function data_reserved_injector_binding_targets(): array {
-		/**
-		 * An unloadable target still needs the reserved-source diagnostic.
-		 *
-		 * @var class-string $missing
-		 */
-		$missing = __NAMESPACE__ . '\\NoSuchInjector';
-
 		return [
 			'implementation' => [ SimpleInjector::class ],
 			'self mapping'   => [ Injector::class ],
 			'unrelated type' => [ DummyClass::class ],
-			'unknown type'   => [ $missing ],
+			// An unloadable target still needs the reserved-source diagnostic.
+			'unknown type'   => [ self::missing_class( 'NoSuchInjector' ) ],
 		];
 	}
 
@@ -1265,5 +1256,18 @@ class ServiceBasedPluginTest extends TestCase {
 			$recorder->events()
 		);
 		$this->assertFalse( $plugin->get_container()->has( 'rewrite' ) );
+	}
+
+	/**
+	 * Name a class in this namespace that no autoloader can load.
+	 *
+	 * @param string $name Short name of the missing class.
+	 * @return class-string The name, typed as a class name it is not.
+	 */
+	private static function missing_class( string $name ): string {
+		/** @var class-string $class */
+		$class = __NAMESPACE__ . '\\' . $name;
+
+		return $class;
 	}
 }

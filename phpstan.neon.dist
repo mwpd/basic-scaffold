@@ -5,6 +5,10 @@ includes:
 parameters:
     level: max
     treatPhpDocTypesAsCertain: false
+    # Templates read their context as properties of the view, and __get()
+    # returns each one escaped, as a string. This types those reads by __get().
+    universalObjectCratesClasses:
+        - MWPD\BasicScaffold\Infrastructure\View
     paths:
         - basic-scaffold.php
         - src

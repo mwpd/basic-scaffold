@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
-use Exception;
-
 /**
  * Bundled fallback autoloader.
  *
@@ -73,8 +71,6 @@ final class Autoloader {
 
 	/**
 	 * Registers the autoload callback with the SPL autoload system.
-	 *
-	 * @throws Exception If the autoloader could not be registered.
 	 */
 	public function register(): void {
 		\spl_autoload_register( [ $this, self::AUTOLOAD_METHOD ] );

@@ -13,15 +13,25 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
-use PHPStan\Rules\Rule;
 use ReflectionClass;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 
 /**
  * Every architecture rule is registered, listed in the manifest and
  * documented in the catalogue.
+ *
+ * @phpstan-import-type RuleEntry from RuleManifest
  */
 final class RuleRegistrationTest extends TestCase {
+
+	/**
+	 * The interface every PHPStan rule implements.
+	 *
+	 * Named by string rather than Rule::class: Psalm 5 is built on php-parser 4
+	 * and crashes when it loads a class from PHPStan 2, which is built on
+	 * php-parser 5. Psalm scans every class this file references.
+	 */
+	private const RULE_INTERFACE = 'PHPStan\\Rules\\Rule';
 
 	public function test_every_rule_is_registered_listed_and_documented(): void {
 		$root    = dirname( __DIR__, 3 );
@@ -42,7 +52,8 @@ final class RuleRegistrationTest extends TestCase {
 
 			foreach ( PhpFile::from_path( $path )->get_declarations() as $declaration ) {
 				$name = $declaration['name'];
-				if ( class_exists( $name ) && ( new ReflectionClass( $name ) )->implementsInterface( Rule::class ) ) {
+				if ( class_exists( $name )
+					&& ( new ReflectionClass( $name ) )->implementsInterface( self::RULE_INTERFACE ) ) {
 					$rules[] = $name;
 				}
 			}
@@ -62,22 +73,14 @@ final class RuleRegistrationTest extends TestCase {
 	}
 
 	public function test_it_reports_rules_that_are_not_registered_listed_or_documented(): void {
-		$entry = static fn( array $checked_by, array $signatures = [] ): array => [
-			'principle'        => 'Principle',
-			'principle_anchor' => 'principle',
-			'configuration'    => 'configuration',
-			'checked_by'       => $checked_by,
-			'signatures'       => $signatures,
-		];
-
 		$tested   = self::class . '::test_it_finds_the_rules_a_configuration_registers';
 		$problems = RuleRegistry::find_problems(
 			[
-				'architecture.known'    => $entry( [ 'Acme\\KnownRule' ], [ 'is known' ] ),
-				'architecture.unused'   => $entry( [] ),
-				'architecture.tested'   => $entry( [ $tested ] ),
-				'architecture.untested' => $entry( [ self::class . '::helper' ] ),
-				'architecture.stale'    => $entry( [ 'Acme\\UnregisteredRule' ], [ 'no longer said' ] ),
+				'architecture.known'    => self::entry( [ 'Acme\\KnownRule' ], [ 'is known' ] ),
+				'architecture.unused'   => self::entry( [] ),
+				'architecture.tested'   => self::entry( [ $tested ] ),
+				'architecture.untested' => self::entry( [ self::class . '::helper' ] ),
+				'architecture.stale'    => self::entry( [ 'Acme\\UnregisteredRule' ], [ 'no longer said' ] ),
 			],
 			[
 				'KNOWN'   => 'architecture.known',
@@ -219,6 +222,23 @@ final class RuleRegistrationTest extends TestCase {
 			],
 			array_map( static fn( string $problem ): string => explode( '. ', $problem )[0] . '.', $problems )
 		);
+	}
+
+	/**
+	 * Build a manifest entry for the problem report test.
+	 *
+	 * @param array<string> $checked_by Rules and tests that check the entry.
+	 * @param array<string> $signatures Messages the entry's rules report.
+	 * @return RuleEntry Entry with placeholder documentation.
+	 */
+	private static function entry( array $checked_by, array $signatures = [] ): array {
+		return [
+			'principle'        => 'Principle',
+			'principle_anchor' => 'principle',
+			'configuration'    => 'configuration',
+			'checked_by'       => $checked_by,
+			'signatures'       => $signatures,
+		];
 	}
 
 	public function test_it_finds_the_rules_a_configuration_registers(): void {

@@ -24,7 +24,6 @@ use PHPStan\PhpDoc\TypeNodeResolver;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
-use PHPStan\Type\Constant\ConstantBooleanType;
 use PHPStan\Type\FileTypeMapper;
 use PHPStan\Type\Type;
 use PHPStan\Type\UnionType;
@@ -173,7 +172,7 @@ final class NoFalseOnFailureRule implements Rule {
 		}
 
 		foreach ( $type->getTypes() as $member ) {
-			if ( $member instanceof ConstantBooleanType && ! $member->getValue() ) {
+			if ( $member->isFalse()->yes() ) {
 				return true;
 			}
 		}
