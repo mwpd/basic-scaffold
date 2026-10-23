@@ -64,7 +64,7 @@ protected function get_service_classes(): array {
 	return [
 		self::SAMPLE_BACKEND_SERVICE_ID => SampleBackendService::class,
 		self::SAMPLE_LOOP_SERVICE_ID    => SampleLoopService::class,
-		self::REPORTS_SERVICE_ID        => ReportsService::class, // The new feature.
+		self::REPORTS_SERVICE_ID        => ReportsService::class, // The new feature (illustrative).
 	];
 }
 ```
@@ -302,7 +302,7 @@ receives the same one. The class itself stays an ordinary class.
 // src/BasicScaffoldPlugin.php
 protected function get_shared_instances(): array {
 	return [
-		ReportCache::class, // Built once, injected everywhere it is asked for.
+		ReportCache::class, // Illustrative: built once, injected wherever it is asked for.
 	];
 }
 ```
