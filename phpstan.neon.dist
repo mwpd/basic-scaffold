@@ -33,6 +33,18 @@ parameters:
         # Parts of that namespace that are not plugin code.
         excludedNamespaces:
             - MWPD\BasicScaffold\Tests
+        capabilitiesOnServices:
+            # Lifecycle capabilities only work on services the plugin orchestrates.
+            service: MWPD\BasicScaffold\Infrastructure\Service
+            capabilities:
+                - MWPD\BasicScaffold\Infrastructure\Registerable
+                - MWPD\BasicScaffold\Infrastructure\Conditional
+                - MWPD\BasicScaffold\Infrastructure\Delayed
+                - MWPD\BasicScaffold\Infrastructure\HasDependencies
+                - MWPD\BasicScaffold\Infrastructure\Activateable
+                - MWPD\BasicScaffold\Infrastructure\Deactivateable
+            delayed: MWPD\BasicScaffold\Infrastructure\Delayed
+            registerable: MWPD\BasicScaffold\Infrastructure\Registerable
         finalByDefault:
             # Classes designed to be extended (design principle 6).
             baseClasses:

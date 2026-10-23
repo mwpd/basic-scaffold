@@ -13,6 +13,8 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Tests\Architecture;
 
+use MWPD\BasicScaffold\Tests\PHPStan\Rule\PluginNamespace;
+use Nette\Neon\Neon;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SimpleXMLElement;
@@ -32,6 +34,14 @@ final class RepositoryLayout {
 	 * The composition root, the class that wires the plugin together.
 	 */
 	public const COMPOSITION_ROOT = 'MWPD\\BasicScaffold\\BasicScaffoldPlugin';
+
+	/**
+	 * Subsystem services built outside get_service_classes(), keyed by class
+	 * name, with the factory or other route that builds each one.
+	 *
+	 * @var array<string, string>
+	 */
+	public const SERVICES_BUILT_ELSEWHERE = [];
 
 	/**
 	 * The plugin's main file, the only one with side effects.
@@ -109,6 +119,13 @@ final class RepositoryLayout {
 	private array $rule_fixtures;
 
 	/**
+	 * Subsystem service classes and the other routes that build them.
+	 *
+	 * @var array<string, string>
+	 */
+	private array $services_built_elsewhere;
+
+	/**
 	 * Instantiate a RepositoryLayout object.
 	 *
 	 * @param string        $root             Root of the repository.
@@ -118,6 +135,7 @@ final class RepositoryLayout {
 	 * @param string        $tests            Tests directory.
 	 * @param array<string> $test_views       View directories of the tests.
 	 * @param array<string> $rule_fixtures    Rule fixture directories.
+	 * @param array<string, string> $services_built_elsewhere Classes built by other routes.
 	 */
 	public function __construct(
 		string $root,
@@ -126,15 +144,17 @@ final class RepositoryLayout {
 		array $production_views,
 		string $tests,
 		array $test_views,
-		array $rule_fixtures
+		array $rule_fixtures,
+		array $services_built_elsewhere = []
 	) {
-		$this->root             = rtrim( $root, '/' );
-		$this->bootstrap        = $bootstrap;
-		$this->production       = $production;
-		$this->production_views = $production_views;
-		$this->tests            = $tests;
-		$this->view_templates   = array_merge( $production_views, $test_views );
-		$this->rule_fixtures    = $rule_fixtures;
+		$this->root                     = rtrim( $root, '/' );
+		$this->bootstrap                = $bootstrap;
+		$this->production               = $production;
+		$this->production_views         = $production_views;
+		$this->tests                    = $tests;
+		$this->view_templates           = array_merge( $production_views, $test_views );
+		$this->rule_fixtures            = $rule_fixtures;
+		$this->services_built_elsewhere = $services_built_elsewhere;
 	}
 
 	/**
@@ -150,7 +170,8 @@ final class RepositoryLayout {
 			self::PRODUCTION_VIEWS,
 			self::TESTS,
 			self::TEST_VIEWS,
-			self::RULE_FIXTURES
+			self::RULE_FIXTURES,
+			self::SERVICES_BUILT_ELSEWHERE
 		);
 	}
 
@@ -278,6 +299,64 @@ final class RepositoryLayout {
 		}
 
 		return $files;
+	}
+
+	/**
+	 * Get named declarations in feature subsystems, following the same
+	 * namespace configuration as the PHPStan rules.
+	 *
+	 * @return array<string> Fully qualified class, interface and trait names.
+	 */
+	public function get_subsystem_declarations(): array {
+		/**
+		 * Neon::decodeFile() declares a native mixed return type, which Psalm
+		 * reads as a reserved word when it targets PHP 7.4.
+		 *
+		 * @psalm-suppress ReservedWord
+		 */
+		$config = Neon::decodeFile( $this->get_phpstan_config() );
+		assert( is_array( $config ) && is_array( $config['parameters'] ?? null ) );
+		$settings = $config['parameters']['architecture'] ?? null;
+		assert( is_array( $settings ) );
+		$root = $settings['namespace'] ?? null;
+		assert( is_string( $root ) );
+		$direction  = $settings['dependencyDirection'] ?? null;
+		$exceptions = $settings['exceptions'] ?? null;
+		assert( is_array( $direction ) && is_string( $direction['infrastructure'] ?? null ) );
+		assert( is_array( $exceptions ) && is_string( $exceptions['namespace'] ?? null ) );
+		$excluded = $settings['excludedNamespaces'] ?? [];
+		assert( is_array( $excluded ) );
+		$namespace = new PluginNamespace(
+			$root,
+			array_merge(
+				array_values( array_filter( $excluded, 'is_string' ) ),
+				[ $direction['infrastructure'], $exceptions['namespace'] ]
+			)
+		);
+		$classes   = [];
+		foreach ( $this->get_production_files() as $path ) {
+			$file = PhpFile::from_path( $path );
+			if ( PluginNamespace::normalize( $file->get_namespace() ) === PluginNamespace::normalize( $root )
+				|| $this->is_rule_fixture( $path ) || $this->is_view_template( $path ) ) {
+				continue;
+			}
+			foreach ( $file->get_declarations() as $declaration ) {
+				if ( $namespace->contains( $declaration['name'] ) ) {
+					$classes[] = $declaration['name'];
+				}
+			}
+		}
+
+		return $classes;
+	}
+
+	/**
+	 * Get subsystem service classes built by a factory or another route.
+	 *
+	 * @return array<string, string> Classes and the routes that build them.
+	 */
+	public function get_services_built_elsewhere(): array {
+		return $this->services_built_elsewhere;
 	}
 
 	/**

@@ -120,6 +120,10 @@ final class RuleManifest {
 
 	public const GATES_AT_STRENGTH = 'architecture.gatesAtStrength';
 
+	public const CAPABILITIES_ON_SERVICES = 'architecture.capabilitiesOnServices';
+
+	public const SERVICES_DECLARED = 'architecture.servicesDeclared';
+
 	public const COMPOSITION_ROOT_CONTRACTS = 'architecture.compositionRootContracts';
 
 	/**
@@ -448,6 +452,27 @@ final class RuleManifest {
 				GatesAtStrengthTest::class . '::test_the_plugin_keeps_its_quality_gates_at_strength',
 			],
 			'signatures'       => [],
+		],
+		self::CAPABILITIES_ON_SERVICES              => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-to-add-a-feature',
+			'configuration'    => 'parameters.architecture.capabilitiesOnServices',
+			'checked_by'       => [ Rule\CapabilitiesOnServicesRule::class ],
+			'signatures'       => [
+				'implements a lifecycle capability without',
+				'so delayed registration has work to run',
+			],
+		],
+		self::SERVICES_DECLARED                     => [
+			'principle'        => 'Principle 5: One composition root builds the object graph',
+			'principle_anchor' => '5-one-composition-root-builds-the-object-graph',
+			'pattern'          => 'i-need-to-add-a-feature',
+			'configuration'    => 'RepositoryLayout::SERVICES_BUILT_ELSEWHERE',
+			'checked_by'       => [
+				ServicesDeclaredTest::class . '::test_the_plugin_declares_every_subsystem_service',
+			],
+			'signatures'       => [ 'with the route that builds it' ],
 		],
 		self::COMPOSITION_ROOT_CONTRACTS            => [
 			'principle'        => 'Principle 5: One composition root builds the object graph',

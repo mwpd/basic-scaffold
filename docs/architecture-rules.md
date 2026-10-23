@@ -109,12 +109,12 @@ says which rules enforce each principle, and what stays with review.
 
 | Principle | Checked by | Reviewed by hand |
 | --- | --- | --- |
-| [The core idea: complexity that grows linearly](design-principles.md#the-core-idea-complexity-that-grows-linearly) | `hooksInLifecycleMethods`, `queryContextNeedsDelay`, `compositionRootContracts` | Each service deciding its own lifecycle through capability interfaces |
+| [The core idea: complexity that grows linearly](design-principles.md#the-core-idea-complexity-that-grows-linearly) | `hooksInLifecycleMethods`, `queryContextNeedsDelay`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | Each service deciding its own lifecycle through capability interfaces |
 | [1. Runs on PHP and WordPress alone](design-principles.md#1-runs-on-php-and-wordpress-alone) | `noRuntimeDependencies`, `declarationsFollowPsr4`, `explicitNullableParameters` | Loading without `vendor/` (#33) |
 | [2. Self-contained infrastructure](design-principles.md#2-self-contained-infrastructure-replaceable-by-design) | `dependencyDirection` (subsystems depend on interfaces) | Keeping the simple implementations simple |
 | [3. Defaults out of the box](design-principles.md#3-defaults-out-of-the-box-poka-yoke) | `newOnlyWhereAllowed` (the shape of a poka-yoke default) | Whether a collaborator has an obvious default |
 | [4. SOLID at the top](design-principles.md#4-solid-at-the-top-wordpress-at-the-edges) | `dependencyDirection` | Single responsibility, open/closed and Liskov substitution |
-| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `compositionRootContracts` | |
+| [5. One composition root](design-principles.md#5-one-composition-root-builds-the-object-graph) | `newOnlyWhereAllowed`, `noStaticState`, `dependencyDirection`, `capabilitiesOnServices`, `servicesDeclared`, `compositionRootContracts` | |
 | [6. Final by default](design-principles.md#6-final-by-default) | `finalByDefault` | Whether a listed base class is designed for extension |
 | [7. WordPress anti-patterns](design-principles.md#7-show-the-alternative-to-wordpress-anti-patterns) | `noHooksInConstructor`, `hooksInLifecycleMethods`, `noContextChecksInRegister`, `queryContextNeedsDelay`, `noSideEffectsOnInclude`, `noStaticState`, `newOnlyWhereAllowed`, `noGlobalState`, `outputOnlyThroughViews` | God classes |
 | [8. Types name concepts](design-principles.md#8-types-name-concepts-not-just-data) | PHPStan at level `max` and Psalm at level 2, for consistency | Whether a value deserves a type of its own |
@@ -143,6 +143,9 @@ that names the fix. The fixtures and tests listed prove it.
 | HTML or a string printed directly by a service | `outputOnlyThroughViews` | `tests/php/PHPStan/Fixture/OutputOnlyThroughViews/Service.php` |
 | A raw view value printed without escaping | `rawIsEscaped` | `tests/php/PHPStan/Fixture/RawEscaping/views/unescaped.php` |
 | A sample service depending on a concrete infrastructure class | `dependencyDirection` | `tests/php/PHPStan/Fixture/Layers/Feature/Service.php` |
+| A lifecycle capability on a class that is not a service | `capabilitiesOnServices` | `tests/php/PHPStan/Fixture/Capabilities/RegisterableOnly.php` |
+| A delayed service with nothing to register | `capabilitiesOnServices` | `tests/php/PHPStan/Fixture/Capabilities/DelayedService.php` |
+| A subsystem service missing from the composition root | `servicesDeclared` | `ServicesDeclaredTest::test_it_reports_an_undeclared_subsystem_service_with_the_fix` |
 | A service the composition root cannot build | `compositionRootContracts` | `tests/php/Fixture/CompositionRoot/BrokenPlugin.php` |
 
 ## Rules
@@ -868,3 +871,57 @@ each lifecycle step so a second run does nothing, or make it set rather than
 add.
 
 **Pattern:** [I need to add a feature](patterns.md#i-need-to-add-a-feature).
+
+### `architecture.capabilitiesOnServices`
+
+**Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph),
+and the capability interfaces of [the core idea](design-principles.md#how-services-map-to-it).
+
+**Checks:** a class implementing `Registerable`, `Conditional`, `Delayed`,
+`HasDependencies`, `Activateable` or `Deactivateable` also implements `Service`.
+A `Delayed` class also implements `Registerable`: waiting for an action only
+makes sense when the service has hooks to register. Inherited interfaces count,
+including on abstract classes.
+
+**Allows:** interfaces and traits, ordinary classes with no lifecycle
+capabilities, and services implementing the capabilities they need. The
+infrastructure and the configured composition-root classes orchestrate services
+and are outside this check.
+
+**Configuration:** `capabilitiesOnServices.service` names the service marker,
+`capabilities` lists the lifecycle interfaces, and `delayed` and `registerable`
+name the two interfaces whose combination is checked. All are fully qualified
+names, renamed together with the plugin's namespace. The orchestration
+exclusions come from `dependencyDirection.infrastructure` and
+`dependencyDirection.compositionRoot`.
+
+**Fix:** implement `Service` so the plugin can orchestrate the class; for a
+`Delayed` class, implement `Registerable` and add its hooks in `register()`.
+Declare the service in the composition root as shown in
+[I need to add a feature](patterns.md#i-need-to-add-a-feature).
+
+### `architecture.servicesDeclared`
+
+**Principle:** [5. One composition root builds the object graph](design-principles.md#5-one-composition-root-builds-the-object-graph).
+
+**Checks:** every concrete class in a feature subsystem that implements
+`Service`, directly or through inheritance, is declared in the composition
+root's `get_service_classes()`. Callable declarations are resolved through the
+root's configured injector, just as in `compositionRootContracts`.
+
+**Allows:** abstract classes, interfaces, traits, non-service classes, classes
+directly in the plugin's root namespace, the infrastructure, exceptions and
+excluded namespaces. Services built by a factory or another route are allowed
+when explicitly listed in `RepositoryLayout::SERVICES_BUILT_ELSEWHERE`, with a
+description of that route containing more than whitespace. Services supplied
+by other plugins through the `services` filter are outside this check.
+
+**Configuration:** production paths and `SERVICES_BUILT_ELSEWHERE` come from
+`RepositoryLayout`; `COMPOSITION_ROOT` selects the root. The plugin namespace,
+`excludedNamespaces`, `dependencyDirection.infrastructure` and
+`exceptions.namespace` come from `parameters.architecture` in
+`phpstan.neon.dist`, so generated plugins keep the check after renaming.
+
+**Fix:** declare the named class in `get_service_classes()`, or list it in
+`RepositoryLayout::SERVICES_BUILT_ELSEWHERE` with the factory or other route
+that builds it. See [I need to add a feature](patterns.md#i-need-to-add-a-feature).

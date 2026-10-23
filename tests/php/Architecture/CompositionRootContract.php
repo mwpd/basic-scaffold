@@ -24,6 +24,7 @@ use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\Registerable;
 use MWPD\BasicScaffold\Infrastructure\Service;
 use MWPD\BasicScaffold\Infrastructure\ServiceBasedPlugin;
+use MWPD\BasicScaffold\Tests\PHPStan\Rule\PluginNamespace;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
@@ -150,6 +151,58 @@ final class CompositionRootContract {
 				$problems,
 				$this->check_capabilities( $id, $class_name, array_keys( $services ) ),
 				$this->check_construction( $id, $class_name, $injector, $calls, $before )
+			);
+		}
+
+		return $problems;
+	}
+
+	/**
+	 * Check that the composition root declares every concrete subsystem service.
+	 *
+	 * @param RepositoryLayout $layout Repository whose services to discover.
+	 * @return array<string> Problems found.
+	 */
+	public function check_services_declared( RepositoryLayout $layout ): array {
+		$plugin = ( new ReflectionClass( $this->plugin_class ) )->newInstance( true, new SimpleInjector() );
+		$this->configure_injector( $plugin );
+		$declarations = self::call( $plugin, 'get_service_classes' );
+		$declared     = [];
+		foreach ( is_array( $declarations ) ? $declarations : [] as $declaration ) {
+			try {
+				$class = self::call( $plugin, 'maybe_resolve', $declaration );
+				if ( is_string( $class ) ) {
+					$declared[] = PluginNamespace::normalize( $class );
+				}
+			} catch ( Throwable $throwable ) {
+				// check() reports malformed or failing declarations with the fix.
+				continue;
+			}
+		}
+		$built_elsewhere = array_map(
+			[ PluginNamespace::class, 'normalize' ],
+			array_keys(
+				array_filter(
+					$layout->get_services_built_elsewhere(),
+					static fn( string $route ): bool => trim( $route ) !== ''
+				)
+			)
+		);
+		$problems        = [];
+		foreach ( $layout->get_subsystem_declarations() as $class ) {
+			if ( ! class_exists( $class ) || ! is_a( $class, Service::class, true )
+				|| ( new ReflectionClass( $class ) )->isAbstract()
+				|| in_array( PluginNamespace::normalize( $class ), $declared, true )
+				|| in_array( PluginNamespace::normalize( $class ), $built_elsewhere, true ) ) {
+				continue;
+			}
+			$problems[] = sprintf(
+				'[%s] Service %s is not declared in %s. Declare it in get_service_classes(),'
+				. ' or list it in RepositoryLayout::SERVICES_BUILT_ELSEWHERE with the route that builds it. %s.',
+				RuleManifest::SERVICES_DECLARED,
+				$class,
+				$this->plugin_class,
+				RuleManifest::get_explanation( RuleManifest::SERVICES_DECLARED )
 			);
 		}
 

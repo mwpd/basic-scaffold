@@ -102,10 +102,11 @@ final class TemporaryRepository {
 	/**
 	 * Get the layout of the repository.
 	 *
+	 * @param array<string, string> $built_elsewhere Service classes and their other construction routes.
 	 * @return RepositoryLayout Layout with the main file `plugin.php`, `src/`
 	 *                          for classes and `views/` for templates.
 	 */
-	public function get_layout(): RepositoryLayout {
+	public function get_layout( array $built_elsewhere = [] ): RepositoryLayout {
 		return new RepositoryLayout(
 			$this->root,
 			'plugin.php',
@@ -113,7 +114,8 @@ final class TemporaryRepository {
 			[ 'views' ],
 			'tests',
 			[],
-			[ 'tests/php/Fixture' ]
+			[ 'tests/php/Fixture' ],
+			$built_elsewhere
 		);
 	}
 

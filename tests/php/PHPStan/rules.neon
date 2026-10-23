@@ -9,6 +9,12 @@ parametersSchema:
     architecture: structure([
         namespace: string()
         excludedNamespaces: listOf(string())
+        capabilitiesOnServices: structure([
+            service: string()
+            capabilities: listOf(string())
+            delayed: string()
+            registerable: string()
+        ])
         finalByDefault: structure([
             baseClasses: listOf(string())
         ])
@@ -69,6 +75,19 @@ services:
             root: %architecture.namespace%
             excluded: %architecture.excludedNamespaces%
         autowired: false
+
+    -
+        class: MWPD\BasicScaffold\Tests\PHPStan\Rule\CapabilitiesOnServicesRule
+        arguments:
+            plugin_namespace: @architecturePluginNamespace
+            service: %architecture.capabilitiesOnServices.service%
+            capabilities: %architecture.capabilitiesOnServices.capabilities%
+            delayed: %architecture.capabilitiesOnServices.delayed%
+            registerable: %architecture.capabilitiesOnServices.registerable%
+            infrastructure: %architecture.dependencyDirection.infrastructure%
+            composition_root: %architecture.dependencyDirection.compositionRoot%
+        tags:
+            - phpstan.rules.rule
 
     -
         class: MWPD\BasicScaffold\Tests\PHPStan\Rule\FinalByDefaultRule
