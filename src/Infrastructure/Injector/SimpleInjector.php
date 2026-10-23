@@ -438,8 +438,8 @@ final class SimpleInjector implements Injector {
 			if ( $parameter->isDefaultValueAvailable() ) {
 				return $parameter->getDefaultValue();
 			}
-		} catch ( Throwable $throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-			// Just fall through into the FailedToMakeInstance exception.
+		} catch ( Throwable $throwable ) {
+			throw FailedToMakeInstance::for_unresolved_argument( $name, $class_name, $throwable );
 		}
 
 		// Out of options, fail with an exception.
@@ -503,22 +503,31 @@ final class SimpleInjector implements Injector {
 	 * @param class-string $class_name Class to get the reflection for.
 	 * @return ReflectionClass Class reflection.
 	 * @throws FailedToMakeInstance If the class could not be reflected.
-	 * @phpstan-param class-string $class_name
 	 */
 	private function get_class_reflection( string $class_name ): ReflectionClass {
 		try {
-			$reflection = new ReflectionClass( $class_name );
-
-			if ( $reflection->getName() !== $class_name ) {
-				throw FailedToMakeInstance::for_invalid_reflection( $class_name );
-			}
-
-			return $reflection;
-		} catch ( Throwable $throwable ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-			// Just fall through into the FailedToMakeInstance exception.
+			$reflection = $this->create_class_reflection( $class_name );
+		} catch ( Throwable $throwable ) {
+			throw FailedToMakeInstance::for_unreflectable_class( $class_name, $throwable );
 		}
 
-		throw FailedToMakeInstance::for_unreflectable_class( $class_name );
+		// Validate outside the catch so this precise failure is not translated again.
+		if ( $reflection->getName() !== $class_name ) {
+			throw FailedToMakeInstance::for_invalid_reflection( $class_name );
+		}
+
+		return $reflection;
+	}
+
+	/**
+	 * Create native reflection, which may fail while autoloading the class.
+	 *
+	 * @param class-string $class_name Class to reflect upon.
+	 * @return ReflectionClass<object> Native class reflection.
+	 * @throws Throwable If reflection or an autoloader fails.
+	 */
+	private function create_class_reflection( string $class_name ): ReflectionClass {
+		return new ReflectionClass( $class_name );
 	}
 
 	/**

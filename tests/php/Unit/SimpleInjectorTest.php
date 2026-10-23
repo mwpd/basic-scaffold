@@ -236,6 +236,61 @@ final class SimpleInjectorTest extends TestCase {
 		$this->assertEquals( 'Mr Alderson', $object->get_argument_b() );
 	}
 
+	public function test_it_reports_invalid_reflection_without_swallowing_it(): void {
+		// PHP accepts differently cased class names, but the injector requires the declared FQCN.
+		$this->assertTrue( class_exists( DummyClass::class ) );
+		$class_name = strtolower( DummyClass::class );
+
+		try {
+			( new SimpleInjector() )->make( $class_name );
+			$this->fail( 'A class name that differs from its reflection did not throw.' );
+		} catch ( FailedToMakeInstance $exception ) {
+			$this->assertSame(
+				'Could not create a reflection for the class "' . $class_name . '".',
+				$exception->getMessage()
+			);
+			$this->assertSame( FailedToMakeInstance::INVALID_REFLECTION, $exception->getCode() );
+		}
+	}
+
+	public function test_it_keeps_the_reflection_failure_as_previous(): void {
+		// Deliberately violate the class-string contract to exercise the runtime boundary.
+		/** @var class-string $missing_class */
+		$missing_class = __NAMESPACE__ . '\\MissingClass';
+
+		try {
+			( new SimpleInjector() )->make( $missing_class );
+			$this->fail( 'A missing class did not throw.' );
+		} catch ( FailedToMakeInstance $exception ) {
+			$this->assertSame( FailedToMakeInstance::UNREFLECTABLE_CLASS, $exception->getCode() );
+			$this->assertInstanceOf( \ReflectionException::class, $exception->getPrevious() );
+		}
+	}
+
+	public function test_it_keeps_the_default_value_reflection_failure_as_previous(): void {
+		$failure   = new \ReflectionException( 'Default value could not be read.' );
+		$parameter = $this->createMock( \ReflectionParameter::class );
+		$parameter->method( 'getName' )->willReturn( 'argument' );
+		$parameter->method( 'isDefaultValueAvailable' )->willThrowException( $failure );
+		$method = new \ReflectionMethod( SimpleInjector::class, 'resolve_argument_by_name' );
+		$method->setAccessible( true );
+
+		try {
+			$method->invoke( new SimpleInjector(), DummyClass::class, $parameter, [] );
+			$this->fail( 'A failed default value lookup did not throw.' );
+		} catch ( FailedToMakeInstance $exception ) {
+			$this->assertSame( FailedToMakeInstance::UNRESOLVED_ARGUMENT, $exception->getCode() );
+			$this->assertSame( $failure, $exception->getPrevious() );
+		}
+	}
+
+	public function test_exception_constructors_still_accept_calls_without_a_cause(): void {
+		$this->assertNull( FailedToMakeInstance::for_unreflectable_class( DummyClass::class )->getPrevious() );
+		$this->assertNull(
+			FailedToMakeInstance::for_unresolved_argument( 'argument', DummyClass::class )->getPrevious()
+		);
+	}
+
 	public function test_it_can_use_custom_instantiator(): void {
 		/** @var MockObject&Instantiator $mock_instantiator */
 		$mock_instantiator = $this->createMock( Instantiator::class );
