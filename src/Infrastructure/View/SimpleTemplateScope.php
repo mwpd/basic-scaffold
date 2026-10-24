@@ -13,19 +13,24 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
+use Closure;
 use MWPD\BasicScaffold\Exception\InvalidContextProperty;
+use MWPD\BasicScaffold\Exception\InvalidPresenterMethod;
+use MWPD\BasicScaffold\Infrastructure\Presenter;
 use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 use MWPD\BasicScaffold\Infrastructure\View;
 
 /**
  * The scope a SimpleView renders its template in.
  *
- * Every call is handed on to the view that renders the template, so escaping
- * and the debug-mode policy stay in one place, and a view that overrides them
- * keeps working. The scope itself holds nothing a template could change.
+ * Every property read is handed on to the view that renders the template, so
+ * escaping and the debug-mode policy stay in one place, and a view that
+ * overrides them keeps working. A method call is handed on to the presenter,
+ * if its interface declares the method. The scope itself holds nothing a
+ * template could change.
  *
- * The view's own property is private and the template runs without a class
- * scope, so a context key named `view` reaches __get() like any other.
+ * The scope's own properties are private and the template runs without a
+ * class scope, so a context key named `view` reaches __get() like any other.
  */
 final class SimpleTemplateScope implements TemplateScope {
 
@@ -35,12 +40,41 @@ final class SimpleTemplateScope implements TemplateScope {
 	private View $view;
 
 	/**
+	 * Escaping function of the view, for the results of presenter methods.
+	 *
+	 * @var Closure(mixed): string
+	 */
+	private Closure $escape;
+
+	/**
+	 * Presenter the view was rendered with, if any.
+	 */
+	private ?Presenter $presenter;
+
+	/**
+	 * Methods the presenter's interfaces declare, keyed by their lowercase
+	 * name, as PHP method names are case-insensitive.
+	 *
+	 * @var array<string, string>
+	 */
+	private array $methods;
+
+	/**
 	 * Instantiate a SimpleTemplateScope object.
 	 *
-	 * @param View $view View that renders the template.
+	 * @param View                  $view      View that renders the template.
+	 * @param Closure               $escape    Escaping function of the view.
+	 * @param ?Presenter            $presenter Presenter the view was rendered with, if any.
+	 * @param array<string, string> $methods   Methods the presenter's interfaces declare,
+	 *                                         keyed by their lowercase name.
+	 *
+	 * @phpstan-param Closure(mixed): string $escape
 	 */
-	public function __construct( View $view ) {
-		$this->view = $view;
+	public function __construct( View $view, Closure $escape, ?Presenter $presenter = null, array $methods = [] ) {
+		$this->view      = $view;
+		$this->escape    = $escape;
+		$this->presenter = $presenter;
+		$this->methods   = $methods;
 	}
 
 	/**
@@ -79,6 +113,43 @@ final class SimpleTemplateScope implements TemplateScope {
 	}
 
 	/**
+	 * Call a method the presenter declares.
+	 *
+	 * The result is escaped the way a context property is, unless it is
+	 * SafeHtml, which the presenter vouches for. A result that is neither a
+	 * string nor stringable, such as a boolean, is returned as it is.
+	 *
+	 * @param string       $method    Method the template called.
+	 * @param array<mixed> $arguments Arguments the template passed, by position.
+	 * @return mixed Result of the presenter method, escaped if it is printable.
+	 * @throws InvalidPresenterMethod If no presenter was passed, or its interfaces
+	 *                                do not declare the method.
+	 */
+	public function __call( string $method, array $arguments ) {
+		if ( null === $this->presenter ) {
+			throw InvalidPresenterMethod::for_missing_presenter( $method );
+		}
+
+		$declared = $this->methods[ \strtolower( $method ) ] ?? null;
+
+		if ( null === $declared ) {
+			throw InvalidPresenterMethod::from_method( $method, \get_class( $this->presenter ) );
+		}
+
+		$result = $this->presenter->{$declared}( ...$arguments );
+
+		if ( $result instanceof SafeHtml ) {
+			return $result;
+		}
+
+		if ( \is_string( $result ) || ( \is_object( $result ) && \method_exists( $result, '__toString' ) ) ) {
+			return ( $this->escape )( $result );
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Return the raw value of a context property.
 	 *
 	 * @param string $property Property for which to return the raw value.
@@ -91,12 +162,13 @@ final class SimpleTemplateScope implements TemplateScope {
 	/**
 	 * Render a partial view.
 	 *
-	 * @param string                    $path    Path of the partial to render.
-	 * @param array<string, mixed>|null $context Context in which to render the partial.
+	 * @param string                    $path      Path of the partial to render.
+	 * @param array<string, mixed>|null $context   Context in which to render the partial.
+	 * @param ?Presenter                $presenter Presenter for the partial.
 	 * @return string Rendered HTML, or an empty string if rendering failed
 	 *                outside of debug mode.
 	 */
-	public function render_partial( string $path, ?array $context = null ): string {
-		return $this->view->render_partial( $path, $context );
+	public function render_partial( string $path, ?array $context = null, ?Presenter $presenter = null ): string {
+		return $this->view->render_partial( $path, $context, $presenter );
 	}
 }

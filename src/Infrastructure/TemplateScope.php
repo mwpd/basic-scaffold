@@ -36,6 +36,12 @@ use MWPD\BasicScaffold\Exception\InvalidPath;
  *
  * Assigning to `$this` inside a template fails the view, like any other
  * template error.
+ *
+ * When the view is rendered with a Presenter, the template can also call the
+ * methods the presenter's interface declares. Name both in the annotation, so
+ * static analysis checks those calls as well:
+ *
+ *     /** @var TemplateScope&PostHeader $this *\/
  */
 interface TemplateScope {
 
@@ -71,16 +77,17 @@ interface TemplateScope {
 	/**
 	 * Render a partial view.
 	 *
-	 * The passed-in context is optional, and will fall back to the context of
-	 * the template that renders the partial if omitted.
+	 * The passed-in context and presenter are optional, and each falls back to
+	 * the one of the template that renders the partial if omitted.
 	 *
-	 * @param string                    $path    Path of the partial to render.
-	 * @param array<string, mixed>|null $context Context in which to render the partial.
+	 * @param string                    $path      Path of the partial to render.
+	 * @param array<string, mixed>|null $context   Context in which to render the partial.
+	 * @param ?Presenter                $presenter Presenter for the partial.
 	 *
 	 * @return string Rendered HTML, or an empty string if rendering failed
 	 *                outside of debug mode.
 	 * @throws InvalidPath If the provided path was not valid (in debug mode).
 	 * @throws FailedToLoadView If the view could not be loaded (in debug mode).
 	 */
-	public function render_partial( string $path, ?array $context = null ): string;
+	public function render_partial( string $path, ?array $context = null, ?Presenter $presenter = null ): string;
 }

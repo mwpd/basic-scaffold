@@ -51,6 +51,11 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	private MainLoop $main_loop;
 
 	/**
+	 * Presenter the header template asks about the post.
+	 */
+	private PostHeader $post_header;
+
+	/**
 	 * Check whether the conditional service is currently needed.
 	 *
 	 * @return bool Whether the conditional service is needed.
@@ -81,8 +86,10 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 	 *                                  the views.
 	 * @param MainLoop    $main_loop    Main loop to ask which post is being
 	 *                                  rendered.
+	 * @param PostHeader  $post_header  Presenter the header template asks
+	 *                                  about the post.
 	 */
-	public function __construct( ViewFactory $view_factory, MainLoop $main_loop ) {
+	public function __construct( ViewFactory $view_factory, MainLoop $main_loop, PostHeader $post_header ) {
 		/*
 		 * We request a view factory from the injector so that we can create a
 		 * new view to be rendered when we want to show our sample notice.
@@ -96,6 +103,13 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		 * instead, and asks it each time the filter runs.
 		 */
 		$this->main_loop = $main_loop;
+
+		/*
+		 * The header template asks the presenter for what it prints. The
+		 * service hands it to the view with each render, so the template gets
+		 * this presenter and no other.
+		 */
+		$this->post_header = $post_header;
 	}
 
 	/**
@@ -135,7 +149,7 @@ final class SampleLoopService implements Service, Registerable, Conditional, Del
 		 * SampleBackendService, this covers failures of the view only.
 		 */
 		$post_header = $this->view_factory->create( 'views/test-loop-service' )
-											->render( [ 'post' => $this->main_loop->queried_post() ] );
+											->render( [], $this->post_header );
 
 		return $post_header . $content;
 	}

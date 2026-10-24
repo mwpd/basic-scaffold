@@ -1,19 +1,19 @@
 <?php
 
 use MWPD\BasicScaffold\Infrastructure\TemplateScope;
+use MWPD\BasicScaffold\SampleSubsystem\PostHeader;
 
-/** @var TemplateScope $this */
-/** @var WP_Post $current_post */
-$current_post = $this->raw( 'post' );
+/** @var TemplateScope&PostHeader $this */
 
 /*
- * A raw value is printed as it is, so the template escapes every field it
- * prints for the context it lands in.
+ * The service passed a PostHeader presenter, so the template can call its
+ * methods on $this. Their string results come back escaped for HTML, like
+ * context properties do.
  */
 ?>
 <pre>
-	Post title: <?= esc_html( $current_post->post_title ) ?>
+	Post title: <?= $this->title() ?>
 	<br>
-	Post date:  <?= esc_html( $current_post->post_date ) ?>
+	Post date:  <?= $this->date() ?>
 </pre>
 <hr>

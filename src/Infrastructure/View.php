@@ -40,13 +40,18 @@ interface View extends Renderable {
 	 * view renders nothing instead, so that a broken view does not take the
 	 * rest of the page down with it.
 	 *
-	 * @param array<string, mixed> $context Context in which to render.
+	 * The context holds the values the template prints. A presenter answers
+	 * the queries the template makes through method calls on `$this`.
+	 *
+	 * @param array<string, mixed> $context   Context in which to render.
+	 * @param ?Presenter           $presenter Presenter whose declared methods the
+	 *                                        template can call. Optional.
 	 *
 	 * @return string Rendered HTML, or an empty string if rendering failed
 	 *                outside of debug mode.
 	 * @throws FailedToLoadView If the view could not be loaded (in debug mode).
 	 */
-	public function render( array $context = [] ): string;
+	public function render( array $context = [], ?Presenter $presenter = null ): string;
 
 	/**
 	 * Render a partial view.
@@ -54,18 +59,19 @@ interface View extends Renderable {
 	 * This can be used from within a currently rendered view, to include
 	 * nested partials.
 	 *
-	 * The passed-in context is optional, and will fall back to the parent's
-	 * context if omitted.
+	 * The passed-in context and presenter are optional, and each falls back to
+	 * the parent's if omitted.
 	 *
-	 * @param string                    $path    Path of the partial to render.
-	 * @param array<string, mixed>|null $context Context in which to render the partial.
+	 * @param string                    $path      Path of the partial to render.
+	 * @param array<string, mixed>|null $context   Context in which to render the partial.
+	 * @param ?Presenter                $presenter Presenter for the partial.
 	 *
 	 * @return string Rendered HTML, or an empty string if rendering failed
 	 *                outside of debug mode.
 	 * @throws InvalidPath If the provided path was not valid (in debug mode).
 	 * @throws FailedToLoadView If the view could not be loaded (in debug mode).
 	 */
-	public function render_partial( string $path, ?array $context = null ): string;
+	public function render_partial( string $path, ?array $context = null, ?Presenter $presenter = null ): string;
 
 	/**
 	 * Return the raw value of a context property.

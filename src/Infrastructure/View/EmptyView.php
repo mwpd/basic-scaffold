@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure\View;
 
+use MWPD\BasicScaffold\Infrastructure\Presenter;
 use MWPD\BasicScaffold\Infrastructure\View;
 use stdClass;
 
@@ -32,23 +33,25 @@ final class EmptyView extends stdClass implements View {
 	/**
 	 * Render the view, which produces no output.
 	 *
-	 * @param array<string, mixed> $context Context in which to render. Ignored.
+	 * @param array<string, mixed> $context   Context in which to render. Ignored.
+	 * @param ?Presenter           $presenter Presenter for the template. Ignored.
 	 *
 	 * @return string An empty string.
 	 */
-	public function render( array $context = [] ): string {
+	public function render( array $context = [], ?Presenter $presenter = null ): string {
 		return '';
 	}
 
 	/**
 	 * Render a partial view, which produces no output either.
 	 *
-	 * @param string                    $path    Path of the partial to render. Ignored.
-	 * @param array<string, mixed>|null $context Context in which to render the partial. Ignored.
+	 * @param string                    $path      Path of the partial to render. Ignored.
+	 * @param array<string, mixed>|null $context   Context in which to render the partial. Ignored.
+	 * @param ?Presenter                $presenter Presenter for the partial. Ignored.
 	 *
 	 * @return string An empty string.
 	 */
-	public function render_partial( string $path, ?array $context = null ): string {
+	public function render_partial( string $path, ?array $context = null, ?Presenter $presenter = null ): string {
 		return '';
 	}
 

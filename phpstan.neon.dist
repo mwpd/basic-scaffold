@@ -161,6 +161,8 @@ parameters:
                 # runs in, which only hands calls on to that view. Replacing it
                 # means replacing the view, through ViewFactory.
                 - MWPD\BasicScaffold\Infrastructure\View\SimpleTemplateScope
+                # Markup a presenter vouches for, created where it is built.
+                - MWPD\BasicScaffold\Infrastructure\View\SafeHtml
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteId
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkId
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope
