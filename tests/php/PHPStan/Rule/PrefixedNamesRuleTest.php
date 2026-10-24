@@ -33,6 +33,15 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 
 	private bool $without_kinds = false;
 
+	/** @var array<string, array<string>> */
+	private array $declarations = [
+		'assets' => [
+			'MWPD\BasicScaffold\Infrastructure\Asset\Style::file',
+			'MWPD\BasicScaffold\Infrastructure\Asset\Style::inline',
+			'MWPD\BasicScaffold\Infrastructure\Asset\Script::file',
+		],
+	];
+
 	protected function getRule(): Rule {
 		return new PrefixedNamesRule(
 			new PluginNamespace( 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Names' ),
@@ -51,7 +60,9 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 				'settings'   => self::kind( 'acme_plugin_', [ 'SETTING_PREFIX' ], [ 'reading' ] ),
 				'ajax'       => self::kind( 'acme_plugin_', [ 'AJAX_PREFIX' ] ),
 			],
-			$this->createReflectionProvider()
+			$this->createReflectionProvider(),
+			$this->declarations,
+			[ 'assets' => [ 'MWPD\BasicScaffold\Tests\PHPStan\Fixture\Names\AssetForwarder' ] ]
 		);
 	}
 
@@ -568,6 +579,57 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 				],
 			]
 		);
+	}
+
+	public function test_it_checks_the_names_asset_declarations_create(): void {
+		$how = $this->how( 'acme-plugin-' );
+
+		$this->analyse(
+			[ self::FIXTURES . 'AssetDeclarations.php' ],
+			[
+				[ $this->unprefixed( 'Style::file', 'asset handle', 'notice', $how, 'assets' ), 14, self::TIP ],
+				[
+					$this->unprefixed( 'Style::inline', 'asset handle', 'inline-notice', $how, 'assets' ),
+					15,
+					self::TIP,
+				],
+				[ $this->unprefixed( 'Script::file', 'asset handle', 'copy', $how, 'assets' ), 16, self::TIP ],
+				[
+					"Script::file() gets an asset handle name the rule cannot check. Use {$how}, so the name is"
+						. " recognizably the plugin's own.",
+					17,
+					self::TIP,
+				],
+				[ $this->unprefixed( 'STYLE::FILE', 'asset handle', 'shouting', $how, 'assets' ), 18, self::TIP ],
+				[ $this->unprefixed( 'Style::file', 'asset handle', 'dynamic', $how, 'assets' ), 28, self::TIP ],
+				[ $this->unprefixed( 'Style::file', 'asset handle', 'on-an-instance', $how, 'assets' ), 29, self::TIP ],
+			]
+		);
+	}
+
+	public function test_a_forwarder_passes_declared_handles_on_but_its_own_names_are_checked(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'AssetForwarder.php' ],
+			[
+				[
+					$this->unprefixed(
+						'wp_register_style',
+						'asset handle',
+						'its-own',
+						$this->how( 'acme-plugin-' ),
+						'assets'
+					),
+					11,
+					self::TIP,
+				],
+			]
+		);
+	}
+
+	public function test_without_listed_declarations_static_calls_are_not_checked(): void {
+		$this->declarations = [];
+
+		$this->analyse( [ self::FIXTURES . 'AssetDeclarations.php' ], [] );
 	}
 
 	public function test_it_skips_kinds_absent_from_configuration(): void {

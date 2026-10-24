@@ -28,6 +28,7 @@ the need may be new: ask on an issue rather than inventing a workaround.
 - [I need to add hooks](#i-need-to-add-hooks)
 - [I need a service only in some requests](#i-need-a-service-only-in-some-requests)
 - [I need to hook in later](#i-need-to-hook-in-later)
+- [I need to load a script or style](#i-need-to-load-a-script-or-style)
 - [I need to set something up when the plugin is activated](#i-need-to-set-something-up-when-the-plugin-is-activated)
 - [I need to clean up when the plugin is uninstalled](#i-need-to-clean-up-when-the-plugin-is-uninstalled)
 - [I need to create objects on demand](#i-need-to-create-objects-on-demand)
@@ -118,7 +119,7 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 }
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-77`.
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:66-104`.
 
 **Rules:** `architecture.noHooksInConstructor`,
 `architecture.hooksInLifecycleMethods`, `architecture.constructorsOnlyAssign`.
@@ -145,7 +146,7 @@ public static function is_needed(): bool {
 }
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:45-52`.
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:51-58`.
 
 When the answer depends on the query, such as `is_singular()`, also implement
 `Delayed` and wait for `wp` or a later action as shown in
@@ -211,7 +212,7 @@ as soon as they are, at the end of the action they arrive on. The plugin does
 not reject that combination, and does not run an action again to make up for a
 priority that has passed.
 
-**Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-80`, and the
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:31-83`, and the
 priority and dependency cases in
 `tests/php/Unit/ServiceBasedPluginTest.php:533-660`.
 
@@ -227,6 +228,84 @@ it: PHP reports a fatal error for a class that does not implement every
 interface method. Add `use DefaultRegistrationPriority;` (from the
 `Infrastructure` namespace) to each of them to keep the priority of 10 they
 were registered at before, or implement the method to choose another one.
+
+## I need to load a script or style
+
+**What people reach for:** `add_action( 'wp_enqueue_scripts', … )` in the
+service, with `wp_enqueue_style()` and a `plugins_url( 'css/x.css', __FILE__ )`
+or a `MY_PLUGIN_URL` constant inside it, and an `is_singular()` or
+`get_current_screen()` check to keep the file off pages that do not need it.
+
+**Why not here:** [the core idea](design-principles.md#how-services-map-to-it):
+when and where a service acts is the infrastructure's job, so every service
+wiring its own enqueue hooks spreads lifecycle logic again.
+[Principle 5](design-principles.md#5-one-composition-root-builds-the-object-graph)
+rules out the constant, and [principle 1](design-principles.md#1-runs-on-php-and-wordpress-alone)
+any build step to produce the files.
+
+**Instead:** implement `HasAssets` and return what the service needs from
+`get_assets()`. The plugin hooks the enqueue actions once, asks every
+registered service at each of them, and loads what they return. `Style` and
+`Script` are immutable values that a service creates itself, through their
+named constructors and chained options:
+
+```php
+public function get_assets( AssetContext $context ): iterable {
+	if ( ! $context->is_front_end() ) {
+		return [];
+	}
+
+	return [ Style::file( 'mwpd-basic-scaffold-post-header', 'assets/css/sample-loop-service.css' ) ];
+}
+```
+
+Most of "where" is already decided: a service that `Conditional` rules out,
+or that `Delayed` has not registered yet, is never asked. `get_assets()` only
+picks among the enqueue points of a request it exists in:
+
+| Context | WordPress action |
+| --- | --- |
+| `AssetContext::front_end()` | `wp_enqueue_scripts` |
+| `AssetContext::admin( $hook_suffix )` | `admin_enqueue_scripts`; `is_admin( 'settings_page_x' )` checks the screen |
+| `AssetContext::block_editor()` | `enqueue_block_editor_assets`, for the editor's own interface |
+| `AssetContext::login()` | `login_enqueue_scripts` |
+
+Several of them can run in one request: the block editor fires its own action
+and then the admin one. Because the plugin asks at the action, the answer can
+also depend on the state of the request, such as whether the post being shown
+is outdated.
+
+- **Where the files are served from** comes from the main file: its directory
+  URL, and its `Version` header as the version of every asset that sets none
+  with `with_version()`. A missing header is an `InvalidAsset`, never a silent
+  fallback. To serve the assets from elsewhere, such as a CDN, return your own
+  `AssetLocation` from `get_asset_location()` in the composition root.
+- **A few lines of CSS** can be printed inline with `Style::inline()`, which
+  saves a request and can still be dequeued by its handle.
+- **Scripts** can be `in_footer()`, `deferred()` or `async()`. WordPress before
+  6.3 ignores the strategy and loads the script the classic way.
+- **A service registered late**, after an enqueue point has run, is asked for
+  it at once. WordPress then prints a style in the footer, or not at all once
+  the footer has been printed, so register a service with assets no later than
+  it needs them.
+- **Two services may declare the same asset.** Declaring a handle again with
+  another file or other options is a conflict: debug mode throws. Production
+  skips the conflicting asset and the service's assets after it for that
+  enqueue point; the ones before it are already enqueued, and the other
+  services still load theirs. A failure in `get_assets()` itself loads none of
+  the service's assets, as they are all collected first.
+
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:130-145` (a style on
+singular views) and `src/SampleSubsystem/SampleBackendService.php:75-93` (a
+deferred script on admin screens), the orchestration in
+`src/Infrastructure/ServiceBasedPlugin.php:1925-2131` with its defaults at
+`:2496-2547`, and
+`tests/php/Unit/AssetLoadingTest.php` with `tests/php/Integration/SampleAssetsTest.php`.
+
+**Rules:** `architecture.prefixedNames` checks the handle where a service
+declares it, in `Style::file()`, `Style::inline()` and `Script::file()`.
+`architecture.capabilitiesOnServices` accepts a `Delayed` service whose only
+work is its assets.
 
 ## I need to set something up when the plugin is activated
 
@@ -536,8 +615,8 @@ plugin constructor instead:
 $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
-`:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:66-72` and
+`:109-126`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
 bound at `src/BasicScaffoldPlugin.php:130`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:1168-1171`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
@@ -886,7 +965,7 @@ The interface is for state a service depends on.
 **Proven by:** `src/SampleSubsystem/MainLoop.php:19-49` and
 `src/SampleSubsystem/WordPressMainLoop.php:27-67`, bound at
 `src/BasicScaffoldPlugin.php:155`, and asked at call time in
-`src/SampleSubsystem/SampleLoopService.php:137-155`.
+`src/SampleSubsystem/SampleLoopService.php:159-177`.
 `tests/php/Unit/WordPressMainLoopTest.php` covers each state of the loop, and
 `tests/php/Integration/SampleLoopServiceTest.php:53-115` shows the header on
 the queried post only.
@@ -994,8 +1073,8 @@ $raw_plugin = $this->raw( 'plugin' );
 <p><em>Raw value: <b><?= esc_html( $raw_plugin ) ?></b></em></p>
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:82-99` and
-`views/test-backend-service.php:5-15`.
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:109-126` and
+`views/test-backend-service.php:5-20`.
 
 **Rules:** `architecture.outputOnlyThroughViews` requires direct method
 calls on typed `Renderable` or `View` objects when printing from services.
@@ -1055,7 +1134,7 @@ when the template asks.
 **Proven by:** `src/SampleSubsystem/PostHeader.php:29-48` and
 `src/SampleSubsystem/QueriedPostHeader.php:25-62`, bound at
 `src/BasicScaffoldPlugin.php:162`, passed at
-`src/SampleSubsystem/SampleLoopService.php:151-152` and called in
+`src/SampleSubsystem/SampleLoopService.php:173-174` and called in
 `views/test-loop-service.php:6-18`. `tests/php/Unit/SimpleViewPresenterTest.php`
 covers results, failures and partials.
 

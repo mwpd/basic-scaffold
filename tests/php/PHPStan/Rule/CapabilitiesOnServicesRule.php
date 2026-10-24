@@ -39,6 +39,8 @@ final class CapabilitiesOnServicesRule implements Rule {
 
 	private string $registerable;
 
+	private string $has_assets;
+
 	private PluginNamespace $infrastructure;
 
 	/** @var array<string> */
@@ -50,6 +52,7 @@ final class CapabilitiesOnServicesRule implements Rule {
 	 * @param array<string>   $capabilities     Lifecycle capability interfaces.
 	 * @param string          $delayed          Delayed capability interface.
 	 * @param string          $registerable     Registration capability interface.
+	 * @param string          $has_assets       Asset capability interface.
 	 * @param string          $infrastructure   Infrastructure namespace.
 	 * @param array<string>   $composition_root Classes that orchestrate the services.
 	 */
@@ -59,6 +62,7 @@ final class CapabilitiesOnServicesRule implements Rule {
 		array $capabilities,
 		string $delayed,
 		string $registerable,
+		string $has_assets,
 		string $infrastructure,
 		array $composition_root
 	) {
@@ -67,6 +71,7 @@ final class CapabilitiesOnServicesRule implements Rule {
 		$this->capabilities     = $capabilities;
 		$this->delayed          = $delayed;
 		$this->registerable     = $registerable;
+		$this->has_assets       = $has_assets;
 		$this->infrastructure   = new PluginNamespace( $infrastructure );
 		$this->composition_root = array_map( [ PluginNamespace::class, 'normalize' ], $composition_root );
 	}
@@ -106,14 +111,18 @@ final class CapabilitiesOnServicesRule implements Rule {
 			}
 		}
 
-		if ( $class->implementsInterface( $this->delayed ) && ! $class->implementsInterface( $this->registerable ) ) {
+		// A delayed service either hooks in itself or has assets to load.
+		if ( $class->implementsInterface( $this->delayed )
+			&& ! $class->implementsInterface( $this->registerable )
+			&& ! $class->implementsInterface( $this->has_assets ) ) {
 			$messages[] = sprintf(
-				'Class %s implements %s without %s. Implement %s and add its hooks in register()'
-				. ' so delayed registration has work to run.',
+				'Class %s implements %s without %s. Implement %s and add its hooks in register(),'
+				. ' or %s to declare its assets, so delayed registration has work to run.',
 				$class->getName(),
 				$this->delayed,
 				$this->registerable,
-				$this->registerable
+				$this->registerable,
+				$this->has_assets
 			);
 		}
 

@@ -38,7 +38,9 @@ use PHPStan\Rules\RuleErrorBuilder;
  *   infrastructure trait only if the trait supplies nothing but methods of
  *   infrastructure interfaces the using class implements, such as
  *   DefaultRegistrationPriority for Delayed: a trait is not an object that
- *   could be bound instead.
+ *   could be bound instead. It may also use the infrastructure's value
+ *   objects, such as the Style a service declares as an asset: a value is
+ *   not a collaborator that could be swapped (design principle 5).
  * - Only the composition root, an explicit list of classes, knows the
  *   concrete classes and wires everything together.
  * - Nothing depends on the tests.
@@ -61,13 +63,23 @@ final class DependencyDirectionRule implements Rule {
 
 	private ReflectionProvider $reflection;
 
+	/** @var array<string> */
+	private array $value_objects;
+
 	/**
-	 * @param DependencyContext  $context    Shared positions and layers.
-	 * @param ReflectionProvider $reflection Reflection, to check interfaces.
+	 * @param DependencyContext  $context       Shared positions and layers.
+	 * @param ReflectionProvider $reflection    Reflection, to check interfaces.
+	 * @param array<string>      $value_objects Classes that represent a value
+	 *                                          rather than a collaborator.
 	 */
-	public function __construct( DependencyContext $context, ReflectionProvider $reflection ) {
-		$this->context    = $context;
-		$this->reflection = $reflection;
+	public function __construct(
+		DependencyContext $context,
+		ReflectionProvider $reflection,
+		array $value_objects = []
+	) {
+		$this->context       = $context;
+		$this->reflection    = $reflection;
+		$this->value_objects = array_map( [ PluginNamespace::class, 'normalize' ], $value_objects );
 	}
 
 	/**
@@ -145,6 +157,13 @@ final class DependencyDirectionRule implements Rule {
 		if ( $to === DependencyContext::INFRASTRUCTURE ) {
 			if ( ! $this->reflection->hasClass( $dependency ) ) {
 				return false;
+			}
+
+			// A subsystem may name a value of the infrastructure; a top-level
+			// class keeps to the interfaces, as with traits below.
+			if ( $from !== DependencyContext::TOP_LEVEL
+				&& in_array( PluginNamespace::normalize( $dependency ), $this->value_objects, true ) ) {
+				return true;
 			}
 
 			$type = $this->reflection->getClass( $dependency );

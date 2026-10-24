@@ -68,18 +68,20 @@ Each lifecycle question a service has to answer is a small interface in
 | What happens in each site, or once for the network, on activation or deactivation? | `SiteActivateable`, `NetworkActivateable`, `SiteDeactivateable`, `NetworkDeactivateable` | Called with a `SiteContext` in every site the event reaches, switched to, or with a `NetworkContext` once for the network. Any of them replaces the parameterless call of that event. |
 | What happens when a site is created or deleted? | `SiteInitializable`, `SiteUninitializable` | Called in a new site of a network where the plugin is network-active, and in a site about to be deleted, in requests where the plugin is loaded. |
 | What happens when the plugin is uninstalled? | `SiteUninstallable`, `NetworkUninstallable` | Called through the uninstall bridge in every site, then once for each network on multisite, or in the one site of a single-site installation. |
+| Which scripts and styles does it need? | `HasAssets::get_assets()` | Asked at each enqueue action (front end, admin, block editor, login) once the service is registered, and asked at once for the actions that have already run. The plugin loads what it returns through `Assets`, served from the main file's directory with its `Version` header. [Pattern](patterns.md#i-need-to-load-a-script-or-style) |
 | Does it show how the services were registered? | `ObservesRegistration::observes_registration()` | Asked by class before any service is scheduled. If one says yes, the plugin records every registration decision of the request and hands the history to constructors asking for a `RegistrationReport`; otherwise it records nothing. The optional Query Monitor panel is the built-in observer. [Pattern](patterns.md#i-need-to-see-why-a-service-did-not-run) |
 
 The plugin itself only hooks into `plugins_loaded`
 (`src/Infrastructure/ServiceBasedPlugin.php:90`) and the activation and
 deactivation hooks (`basic-scaffold.php:129-151`). On multisite, registration
 also hooks into the creation and deletion of sites when a service needs it,
+and into the four enqueue actions when a service has assets,
 and activation stores the uninstall callback
 (`src/BasicScaffoldUninstallHook.php:36-38`), which WordPress calls when the
 plugin is deleted. Everything else is decided per service.
 `SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
-(`src/SampleSubsystem/SampleLoopService.php:63-80`), and no other code has to
+(`src/SampleSubsystem/SampleLoopService.php:66-83`), and no other code has to
 know.
 
 The questions are static methods on purpose: the plugin can **decide before it
@@ -207,7 +209,7 @@ another part of the plugin depends on:
 - **Dependency inversion:** high-level code depends on interfaces, and the
   injector supplies the implementations. `SampleBackendService` receives a
   `ViewFactory` through its constructor
-  (`src/SampleSubsystem/SampleBackendService.php:60`) and never creates one.
+  (`src/SampleSubsystem/SampleBackendService.php:66`) and never creates one.
 
 **Implementation details may take shortcuts.** Inside a class, behind its
 interface, it is fine to call WordPress functions, use the plugin API and read
@@ -320,12 +322,12 @@ book, shows the better alternative so that plugins built on it learn it too.
 
 | Common anti-pattern | What the scaffold does instead |
 | --- | --- |
-| Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:71-77`). [Pattern](patterns.md#i-need-to-add-hooks) |
+| Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:98-104`). [Pattern](patterns.md#i-need-to-add-hooks) |
 | Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:45-63`). [Pattern](patterns.md#i-need-a-singleton) |
 | A service locator, such as a static `Services::get( 'id' )` | Each need behind it has its own answer: constructor injection, a factory, a typed registry, `share()`, or a bridge at the edge of the object graph (principle 5). [Pattern](patterns.md#i-need-a-service-locator) |
 | A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:129-151`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
 | Creating collaborators with `new` inside a class, or pulling them from globals | Dependencies are injected through the constructor and configured as bindings in the composition root. [Pattern: creating objects](patterns.md#i-need-to-create-objects-on-demand), [WordPress state](patterns.md#i-need-wordpress-state-such-as-the-current-post) |
-| `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:45-52`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
+| `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:51-58`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
 | Hooking to an early action just to wait for a later one | A service names its registration action through `Delayed`, and the plugin defers it. [Pattern](patterns.md#i-need-to-hook-in-later) |
 | Asking query-dependent conditions before the query has run | A `Conditional` service also implements `Delayed` and returns `wp` or a later action from `get_registration_action()`, so the plugin waits before asking `is_needed()`. [Pattern](patterns.md#i-need-to-hook-in-later) |
 | Doing work when a file is included | Only `basic-scaffold.php` has side effects; everything else is autoloadable declarations. [Pattern](patterns.md#i-need-to-run-code-when-the-plugin-file-loads) |
@@ -476,7 +478,7 @@ the code falls back to how WordPress works:
   the site keeps working. A view that fails renders nothing. That field or
   notice is still broken, but the page around it is not taken down with it.
 
-**Views already work this way; other callbacks do not yet.** A view that
+**Views and assets already work this way; other callbacks do not yet.** A view that
 cannot be created or rendered is handled inside the view system itself. In
 debug mode, the view factories rethrow the original exception, and
 `SimpleView::render()` throws `FailedToLoadView` with the template's
@@ -484,9 +486,13 @@ exception as its cause. In production, a factory returns an `EmptyView` and a
 failing template renders an empty string, after the view has discarded the
 output buffers the template opened (`src/Infrastructure/View/SimpleView.php:146-168`,
 `src/Infrastructure/View/TemplatedViewFactory.php:90-111`). The samples need no
-`try`/`catch` around rendering for that reason.
+`try`/`catch` around rendering for that reason. Loading assets has the same
+boundary: a failure in a service's `get_assets()` or while enqueueing is
+rethrown unchanged in debug mode, and in production skips that service's
+remaining assets for the enqueue point while the other services still load
+theirs (`ServiceBasedPlugin::enqueue_assets_of()`).
 
-Outside the view system, nothing stops an exception before it reaches
+Outside the view system and the asset loading, nothing stops an exception before it reaches
 WordPress yet. An exception thrown by a
 service's own code in a hook callback, or during registration, activation or
 deactivation, still reaches WordPress with debug mode on or off. How to catch

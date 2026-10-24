@@ -60,8 +60,10 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\SiteUninstallable
                 - MWPD\BasicScaffold\Infrastructure\NetworkUninstallable
                 - MWPD\BasicScaffold\Infrastructure\Registration\ObservesRegistration
+                - MWPD\BasicScaffold\Infrastructure\HasAssets
             delayed: MWPD\BasicScaffold\Infrastructure\Delayed
             registerable: MWPD\BasicScaffold\Infrastructure\Registerable
+            hasAssets: MWPD\BasicScaffold\Infrastructure\HasAssets
         finalByDefault:
             # Classes designed to be extended (design principle 6).
             baseClasses:
@@ -171,6 +173,12 @@ parameters:
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\SiteSelection
                 - MWPD\BasicScaffold\Infrastructure\Lifecycle\NetworkSelection
                 - MWPD\BasicScaffold\Infrastructure\Registration\RegistrationRecord
+                - MWPD\BasicScaffold\Infrastructure\Asset\AssetContext
+                - MWPD\BasicScaffold\Infrastructure\Asset\AssetHandle
+                - MWPD\BasicScaffold\Infrastructure\Asset\AssetLocation
+                - MWPD\BasicScaffold\Infrastructure\Asset\AssetPath
+                - MWPD\BasicScaffold\Infrastructure\Asset\Script
+                - MWPD\BasicScaffold\Infrastructure\Asset\Style
                 # A read-only wrapper around the registration log, like the
                 # lazy service wrapper above.
                 - MWPD\BasicScaffold\Infrastructure\Registration\ReadOnlyRegistrationReport
@@ -338,3 +346,18 @@ parameters:
                 constants: []
                 allowed: []
                 managed: []
+        # Static methods that create a name of a kind, checked like the
+        # WordPress functions above, and the classes that only pass such names
+        # on to WordPress (design principle 13).
+        prefixedDeclarations:
+            methods:
+                # The asset declarations create the handle, so it is checked
+                # where a service declares an asset.
+                assets:
+                    - MWPD\BasicScaffold\Infrastructure\Asset\Style::file
+                    - MWPD\BasicScaffold\Infrastructure\Asset\Style::inline
+                    - MWPD\BasicScaffold\Infrastructure\Asset\Script::file
+            forwarders:
+                # Registers and enqueues the handles declared above.
+                assets:
+                    - MWPD\BasicScaffold\Infrastructure\Asset\WordPressAssets

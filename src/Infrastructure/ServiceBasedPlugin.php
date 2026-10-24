@@ -13,6 +13,11 @@ declare( strict_types=1 );
 
 namespace MWPD\BasicScaffold\Infrastructure;
 
+use MWPD\BasicScaffold\Infrastructure\Asset\Asset;
+use MWPD\BasicScaffold\Infrastructure\Asset\AssetContext;
+use MWPD\BasicScaffold\Infrastructure\Asset\AssetLocation;
+use MWPD\BasicScaffold\Infrastructure\Asset\Assets;
+use MWPD\BasicScaffold\Infrastructure\Asset\WordPressAssets;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjector;
 use MWPD\BasicScaffold\Infrastructure\Injector\SimpleInjectorFactory;
 use MWPD\BasicScaffold\Infrastructure\Lifecycle\LifecycleScope;
@@ -29,9 +34,12 @@ use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationLog;
 use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationRecord;
 use MWPD\BasicScaffold\Infrastructure\Registration\RegistrationReport;
 use MWPD\BasicScaffold\Infrastructure\Registration\SimpleRegistrationLog;
+use MWPD\BasicScaffold\Infrastructure\Service\DebugMode;
+use MWPD\BasicScaffold\Infrastructure\Service\WordPressDebugMode;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Exception\FailedToMakeInstance;
 use MWPD\BasicScaffold\Exception\FailedToResolveDependencies;
+use MWPD\BasicScaffold\Exception\InvalidAsset;
 use MWPD\BasicScaffold\Exception\InvalidArgument;
 use MWPD\BasicScaffold\Exception\InvalidConfiguration;
 use MWPD\BasicScaffold\Exception\InvalidService;
@@ -169,6 +177,13 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	private const SITE_REMOVAL_PRIORITY = 5;
 
 	/**
+	 * Priority on the enqueue actions, at which the plugin asks its services
+	 * for their assets. A service registered later on the same action is
+	 * asked once it is registered.
+	 */
+	private const ASSET_PRIORITY = 10;
+
+	/**
 	 * Whether to enable filtering of the injector configuration.
 	 */
 	protected bool $enable_filters;
@@ -276,6 +291,41 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	private array $latest_records = [];
 
 	/**
+	 * Loader that hands declared assets to WordPress.
+	 */
+	private Assets $assets;
+
+	/**
+	 * IDs of the registered services that have assets, in registration order.
+	 *
+	 * @var array<string,true>
+	 */
+	private array $asset_services = [];
+
+	/**
+	 * Enqueue points the plugin has already asked its services at in this
+	 * request, for the services that are registered after them.
+	 *
+	 * @var list<AssetContext>
+	 */
+	private array $dispatched_asset_contexts = [];
+
+	/**
+	 * Where the assets are served from, once the first asset is enqueued.
+	 */
+	private ?AssetLocation $asset_location = null;
+
+	/**
+	 * Debug mode the asset loading checks, once the first service is asked.
+	 */
+	private ?DebugMode $debug_mode = null;
+
+	/**
+	 * Whether the plugin is asking its services for their assets right now.
+	 */
+	private bool $dispatching_assets = false;
+
+	/**
 	 * Instantiate a Plugin object.
 	 *
 	 * @param bool                  $enable_filters    Optional. Whether to
@@ -305,6 +355,11 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 *                                                 one, the plugin makes a
 	 *                                                 SimpleRegistrationLog
 	 *                                                 when it is needed.
+	 * @param Assets|null           $assets            Optional. Loader that
+	 *                                                 hands the assets of
+	 *                                                 HasAssets services to
+	 *                                                 WordPress. Defaults to
+	 *                                                 WordPressAssets.
 	 */
 	public function __construct(
 		bool $enable_filters = true,
@@ -312,7 +367,8 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		?ServiceContainer $service_container = null,
 		?SiteRunner $site_runner = null,
 		?InjectorFactory $injector_factory = null,
-		?RegistrationLog $registration_log = null
+		?RegistrationLog $registration_log = null,
+		?Assets $assets = null
 	) {
 		/*
 		 * We use what is commonly referred to as a "poka-yoke" here.
@@ -333,6 +389,8 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		 * requests record nothing, so the default log is only made once a
 		 * service observes the registration, see observe_registration().
 		 *
+		 * The asset loader is only used once a service has assets to load.
+		 *
 		 * The constructor only stores them. The injector is configured when the
 		 * services are registered, see register_services().
 		 */
@@ -344,6 +402,7 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		$this->injector_factory         = $injector_factory ?? new SimpleInjectorFactory();
 		$this->injector_factory_matches = null === $injector || null !== $injector_factory;
 		$this->given_registration_log   = $registration_log;
+		$this->assets                   = $assets ?? new WordPressAssets();
 	}
 
 	/**
@@ -1244,6 +1303,7 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		$this->check_lifecycle_configuration( $services );
 		$this->hook_site_lifecycle( $services );
 		$this->observe_registration( $services );
+		$this->hook_asset_contexts( $services );
 
 		$this->services         = [];
 		$this->pending_services = [];
@@ -1725,6 +1785,8 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 				$this->record( RegistrationRecord::registered( $id, $class_name ) );
 			}
 
+			$this->add_asset_service( $id, $class_name );
+
 			return;
 		}
 
@@ -1747,6 +1809,10 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		if ( null !== $this->registration_log ) {
 			$this->record( RegistrationRecord::registered( $id, $class_name ) );
 		}
+
+		// Assets only follow a registration that succeeded, and the record
+		// above describes the registration, not whether the assets loaded.
+		$this->add_asset_service( $id, $class_name );
 	}
 
 	/**
@@ -1854,6 +1920,214 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 
 		$this->latest_records[ $id ] = $record;
 		$this->registration_log->record( $record );
+	}
+
+	/**
+	 * Hook into the enqueue actions, if a service has assets.
+	 *
+	 * Services are recognized by class, before any of them is scheduled, so
+	 * the plugin is in place at every enqueue point that comes after it, and
+	 * knows which of them have run. A plugin without HasAssets services hooks
+	 * into none of them.
+	 *
+	 * @param array<string,class-string> $services Validated services.
+	 */
+	private function hook_asset_contexts( array $services ): void {
+		$has_assets = false;
+
+		foreach ( $services as $class_name ) {
+			if ( is_a( $class_name, HasAssets::class, true ) ) {
+				$has_assets = true;
+				break;
+			}
+		}
+
+		if ( ! $has_assets ) {
+			return;
+		}
+
+		\add_action(
+			'wp_enqueue_scripts',
+			function (): void {
+				$this->dispatch_assets( AssetContext::front_end() );
+			},
+			self::ASSET_PRIORITY,
+			0
+		);
+
+		\add_action(
+			'admin_enqueue_scripts',
+			/**
+			 * Ask the services for their assets on an admin screen.
+			 *
+			 * @param mixed $hook_suffix Hook suffix of the screen.
+			 */
+			function ( $hook_suffix = '' ): void {
+				// WordPress passes the screen's hook suffix as a string, but
+				// another caller of the action might not (principle 9).
+				$this->dispatch_assets( AssetContext::admin( is_string( $hook_suffix ) ? $hook_suffix : '' ) );
+			},
+			self::ASSET_PRIORITY,
+			1
+		);
+
+		\add_action(
+			'enqueue_block_editor_assets',
+			function (): void {
+				$this->dispatch_assets( AssetContext::block_editor() );
+			},
+			self::ASSET_PRIORITY,
+			0
+		);
+
+		\add_action(
+			'login_enqueue_scripts',
+			function (): void {
+				$this->dispatch_assets( AssetContext::login() );
+			},
+			self::ASSET_PRIORITY,
+			0
+		);
+	}
+
+	/**
+	 * Ask every registered service with assets for the ones it needs at an
+	 * enqueue point, and load them.
+	 *
+	 * The enqueue point is remembered first, so a service registered while
+	 * or after this runs is still asked, see add_asset_service().
+	 *
+	 * A service's get_assets() that fires an enqueue action itself would ask
+	 * the same, unfinished service again, and again. So an enqueue action
+	 * that runs inside another one is only remembered.
+	 *
+	 * @param AssetContext $context Enqueue point that is running.
+	 *
+	 * @throws Throwable A failure of a service's assets, in debug mode.
+	 */
+	private function dispatch_assets( AssetContext $context ): void {
+		$this->dispatched_asset_contexts[] = $context;
+
+		if ( $this->dispatching_assets ) {
+			return;
+		}
+
+		$this->dispatching_assets = true;
+
+		try {
+			foreach ( array_keys( $this->asset_services ) as $id ) {
+				$this->enqueue_assets_of( $id, $context );
+			}
+		} finally {
+			$this->dispatching_assets = false;
+		}
+	}
+
+	/**
+	 * Take part in the asset loading with a service that was just registered.
+	 *
+	 * A service registered after an enqueue point has run is asked for it at
+	 * once, the way a Delayed service whose action has passed is registered
+	 * at once. That is best effort: WordPress prints a style enqueued after
+	 * the head in the footer, and one enqueued after the footer not at all.
+	 *
+	 * @param string       $id         ID of the registered service.
+	 * @param class-string $class_name Declared class of the service.
+	 *
+	 * @throws Throwable A failure of the service's assets, in debug mode.
+	 */
+	private function add_asset_service( string $id, string $class_name ): void {
+		if ( ! is_a( $class_name, HasAssets::class, true ) || isset( $this->asset_services[ $id ] ) ) {
+			return;
+		}
+
+		$this->asset_services[ $id ] = true;
+
+		foreach ( $this->dispatched_asset_contexts as $context ) {
+			$this->enqueue_assets_of( $id, $context );
+		}
+	}
+
+	/**
+	 * Load the assets one service needs at an enqueue point.
+	 *
+	 * A service that only has assets is stored lazily, and is only built here,
+	 * the first time it is asked. All of its declarations are collected and
+	 * checked before the first one is loaded.
+	 *
+	 * Loading assets must never break the page (principle 10). A failure is
+	 * rethrown in debug mode, so it is seen. Otherwise, the service's remaining
+	 * assets for this enqueue point are skipped, and the other services are
+	 * still asked.
+	 *
+	 * @param string       $id      ID of the service.
+	 * @param AssetContext $context Enqueue point that is running.
+	 *
+	 * @throws InvalidAsset If the service declares something that is not an
+	 *                      asset, in debug mode.
+	 * @throws Throwable Any other failure of the service's assets, in debug
+	 *                   mode.
+	 */
+	private function enqueue_assets_of( string $id, AssetContext $context ): void {
+		try {
+			$service = $this->service_container->get( $id );
+
+			// A container passed in already filled can hold an instance of
+			// another class under a configured ID.
+			if ( ! $service instanceof HasAssets ) {
+				return;
+			}
+
+			$assets = [];
+
+			// The declarations come from a service's own code, which may not
+			// keep to the interface's return type.
+			foreach ( $service->get_assets( $context ) as $asset ) {
+				if ( ! $asset instanceof Asset ) {
+					throw InvalidAsset::for_unsupported_declaration( $asset );
+				}
+
+				$assets[] = $asset;
+			}
+
+			if ( [] === $assets ) {
+				return;
+			}
+
+			$location = $this->resolve_asset_location();
+
+			foreach ( $assets as $asset ) {
+				$this->assets->enqueue( $asset, $location );
+			}
+		} catch ( Throwable $exception ) {
+			if ( $this->resolve_debug_mode()->is_debug_mode() ) {
+				throw $exception;
+			}
+		}
+	}
+
+	/**
+	 * Get where the assets are served from, asked once, the first time an
+	 * asset is loaded.
+	 */
+	private function resolve_asset_location(): AssetLocation {
+		if ( null === $this->asset_location ) {
+			$this->asset_location = $this->get_asset_location();
+		}
+
+		return $this->asset_location;
+	}
+
+	/**
+	 * Get the debug mode the asset loading checks, asked once, the first time
+	 * it is needed.
+	 */
+	private function resolve_debug_mode(): DebugMode {
+		if ( null === $this->debug_mode ) {
+			$this->debug_mode = $this->get_debug_mode();
+		}
+
+		return $this->debug_mode;
 	}
 
 	/**
@@ -2217,6 +2491,59 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 */
 	protected function get_main_file(): string {
 		return '';
+	}
+
+	/**
+	 * Get where the plugin's assets are served from.
+	 *
+	 * The default is the URL of the main file's directory, with the main
+	 * file's Version header as the version of every asset that does not set
+	 * its own (principle 3: the plugin already knows its main file). The
+	 * plugin only asks once a request has an asset to load. A composition root
+	 * that serves its assets from somewhere else, such as a CDN, returns its
+	 * own location here.
+	 *
+	 * Falling back to the WordPress version would bust no cache when the
+	 * plugin is updated, so a missing header is a mistake. Without a main
+	 * file, this fails with InvalidConfiguration, like every other feature
+	 * that needs it.
+	 *
+	 * @throws InvalidAsset If the main file has no Version header.
+	 *
+	 * @return AssetLocation Where the plugin's assets are served from.
+	 */
+	protected function get_asset_location(): AssetLocation {
+		$main_file = $this->get_valid_main_file( HasAssets::class );
+		$headers   = \get_file_data( $main_file, [ 'Version' => 'Version' ] );
+		$version   = $headers['Version'] ?? '';
+
+		if ( '' === $version ) {
+			throw InvalidAsset::for_missing_version( $main_file );
+		}
+
+		return new AssetLocation( \plugins_url( '', $main_file ), $version );
+	}
+
+	/**
+	 * Get the debug mode the plugin's own error boundaries check.
+	 *
+	 * A failure while loading assets is rethrown in debug mode and skipped
+	 * otherwise. The default reads WP_DEBUG, as the views' default does. A
+	 * composition root that binds another DebugMode for its services returns
+	 * the same one here.
+	 *
+	 * @throws FailedToMakeInstance If the injector does not make a debug mode.
+	 *
+	 * @return DebugMode Debug mode to check.
+	 */
+	protected function get_debug_mode(): DebugMode {
+		$debug_mode = $this->injector->make( WordPressDebugMode::class );
+
+		if ( ! $debug_mode instanceof DebugMode ) {
+			throw FailedToMakeInstance::for_unexpected_instance( WordPressDebugMode::class, $debug_mode );
+		}
+
+		return $debug_mode;
 	}
 
 	/**

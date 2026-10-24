@@ -1,5 +1,59 @@
 Infrastructure\Activateable interface
 Infrastructure\Activateable::public abstract function activate(): void
+Infrastructure\Asset\Asset interface
+Infrastructure\Asset\Asset::public abstract function get_handle(): string
+Infrastructure\Asset\AssetContext final class
+Infrastructure\Asset\AssetContext::public function get_hook_suffix(): string
+Infrastructure\Asset\AssetContext::public function is_admin( ?string $hook_suffix = null ): bool
+Infrastructure\Asset\AssetContext::public function is_block_editor(): bool
+Infrastructure\Asset\AssetContext::public function is_front_end(): bool
+Infrastructure\Asset\AssetContext::public function is_login(): bool
+Infrastructure\Asset\AssetContext::public static function admin( string $hook_suffix ): self
+Infrastructure\Asset\AssetContext::public static function block_editor(): self
+Infrastructure\Asset\AssetContext::public static function front_end(): self
+Infrastructure\Asset\AssetContext::public static function login(): self
+Infrastructure\Asset\AssetHandle final class
+Infrastructure\Asset\AssetHandle::public function to_string(): string
+Infrastructure\Asset\AssetHandle::public static function from_string( string $handle ): self
+Infrastructure\Asset\AssetLocation final class
+Infrastructure\Asset\AssetLocation::public function __construct( string $base_url, string $version )
+Infrastructure\Asset\AssetLocation::public function get_url( Infrastructure\Asset\AssetPath $path ): string
+Infrastructure\Asset\AssetLocation::public function get_version( ?string $version ): string
+Infrastructure\Asset\AssetPath final class
+Infrastructure\Asset\AssetPath::public function to_string(): string
+Infrastructure\Asset\AssetPath::public static function for_asset( string $handle, string $path ): self
+Infrastructure\Asset\Assets interface
+Infrastructure\Asset\Assets::public abstract function enqueue( Infrastructure\Asset\Asset $asset, Infrastructure\Asset\AssetLocation $location ): void
+Infrastructure\Asset\Script final class
+Infrastructure\Asset\Script implements Infrastructure\Asset\Asset
+Infrastructure\Asset\Script::public function async(): self
+Infrastructure\Asset\Script::public function deferred(): self
+Infrastructure\Asset\Script::public function depends_on( string ...$handles ): self
+Infrastructure\Asset\Script::public function get_dependencies(): array
+Infrastructure\Asset\Script::public function get_handle(): string
+Infrastructure\Asset\Script::public function get_path(): Infrastructure\Asset\AssetPath
+Infrastructure\Asset\Script::public function get_strategy(): ?string
+Infrastructure\Asset\Script::public function get_version(): ?string
+Infrastructure\Asset\Script::public function in_footer(): self
+Infrastructure\Asset\Script::public function is_in_footer(): bool
+Infrastructure\Asset\Script::public function with_version( string $version ): self
+Infrastructure\Asset\Script::public static function file( string $handle, string $path ): self
+Infrastructure\Asset\Style final class
+Infrastructure\Asset\Style implements Infrastructure\Asset\Asset
+Infrastructure\Asset\Style::public function depends_on( string ...$handles ): self
+Infrastructure\Asset\Style::public function for_media( string $media ): self
+Infrastructure\Asset\Style::public function get_css(): ?string
+Infrastructure\Asset\Style::public function get_dependencies(): array
+Infrastructure\Asset\Style::public function get_handle(): string
+Infrastructure\Asset\Style::public function get_media(): string
+Infrastructure\Asset\Style::public function get_path(): ?Infrastructure\Asset\AssetPath
+Infrastructure\Asset\Style::public function get_version(): ?string
+Infrastructure\Asset\Style::public function with_version( string $version ): self
+Infrastructure\Asset\Style::public static function file( string $handle, string $path ): self
+Infrastructure\Asset\Style::public static function inline( string $handle, string $css ): self
+Infrastructure\Asset\WordPressAssets final class
+Infrastructure\Asset\WordPressAssets implements Infrastructure\Asset\Assets
+Infrastructure\Asset\WordPressAssets::public function enqueue( Infrastructure\Asset\Asset $asset, Infrastructure\Asset\AssetLocation $location ): void
 Infrastructure\Autoloader final class
 Infrastructure\Autoloader::public function __destruct()
 Infrastructure\Autoloader::public function add_namespace( string $root, string $base_dir, string $prefix = "", string $suffix = ".php", bool $lowercase = false, bool $underscores = false ): self
@@ -15,6 +69,8 @@ Infrastructure\DefaultRegistrationPriority::public static function get_registrat
 Infrastructure\Delayed interface
 Infrastructure\Delayed::public abstract static function get_registration_action(): string
 Infrastructure\Delayed::public abstract static function get_registration_priority(): int
+Infrastructure\HasAssets interface
+Infrastructure\HasAssets::public abstract function get_assets( Infrastructure\Asset\AssetContext $context ): iterable
 Infrastructure\HasDependencies interface
 Infrastructure\HasDependencies::public abstract static function get_dependencies(): array
 Infrastructure\Injector extends Infrastructure\Service
@@ -180,7 +236,9 @@ Infrastructure\ServiceBasedPlugin::protected function collect_missing_dependenci
 Infrastructure\ServiceBasedPlugin::protected function configure_injector( Infrastructure\Injector $injector ): Infrastructure\Injector
 Infrastructure\ServiceBasedPlugin::protected function dependencies_are_met( string $id, string $class_name, array &$services ): bool
 Infrastructure\ServiceBasedPlugin::protected function get_arguments(): array
+Infrastructure\ServiceBasedPlugin::protected function get_asset_location(): Infrastructure\Asset\AssetLocation
 Infrastructure\ServiceBasedPlugin::protected function get_bindings(): array
+Infrastructure\ServiceBasedPlugin::protected function get_debug_mode(): Infrastructure\Service\DebugMode
 Infrastructure\ServiceBasedPlugin::protected function get_delegations(): array
 Infrastructure\ServiceBasedPlugin::protected function get_main_file(): string
 Infrastructure\ServiceBasedPlugin::protected function get_service_classes(): array
@@ -200,7 +258,7 @@ Infrastructure\ServiceBasedPlugin::public const DELEGATIONS_FILTER = "delegation
 Infrastructure\ServiceBasedPlugin::public const INJECTOR_ID = "injector"
 Infrastructure\ServiceBasedPlugin::public const SERVICES_FILTER = "services"
 Infrastructure\ServiceBasedPlugin::public const SHARED_INSTANCES_FILTER = "shared_instances"
-Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null, ?Infrastructure\SiteRunner $site_runner = null, ?Infrastructure\InjectorFactory $injector_factory = null, ?Infrastructure\Registration\RegistrationLog $registration_log = null )
+Infrastructure\ServiceBasedPlugin::public function __construct( bool $enable_filters = true, ?Infrastructure\Injector $injector = null, ?Infrastructure\ServiceContainer $service_container = null, ?Infrastructure\SiteRunner $site_runner = null, ?Infrastructure\InjectorFactory $injector_factory = null, ?Infrastructure\Registration\RegistrationLog $registration_log = null, ?Infrastructure\Asset\Assets $assets = null )
 Infrastructure\ServiceBasedPlugin::public function activate(): void
 Infrastructure\ServiceBasedPlugin::public function activate_in( Infrastructure\Lifecycle\LifecycleScope $scope ): void
 Infrastructure\ServiceBasedPlugin::public function deactivate(): void
