@@ -183,6 +183,16 @@ final class WordPressAssets implements Assets {
 	/**
 	 * Check whether a registered script is the one declared.
 	 *
+	 * WordPress keeps some of a script's options in more than one form, and
+	 * adds to a registration after the fact, so equal declarations are told
+	 * apart by what they mean:
+	 *
+	 * - A script in the footer has the "group" data 1, or, registered the old
+	 *   way, the argument 1.
+	 * - A script without a loading strategy has none, or an empty one.
+	 * - Setting the translations of a script adds "wp-i18n" to its
+	 *   dependencies, so a declaration without it still matches.
+	 *
 	 * @param _WP_Dependency $registered Script registered under the handle.
 	 * @param Script         $script     Declared script.
 	 * @param string         $src        URL of the declared script.
@@ -194,16 +204,34 @@ final class WordPressAssets implements Assets {
 		string $src,
 		string $version
 	): bool {
+		$group        = $registered->extra['group'] ?? 0;
+		$in_footer    = 1 === $group || '1' === $group || 1 === $registered->args;
+		$dependencies = $registered->deps;
+
+		// WordPress declares the text domain a string, but leaves it unset
+		// until translations are set.
+		$text_domain      = \get_object_vars( $registered )['textdomain'] ?? null;
+		$has_translations = \is_string( $text_domain ) && '' !== $text_domain;
+
+		if ( $has_translations && ! \in_array( 'wp-i18n', $script->get_dependencies(), true ) ) {
+			$dependencies = \array_values( \array_diff( $dependencies, [ 'wp-i18n' ] ) );
+		}
+
 		if ( $registered->src !== $src
-			|| $registered->deps !== $script->get_dependencies()
+			|| $dependencies !== $script->get_dependencies()
 			|| $registered->ver !== $version
-			|| ( 1 === ( $registered->extra['group'] ?? 0 ) ) !== $script->is_in_footer() ) {
+			|| $in_footer !== $script->is_in_footer() ) {
 			return false;
 		}
 
 		// WordPress before 6.3 records no strategy to compare with.
-		return ! $this->supports_loading_strategies()
-			|| ( $registered->extra['strategy'] ?? null ) === $script->get_strategy();
+		if ( ! $this->supports_loading_strategies() ) {
+			return true;
+		}
+
+		$strategy = $registered->extra['strategy'] ?? null;
+
+		return ( '' === $strategy ? null : $strategy ) === $script->get_strategy();
 	}
 
 	/**

@@ -601,12 +601,29 @@ final class PrefixedNamesRuleTest extends RuleTestCase {
 					self::TIP,
 				],
 				[ $this->unprefixed( 'STYLE::FILE', 'asset handle', 'shouting', $how, 'assets' ), 18, self::TIP ],
+				[ $this->unprefixed( 'Style::file', 'asset handle', 'dynamic', $how, 'assets' ), 28, self::TIP ],
+				[ $this->unprefixed( 'Style::file', 'asset handle', 'on-an-instance', $how, 'assets' ), 29, self::TIP ],
 			]
 		);
 	}
 
-	public function test_a_forwarder_passes_declared_handles_on_unchecked(): void {
-		$this->analyse( [ self::FIXTURES . 'AssetForwarder.php' ], [] );
+	public function test_a_forwarder_passes_declared_handles_on_but_its_own_names_are_checked(): void {
+		$this->analyse(
+			[ self::FIXTURES . 'AssetForwarder.php' ],
+			[
+				[
+					$this->unprefixed(
+						'wp_register_style',
+						'asset handle',
+						'its-own',
+						$this->how( 'acme-plugin-' ),
+						'assets'
+					),
+					11,
+					self::TIP,
+				],
+			]
+		);
 	}
 
 	public function test_without_listed_declarations_static_calls_are_not_checked(): void {

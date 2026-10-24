@@ -23,9 +23,16 @@ final class DependencyRegistry {
 	public array $queue = [];
 
 	/**
-	 * @return _WP_Dependency|false
+	 * Query a handle as WordPress does: "registered" returns the item or
+	 * false, "enqueued" whether it is in the queue.
+	 *
+	 * @return _WP_Dependency|bool
 	 */
-	public function query( string $handle ) {
+	public function query( string $handle, string $status = 'registered' ) {
+		if ( 'enqueued' === $status ) {
+			return in_array( $handle, $this->queue, true );
+		}
+
 		return $this->registered[ $handle ] ?? false;
 	}
 

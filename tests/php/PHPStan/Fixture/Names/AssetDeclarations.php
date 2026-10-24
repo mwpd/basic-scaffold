@@ -19,3 +19,14 @@ final class AssetDeclarations {
 		];
 	}
 }
+
+final class DynamicAssetDeclarations {
+	public function declare( Style $style ): array {
+		$class = Style::class;
+
+		return [
+			$class::file( 'dynamic', 'assets/a.css' ),
+			$style::file( 'on-an-instance', 'assets/a.css' ),
+		];
+	}
+}

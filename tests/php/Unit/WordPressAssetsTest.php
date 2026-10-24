@@ -28,6 +28,8 @@ use MWPD\BasicScaffold\Tests\Fixture\Asset\DependencyRegistry;
  */
 final class WordPressAssetsTest extends TestCase {
 
+	private const COPY_URL = 'https://example.com/wp-content/plugins/acme/assets/js/copy.js';
+
 	private DependencyRegistry $styles;
 
 	private DependencyRegistry $scripts;
@@ -184,7 +186,7 @@ final class WordPressAssetsTest extends TestCase {
 		);
 
 		$script = $this->scripts->registered['acme-copy'];
-		$this->assertSame( 'https://example.com/wp-content/plugins/acme/assets/js/copy.js', $script->src );
+		$this->assertSame( self::COPY_URL, $script->src );
 		$this->assertSame( [ 'wp-i18n' ], $script->deps );
 		$this->assertSame( '1.2.3', $script->ver );
 		$this->assertSame(
@@ -243,6 +245,44 @@ final class WordPressAssetsTest extends TestCase {
 			'other strategy' => [ Script::file( 'acme-copy', 'assets/js/copy.js' )->async() ],
 			'no strategy'    => [ Script::file( 'acme-copy', 'assets/js/copy.js' ) ],
 		];
+	}
+
+	public function test_a_script_registered_with_the_legacy_footer_flag_matches(): void {
+		$this->scripts->add( 'acme-copy', self::COPY_URL, [], '1.2.3', 1 );
+
+		$this->enqueue( Script::file( 'acme-copy', 'assets/js/copy.js' )->in_footer() );
+
+		$this->assertSame( [ 'acme-copy' ], $this->scripts->queue );
+	}
+
+	public function test_an_empty_strategy_matches_a_script_without_one(): void {
+		$this->scripts->add( 'acme-copy', self::COPY_URL, [], '1.2.3' );
+		$this->scripts->add_data( 'acme-copy', 'strategy', '' );
+
+		$this->enqueue( Script::file( 'acme-copy', 'assets/js/copy.js' ) );
+
+		$this->assertSame( [ 'acme-copy' ], $this->scripts->queue );
+	}
+
+	public function test_the_dependency_translations_add_still_matches(): void {
+		$this->enqueue( Script::file( 'acme-copy', 'assets/js/copy.js' ) );
+
+		// What wp_set_script_translations() does to the registration.
+		$registered             = $this->scripts->registered['acme-copy'];
+		$registered->textdomain = 'acme';
+		$registered->deps[]     = 'wp-i18n';
+
+		$this->enqueue( Script::file( 'acme-copy', 'assets/js/copy.js' ) );
+
+		$this->assertSame( [ 'acme-copy', 'acme-copy' ], $this->scripts->queue );
+	}
+
+	public function test_without_translations_an_extra_dependency_still_conflicts(): void {
+		$this->scripts->add( 'acme-copy', self::COPY_URL, [ 'wp-i18n' ], '1.2.3' );
+
+		$this->expectException( InvalidAsset::class );
+
+		$this->enqueue( Script::file( 'acme-copy', 'assets/js/copy.js' ) );
 	}
 
 	public function test_styles_and_scripts_have_separate_handles(): void {

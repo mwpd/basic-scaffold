@@ -24,6 +24,7 @@ use MWPD\BasicScaffold\Infrastructure\ServiceContainer;
 use MWPD\BasicScaffold\Infrastructure\ServiceContainer\SimpleServiceContainer;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\AdminScreenScriptService;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\AssetRequests;
+use MWPD\BasicScaffold\Tests\Fixture\Asset\ErroringAssetService;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\FailingAssetService;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\FrontEndStyleService;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\LateFooterStyleService;
@@ -32,6 +33,7 @@ use MWPD\BasicScaffold\Tests\Fixture\Asset\RecordingAssets;
 use MWPD\BasicScaffold\Tests\Fixture\Asset\TestAssetPlugin;
 use MWPD\BasicScaffold\Tests\Fixture\Service\TestServiceA;
 use RuntimeException;
+use TypeError;
 
 /**
  * The plugin asks its HasAssets services for their assets at the enqueue
@@ -51,9 +53,9 @@ final class AssetLoadingTest extends TestCase {
 	private RecordingAssets $assets;
 
 	/**
-	 * Callbacks added to WordPress actions, by action.
+	 * Callbacks added to WordPress actions, by action, with their priority.
 	 *
-	 * @var array<string,list<callable>>
+	 * @var array<string,list<array{int,callable}>>
 	 */
 	private array $callbacks = [];
 
@@ -80,8 +82,8 @@ final class AssetLoadingTest extends TestCase {
 			Actions\expectAdded( $action )
 				->zeroOrMoreTimes()
 				->whenHappen(
-					function ( callable $callback ) use ( $action ): void {
-						$this->callbacks[ $action ][] = $callback;
+					function ( callable $callback, int $priority = 10 ) use ( $action ): void {
+						$this->callbacks[ $action ][] = [ $priority, $callback ];
 					}
 				);
 		}
@@ -363,6 +365,56 @@ final class AssetLoadingTest extends TestCase {
 		$this->run_action( 'wp_enqueue_scripts' );
 	}
 
+	public function test_an_enqueue_action_fired_while_a_service_is_asked_does_not_ask_it_again(): void {
+		$plugin = $this->plugin( [ 'style' => FrontEndStyleService::class ], true );
+		$plugin->register_services();
+
+		$this->requests->when_asked = function (): void {
+			$this->run_action( 'wp_enqueue_scripts' );
+		};
+
+		$this->run_action( 'wp_enqueue_scripts' );
+
+		$this->assertSame( [ 'built front end style', 'asked front end style at front end' ], $this->requests->events );
+		$this->assertSame( [ FrontEndStyleService::HANDLE ], $this->assets->handles() );
+	}
+
+	public function test_an_error_in_a_service_surfaces_unchanged_in_debug_mode(): void {
+		$plugin = $this->plugin( [ 'erroring' => ErroringAssetService::class ], true );
+		$plugin->register_services();
+
+		$this->expectException( TypeError::class );
+		$this->expectExceptionMessage( 'The service broke.' );
+
+		$this->run_action( 'wp_enqueue_scripts' );
+	}
+
+	public function test_an_error_in_a_service_is_contained_in_production(): void {
+		$plugin = $this->plugin(
+			[
+				'erroring' => ErroringAssetService::class,
+				'style'    => FrontEndStyleService::class,
+			],
+			false
+		);
+		$plugin->register_services();
+
+		$this->run_action( 'wp_enqueue_scripts' );
+
+		$this->assertSame( [ FrontEndStyleService::HANDLE ], $this->assets->handles() );
+	}
+
+	public function test_the_plugins_debug_mode_defaults_to_wp_debug(): void {
+		// WP_DEBUG is not defined in the tests, so the default is off and a
+		// failure is contained.
+		$plugin = new TestAssetPlugin( [ 'failing' => FailingAssetService::class ], $this->requests, $this->assets );
+		$plugin->register_services();
+
+		$this->run_action( 'wp_enqueue_scripts' );
+
+		$this->assertSame( [], $this->assets->handles() );
+	}
+
 	public function test_the_admin_hook_suffix_is_normalized(): void {
 		$plugin = $this->plugin( [ 'script' => AdminScreenScriptService::class ] );
 		$plugin->register_services();
@@ -408,10 +460,15 @@ final class AssetLoadingTest extends TestCase {
 	 * @param mixed  ...$args Arguments of the action.
 	 */
 	private function run_action( string $action, ...$args ): void {
-		foreach ( $this->callbacks[ $action ] ?? [] as $callback ) {
+		// WordPress counts an action as run before it calls the callbacks,
+		// and calls them by priority, in the order they were added.
+		$this->ran[ $action ] = true;
+
+		$callbacks = $this->callbacks[ $action ] ?? [];
+		usort( $callbacks, static fn( array $a, array $b ): int => $a[0] <=> $b[0] );
+
+		foreach ( $callbacks as [ , $callback ] ) {
 			$callback( ...$args );
 		}
-
-		$this->ran[ $action ] = true;
 	}
 }

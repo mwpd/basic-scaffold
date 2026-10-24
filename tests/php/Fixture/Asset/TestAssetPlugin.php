@@ -24,7 +24,7 @@ final class TestAssetPlugin extends ServiceBasedPlugin {
 
 	private AssetRequests $requests;
 
-	private ?DebugMode $debug_mode = null;
+	private ?DebugMode $given_debug_mode = null;
 
 	private ?AssetLocation $location = null;
 
@@ -48,7 +48,7 @@ final class TestAssetPlugin extends ServiceBasedPlugin {
 	}
 
 	public function with_debug_mode( DebugMode $debug_mode ): self {
-		$this->debug_mode = $debug_mode;
+		$this->given_debug_mode = $debug_mode;
 
 		return $this;
 	}
@@ -71,20 +71,16 @@ final class TestAssetPlugin extends ServiceBasedPlugin {
 
 	protected function get_delegations(): array {
 		$requests = $this->requests;
-		/** @var array<class-string,callable> $delegations */
-		$delegations = [ AssetRequests::class => static fn(): AssetRequests => $requests ];
 
-		$debug_mode  = $this->debug_mode;
-		if ( null !== $debug_mode ) {
-			$delegations[ DebugMode::class ] = static fn(): DebugMode => $debug_mode;
-		}
+		return [ AssetRequests::class => static fn(): AssetRequests => $requests ];
+	}
 
-		$location = $this->location;
-		if ( null !== $location ) {
-			$delegations[ AssetLocation::class ] = static fn(): AssetLocation => $location;
-		}
+	protected function get_asset_location(): AssetLocation {
+		return $this->location ?? parent::get_asset_location();
+	}
 
-		return $delegations;
+	protected function get_debug_mode(): DebugMode {
+		return $this->given_debug_mode ?? parent::get_debug_mode();
 	}
 
 	protected function get_main_file(): string {

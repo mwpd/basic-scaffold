@@ -29,6 +29,22 @@ final class InvalidAsset extends InvalidArgumentException implements BasicScaffo
 	}
 
 	/**
+	 * Create a new instance of the exception for a handle WordPress could not
+	 * enqueue as it was registered.
+	 *
+	 * @param string $handle Handle that was passed.
+	 */
+	public static function for_handle( string $handle ): self {
+		$message = \sprintf(
+			'The asset handle "%s" contains a "?", whitespace or a control character. '
+			. 'WordPress would register it, but not find it when it is enqueued.',
+			$handle
+		);
+
+		return new self( $message );
+	}
+
+	/**
 	 * Create a new instance of the exception for an asset path that is not a
 	 * plain path inside the plugin.
 	 *
@@ -38,7 +54,7 @@ final class InvalidAsset extends InvalidArgumentException implements BasicScaffo
 	public static function for_path( string $handle, string $path ): self {
 		$message = \sprintf(
 			'The path "%s" of the asset "%s" must be relative to the plugin root, such as "assets/css/notice.css": '
-			. 'no leading slash, URL, backslash, ".." segment or null byte.',
+			. 'no leading slash, URL, backslash, query, "%%" escape, ".." segment or control character.',
 			$path,
 			$handle
 		);
@@ -147,7 +163,7 @@ final class InvalidAsset extends InvalidArgumentException implements BasicScaffo
 	public static function for_missing_version( string $main_file ): self {
 		$message = \sprintf(
 			'The main plugin file "%s" has no "Version" header, so its assets have no version to bust caches with. '
-			. 'Add the header, or give each asset a version with with_version().',
+			. 'Add the header, or return an AssetLocation of your own from get_asset_location().',
 			$main_file
 		);
 

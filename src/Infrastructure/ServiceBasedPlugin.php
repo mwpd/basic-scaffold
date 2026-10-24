@@ -321,6 +321,11 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	private ?DebugMode $debug_mode = null;
 
 	/**
+	 * Whether the plugin is asking its services for their assets right now.
+	 */
+	private bool $dispatching_assets = false;
+
+	/**
 	 * Instantiate a Plugin object.
 	 *
 	 * @param bool                  $enable_filters    Optional. Whether to
@@ -1260,7 +1265,6 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 		 * configuration also receive the service container, which is fully set
 		 * up by now. The bail-out above keeps this from running twice.
 		 */
-		$this->injector = $this->configure_asset_defaults( $this->injector );
 		$this->injector = $this->configure_injector( $this->injector );
 
 		/*
@@ -1919,57 +1923,6 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	}
 
 	/**
-	 * Set up what the asset loading falls back to, before the composition
-	 * root's configuration, so that the composition root can replace it.
-	 *
-	 * The location of the assets is built from the main file (principle 3):
-	 * the plugin already knows it, so a generated plugin does not repeat it.
-	 * Debug mode falls back to WP_DEBUG, as the views do. Both are
-	 * delegations: the injector follows a binding before it looks for a
-	 * delegation, and a later delegation for the same type replaces this one,
-	 * so whichever the composition root configures for either takes
-	 * precedence. Neither is made before a service has an asset to load.
-	 *
-	 * @param Injector $injector Injector instance to configure.
-	 * @return Injector Configured injector instance.
-	 */
-	private function configure_asset_defaults( Injector $injector ): Injector {
-		$injector = $injector->delegate(
-			DebugMode::class,
-			fn(): object => $this->injector->make( WordPressDebugMode::class )
-		);
-
-		return $injector->delegate(
-			AssetLocation::class,
-			fn(): AssetLocation => $this->make_asset_location()
-		);
-	}
-
-	/**
-	 * Make the default asset location from the main plugin file: the URL of
-	 * its directory, and its Version header as the version of every asset
-	 * that does not set its own. Without a main file, this fails with
-	 * InvalidConfiguration, like every other feature that needs it.
-	 *
-	 * @throws InvalidAsset If the main file has no Version header.
-	 *
-	 * @return AssetLocation Where the plugin's assets are served from.
-	 */
-	private function make_asset_location(): AssetLocation {
-		$main_file = $this->get_valid_main_file( HasAssets::class );
-		$headers   = \get_file_data( $main_file, [ 'Version' => 'Version' ] );
-		$version   = $headers['Version'] ?? '';
-
-		// Falling back to the WordPress version would bust no cache when the
-		// plugin is updated, so a missing header is a mistake.
-		if ( '' === $version ) {
-			throw InvalidAsset::for_missing_version( $main_file );
-		}
-
-		return new AssetLocation( \plugins_url( '', $main_file ), $version );
-	}
-
-	/**
 	 * Hook into the enqueue actions, if a service has assets.
 	 *
 	 * Services are recognized by class, before any of them is scheduled, so
@@ -2044,6 +1997,10 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 * The enqueue point is remembered first, so a service registered while
 	 * or after this runs is still asked, see add_asset_service().
 	 *
+	 * A service's get_assets() that fires an enqueue action itself would ask
+	 * the same, unfinished service again, and again. So an enqueue action
+	 * that runs inside another one is only remembered.
+	 *
 	 * @param AssetContext $context Enqueue point that is running.
 	 *
 	 * @throws Throwable A failure of a service's assets, in debug mode.
@@ -2051,8 +2008,18 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	private function dispatch_assets( AssetContext $context ): void {
 		$this->dispatched_asset_contexts[] = $context;
 
-		foreach ( array_keys( $this->asset_services ) as $id ) {
-			$this->enqueue_assets_of( $id, $context );
+		if ( $this->dispatching_assets ) {
+			return;
+		}
+
+		$this->dispatching_assets = true;
+
+		try {
+			foreach ( array_keys( $this->asset_services ) as $id ) {
+				$this->enqueue_assets_of( $id, $context );
+			}
+		} finally {
+			$this->dispatching_assets = false;
 		}
 	}
 
@@ -2127,53 +2094,37 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 				return;
 			}
 
-			$location = $this->get_asset_location();
+			$location = $this->resolve_asset_location();
 
 			foreach ( $assets as $asset ) {
 				$this->assets->enqueue( $asset, $location );
 			}
 		} catch ( Throwable $exception ) {
-			if ( $this->get_debug_mode()->is_debug_mode() ) {
+			if ( $this->resolve_debug_mode()->is_debug_mode() ) {
 				throw $exception;
 			}
 		}
 	}
 
 	/**
-	 * Get where the assets are served from, made through the injector the
-	 * first time an asset is loaded.
-	 *
-	 * @throws FailedToMakeInstance If the injector does not make an asset location.
+	 * Get where the assets are served from, asked once, the first time an
+	 * asset is loaded.
 	 */
-	private function get_asset_location(): AssetLocation {
+	private function resolve_asset_location(): AssetLocation {
 		if ( null === $this->asset_location ) {
-			$location = $this->injector->make( AssetLocation::class );
-
-			if ( ! $location instanceof AssetLocation ) {
-				throw FailedToMakeInstance::for_unexpected_instance( AssetLocation::class, $location );
-			}
-
-			$this->asset_location = $location;
+			$this->asset_location = $this->get_asset_location();
 		}
 
 		return $this->asset_location;
 	}
 
 	/**
-	 * Get the debug mode the asset loading checks, made through the injector
-	 * the first time it is needed.
-	 *
-	 * @throws FailedToMakeInstance If the injector does not make a debug mode.
+	 * Get the debug mode the asset loading checks, asked once, the first time
+	 * it is needed.
 	 */
-	private function get_debug_mode(): DebugMode {
+	private function resolve_debug_mode(): DebugMode {
 		if ( null === $this->debug_mode ) {
-			$debug_mode = $this->injector->make( DebugMode::class );
-
-			if ( ! $debug_mode instanceof DebugMode ) {
-				throw FailedToMakeInstance::for_unexpected_instance( DebugMode::class, $debug_mode );
-			}
-
-			$this->debug_mode = $debug_mode;
+			$this->debug_mode = $this->get_debug_mode();
 		}
 
 		return $this->debug_mode;
@@ -2540,6 +2491,59 @@ abstract class ServiceBasedPlugin implements Plugin, PluginLifecycle {
 	 */
 	protected function get_main_file(): string {
 		return '';
+	}
+
+	/**
+	 * Get where the plugin's assets are served from.
+	 *
+	 * The default is the URL of the main file's directory, with the main
+	 * file's Version header as the version of every asset that does not set
+	 * its own (principle 3: the plugin already knows its main file). The
+	 * plugin only asks once a request has an asset to load. A composition root
+	 * that serves its assets from somewhere else, such as a CDN, returns its
+	 * own location here.
+	 *
+	 * Falling back to the WordPress version would bust no cache when the
+	 * plugin is updated, so a missing header is a mistake. Without a main
+	 * file, this fails with InvalidConfiguration, like every other feature
+	 * that needs it.
+	 *
+	 * @throws InvalidAsset If the main file has no Version header.
+	 *
+	 * @return AssetLocation Where the plugin's assets are served from.
+	 */
+	protected function get_asset_location(): AssetLocation {
+		$main_file = $this->get_valid_main_file( HasAssets::class );
+		$headers   = \get_file_data( $main_file, [ 'Version' => 'Version' ] );
+		$version   = $headers['Version'] ?? '';
+
+		if ( '' === $version ) {
+			throw InvalidAsset::for_missing_version( $main_file );
+		}
+
+		return new AssetLocation( \plugins_url( '', $main_file ), $version );
+	}
+
+	/**
+	 * Get the debug mode the plugin's own error boundaries check.
+	 *
+	 * A failure while loading assets is rethrown in debug mode and skipped
+	 * otherwise. The default reads WP_DEBUG, as the views' default does. A
+	 * composition root that binds another DebugMode for its services returns
+	 * the same one here.
+	 *
+	 * @throws FailedToMakeInstance If the injector does not make a debug mode.
+	 *
+	 * @return DebugMode Debug mode to check.
+	 */
+	protected function get_debug_mode(): DebugMode {
+		$debug_mode = $this->injector->make( WordPressDebugMode::class );
+
+		if ( ! $debug_mode instanceof DebugMode ) {
+			throw FailedToMakeInstance::for_unexpected_instance( WordPressDebugMode::class, $debug_mode );
+		}
+
+		return $debug_mode;
 	}
 
 	/**

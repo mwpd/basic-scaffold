@@ -90,11 +90,12 @@ final class Style implements Asset {
 	 * @param string $handle Handle of the style, with the plugin's asset prefix.
 	 * @param string $path   Path of the stylesheet, relative to the plugin root.
 	 *
-	 * @throws InvalidAsset If the handle is empty or the path is not a plain
-	 *                      path inside the plugin.
+	 * @throws InvalidAsset If the handle is empty or one WordPress could not
+	 *                      enqueue, or the path is not a plain path inside the
+	 *                      plugin.
 	 */
 	public static function file( string $handle, string $path ): self {
-		$handle = self::validate_handle( $handle );
+		$handle = AssetHandle::from_string( $handle )->to_string();
 
 		return new self( $handle, AssetPath::for_asset( $handle, $path ), null );
 	}
@@ -109,11 +110,12 @@ final class Style implements Asset {
 	 * @param string $handle Handle of the style, with the plugin's asset prefix.
 	 * @param string $css    CSS to print, without a style tag.
 	 *
-	 * @throws InvalidAsset If the handle or the CSS is empty, or the CSS contains
-	 *                      a style tag.
+	 * @throws InvalidAsset If the handle is empty or one WordPress could not
+	 *                      enqueue, the CSS is empty, or the CSS contains a
+	 *                      style tag.
 	 */
 	public static function inline( string $handle, string $css ): self {
-		$handle = self::validate_handle( $handle );
+		$handle = AssetHandle::from_string( $handle )->to_string();
 
 		if ( '' === $css || '' === \trim( $css ) ) {
 			throw InvalidAsset::for_empty_css( $handle );
@@ -252,22 +254,5 @@ final class Style implements Asset {
 	 */
 	public function get_media(): string {
 		return $this->media;
-	}
-
-	/**
-	 * Check that a handle is not empty.
-	 *
-	 * @param string $handle Handle to check.
-	 *
-	 * @throws InvalidAsset If the handle is empty.
-	 *
-	 * @return non-empty-string Handle that was checked.
-	 */
-	private static function validate_handle( string $handle ): string {
-		if ( '' === $handle ) {
-			throw InvalidAsset::for_empty_handle();
-		}
-
-		return $handle;
 	}
 }

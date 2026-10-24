@@ -41,6 +41,11 @@ final class _WP_Dependency {
 	public $extra = [];
 
 	/**
+	 * @var string|null
+	 */
+	public $textdomain;
+
+	/**
 	 * @param string       $handle Handle.
 	 * @param mixed        $src    Source URL, or false.
 	 * @param array<mixed> $deps   Dependencies.

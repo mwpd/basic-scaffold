@@ -278,8 +278,8 @@ is outdated.
 - **Where the files are served from** comes from the main file: its directory
   URL, and its `Version` header as the version of every asset that sets none
   with `with_version()`. A missing header is an `InvalidAsset`, never a silent
-  fallback. To serve the assets from elsewhere, delegate `AssetLocation` in
-  the composition root.
+  fallback. To serve the assets from elsewhere, such as a CDN, return your own
+  `AssetLocation` from `get_asset_location()` in the composition root.
 - **A few lines of CSS** can be printed inline with `Style::inline()`, which
   saves a request and can still be dequeued by its handle.
 - **Scripts** can be `in_footer()`, `deferred()` or `async()`. WordPress before
@@ -289,13 +289,17 @@ is outdated.
   the footer has been printed, so register a service with assets no later than
   it needs them.
 - **Two services may declare the same asset.** Declaring a handle again with
-  another file or other options is a conflict: debug mode throws, production
-  skips the service's assets for that enqueue point and loads the others.
+  another file or other options is a conflict: debug mode throws. Production
+  skips the conflicting asset and the service's assets after it for that
+  enqueue point; the ones before it are already enqueued, and the other
+  services still load theirs. A failure in `get_assets()` itself loads none of
+  the service's assets, as they are all collected first.
 
 **Proven by:** `src/SampleSubsystem/SampleLoopService.php:116-132` (a style on
 singular views) and `src/SampleSubsystem/SampleBackendService.php:75-93` (a
 deferred script on admin screens), the orchestration in
-`src/Infrastructure/ServiceBasedPlugin.php:1936-2140`, and
+`src/Infrastructure/ServiceBasedPlugin.php:1925-2131` with its defaults at
+`:2496-2547`, and
 `tests/php/Unit/AssetLoadingTest.php` with `tests/php/Integration/SampleAssetsTest.php`.
 
 **Rules:** `architecture.prefixedNames` checks the handle where a service

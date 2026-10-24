@@ -16,12 +16,25 @@ final class AssetRequests {
 	 */
 	public array $events = [];
 
+	/**
+	 * Called once, the next time a service is asked, if set.
+	 *
+	 * @var callable|null
+	 */
+	public $when_asked = null;
+
 	public function built( string $service ): void {
 		$this->events[] = 'built ' . $service;
 	}
 
 	public function asked( string $service, AssetContext $context ): void {
 		$this->events[] = 'asked ' . $service . ' at ' . self::describe( $context );
+
+		$when_asked = $this->when_asked;
+		if ( null !== $when_asked ) {
+			$this->when_asked = null;
+			$when_asked();
+		}
 	}
 
 	private static function describe( AssetContext $context ): string {

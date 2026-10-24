@@ -12,6 +12,9 @@ Infrastructure\Asset\AssetContext::public static function admin( string $hook_su
 Infrastructure\Asset\AssetContext::public static function block_editor(): self
 Infrastructure\Asset\AssetContext::public static function front_end(): self
 Infrastructure\Asset\AssetContext::public static function login(): self
+Infrastructure\Asset\AssetHandle final class
+Infrastructure\Asset\AssetHandle::public function to_string(): string
+Infrastructure\Asset\AssetHandle::public static function from_string( string $handle ): self
 Infrastructure\Asset\AssetLocation final class
 Infrastructure\Asset\AssetLocation::public function __construct( string $base_url, string $version )
 Infrastructure\Asset\AssetLocation::public function get_url( Infrastructure\Asset\AssetPath $path ): string
@@ -233,7 +236,9 @@ Infrastructure\ServiceBasedPlugin::protected function collect_missing_dependenci
 Infrastructure\ServiceBasedPlugin::protected function configure_injector( Infrastructure\Injector $injector ): Infrastructure\Injector
 Infrastructure\ServiceBasedPlugin::protected function dependencies_are_met( string $id, string $class_name, array &$services ): bool
 Infrastructure\ServiceBasedPlugin::protected function get_arguments(): array
+Infrastructure\ServiceBasedPlugin::protected function get_asset_location(): Infrastructure\Asset\AssetLocation
 Infrastructure\ServiceBasedPlugin::protected function get_bindings(): array
+Infrastructure\ServiceBasedPlugin::protected function get_debug_mode(): Infrastructure\Service\DebugMode
 Infrastructure\ServiceBasedPlugin::protected function get_delegations(): array
 Infrastructure\ServiceBasedPlugin::protected function get_main_file(): string
 Infrastructure\ServiceBasedPlugin::protected function get_service_classes(): array

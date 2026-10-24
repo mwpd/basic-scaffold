@@ -66,6 +66,21 @@ final class DependencyDirectionRuleTest extends RuleTestCase {
 		);
 	}
 
+	public function test_a_top_level_class_keeps_to_the_interfaces_even_for_value_objects(): void {
+		$this->analyse(
+			$this->fixtures( 'StrayValueUser' ),
+			[
+				[
+					self::LAYERS . '\StrayValueUser, in a top-level class, depends on ' . self::LAYERS
+						. '\Infrastructure\Amount, in the infrastructure. Depend on an interface of the infrastructure'
+						. ' instead, and bind the implementation in the composition root.',
+					7,
+					self::TIP,
+				],
+			]
+		);
+	}
+
 	/**
 	 * A value object is not a collaborator that could be bound instead, so a
 	 * subsystem may name it, while a concrete collaborator stays an error.

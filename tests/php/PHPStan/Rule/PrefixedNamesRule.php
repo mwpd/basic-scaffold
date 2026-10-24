@@ -20,6 +20,7 @@ use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\CallLike;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\FuncCall;
+use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
@@ -196,7 +197,7 @@ final class PrefixedNamesRule implements Rule {
 			return [];
 		}
 
-		if ( $node instanceof StaticCall ) {
+		if ( $node instanceof StaticCall || $node instanceof MethodCall ) {
 			return $this->process_declaration( $node, $scope );
 		}
 
@@ -213,9 +214,11 @@ final class PrefixedNamesRule implements Rule {
 		[ $kind, $positions, $reads ] = self::FUNCTIONS[ $called ];
 		$settings                     = $this->kinds[ $kind ] ?? null;
 
-		if ( $settings === null || $this->is_forwarder( $kind, $scope ) ) {
+		if ( $settings === null ) {
 			return [];
 		}
+
+		$forwards = $this->is_forwarder( $kind, $scope );
 
 		// Enqueueing with a source registers the handle, so it creates the name.
 		if ( $kind === 'assets' && $reads && self::passes_source( $node, $scope ) ) {
@@ -224,6 +227,12 @@ final class PrefixedNamesRule implements Rule {
 
 		$errors = [];
 		foreach ( $positions as $position ) {
+			// A forwarder passes on names checked where they were declared, but
+			// a name it writes out itself is still its own.
+			if ( $forwards && ! self::has_constant_name( $node, $position, $scope ) ) {
+				continue;
+			}
+
 			$reads_name = is_array( $reads ) ? in_array( $position, $reads, true ) : $reads;
 			$problem    = $this->check_argument( $node, $position, $scope, $called, $kind, $settings, $reads_name );
 			if ( $problem === null ) {
@@ -242,38 +251,86 @@ final class PrefixedNamesRule implements Rule {
 	/**
 	 * Report a declaration that creates a name without the plugin's prefix.
 	 *
-	 * @param StaticCall $node  Static call to inspect.
-	 * @param Scope      $scope Scope of the call.
+	 * The class is the one named, or every class PHPStan knows the receiver
+	 * can be, so `$class::file()` and a call on an instance are checked too.
+	 * A method named at runtime cannot be matched and is left alone.
+	 *
+	 * @param StaticCall|MethodCall $node  Call to inspect.
+	 * @param Scope                 $scope Scope of the call.
 	 * @return list<IdentifierRuleError> Errors found.
 	 */
-	private function process_declaration( StaticCall $node, Scope $scope ): array {
-		if ( ! $node->class instanceof Name || ! $node->name instanceof Identifier ) {
+	private function process_declaration( CallLike $node, Scope $scope ): array {
+		if ( ! $node->name instanceof Identifier ) {
 			return [];
 		}
 
-		$class  = ltrim( $scope->resolveName( $node->class ), '\\' );
 		$method = $node->name->toString();
 		$errors = [];
 
-		foreach ( $this->declarations as $kind => $declarations ) {
-			$settings = $this->kinds[ $kind ] ?? null;
-			if ( $settings === null || ! self::declares( $declarations, $class, $method ) ) {
-				continue;
-			}
+		foreach ( self::receiver_classes( $node, $scope ) as $class_name ) {
+			foreach ( $this->declarations as $kind => $declarations ) {
+				$settings = $this->kinds[ $kind ] ?? null;
+				if ( $settings === null || ! self::declares( $declarations, $class_name, $method ) ) {
+					continue;
+				}
 
-			$short   = substr( (string) strrchr( '\\' . $class, '\\' ), 1 );
-			$problem = $this->check_argument( $node, 0, $scope, $short . '::' . $method, $kind, $settings, false );
-			if ( $problem === null ) {
-				continue;
-			}
+				$short   = substr( (string) strrchr( '\\' . $class_name, '\\' ), 1 );
+				$problem = $this->check_argument( $node, 0, $scope, $short . '::' . $method, $kind, $settings, false );
+				if ( $problem === null ) {
+					continue;
+				}
 
-			$errors[] = RuleErrorBuilder::message( $problem )
-				->identifier( RuleManifest::PREFIXED_NAMES )
-				->tip( RuleManifest::get_explanation( RuleManifest::PREFIXED_NAMES ) )
-				->build();
+				$errors[] = RuleErrorBuilder::message( $problem )
+					->identifier( RuleManifest::PREFIXED_NAMES )
+					->tip( RuleManifest::get_explanation( RuleManifest::PREFIXED_NAMES ) )
+					->build();
+			}
 		}
 
 		return $errors;
+	}
+
+	/**
+	 * Get the classes a static or instance call may be made on.
+	 *
+	 * @param StaticCall|MethodCall $node  Call.
+	 * @param Scope                 $scope Scope of the call.
+	 * @return list<string> Class names, without a leading backslash.
+	 */
+	private static function receiver_classes( CallLike $node, Scope $scope ): array {
+		if ( $node instanceof StaticCall && $node->class instanceof Name ) {
+			return [ ltrim( $scope->resolveName( $node->class ), '\\' ) ];
+		}
+
+		$receiver = $node instanceof StaticCall ? $node->class : ( $node instanceof MethodCall ? $node->var : null );
+		if ( ! $receiver instanceof Expr ) {
+			return [];
+		}
+
+		$type    = $scope->getType( $receiver );
+		$classes = $type->getObjectClassNames();
+
+		foreach ( $type->getConstantStrings() as $string ) {
+			$classes[] = ltrim( $string->getValue(), '\\' );
+		}
+
+		return array_values( array_unique( $classes ) );
+	}
+
+	/**
+	 * Check whether the argument at a position is a name PHPStan knows.
+	 *
+	 * @param FuncCall $node     Function call.
+	 * @param int      $position Position of the name.
+	 * @param Scope    $scope    Scope of the call.
+	 * @return bool Whether the name is a known string.
+	 */
+	private static function has_constant_name( FuncCall $node, int $position, Scope $scope ): bool {
+		$argument = $node->getArgs()[ $position ] ?? null;
+
+		return $argument !== null
+			&& ! $argument->unpack
+			&& $scope->getType( $argument->value )->getConstantStrings() !== [];
 	}
 
 	/**

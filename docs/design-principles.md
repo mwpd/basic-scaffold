@@ -75,6 +75,7 @@ The plugin itself only hooks into `plugins_loaded`
 (`src/Infrastructure/ServiceBasedPlugin.php:90`) and the activation and
 deactivation hooks (`basic-scaffold.php:129-151`). On multisite, registration
 also hooks into the creation and deletion of sites when a service needs it,
+and into the four enqueue actions when a service has assets,
 and activation stores the uninstall callback
 (`src/BasicScaffoldUninstallHook.php:36-38`), which WordPress calls when the
 plugin is deleted. Everything else is decided per service.
@@ -477,7 +478,7 @@ the code falls back to how WordPress works:
   the site keeps working. A view that fails renders nothing. That field or
   notice is still broken, but the page around it is not taken down with it.
 
-**Views already work this way; other callbacks do not yet.** A view that
+**Views and assets already work this way; other callbacks do not yet.** A view that
 cannot be created or rendered is handled inside the view system itself. In
 debug mode, the view factories rethrow the original exception, and
 `SimpleView::render()` throws `FailedToLoadView` with the template's
@@ -485,9 +486,13 @@ exception as its cause. In production, a factory returns an `EmptyView` and a
 failing template renders an empty string, after the view has discarded the
 output buffers the template opened (`src/Infrastructure/View/SimpleView.php:146-168`,
 `src/Infrastructure/View/TemplatedViewFactory.php:90-111`). The samples need no
-`try`/`catch` around rendering for that reason.
+`try`/`catch` around rendering for that reason. Loading assets has the same
+boundary: a failure in a service's `get_assets()` or while enqueueing is
+rethrown unchanged in debug mode, and in production skips that service's
+remaining assets for the enqueue point while the other services still load
+theirs (`ServiceBasedPlugin::enqueue_assets_of()`).
 
-Outside the view system, nothing stops an exception before it reaches
+Outside the view system and the asset loading, nothing stops an exception before it reaches
 WordPress yet. An exception thrown by a
 service's own code in a hook callback, or during registration, activation or
 deactivation, still reaches WordPress with debug mode on or off. How to catch

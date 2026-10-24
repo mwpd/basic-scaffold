@@ -40,16 +40,19 @@ final class AssetDeclarationsTest extends TestCase {
 	}
 
 	public function test_style_options_return_changed_copies(): void {
-		$style   = Style::file( 'acme-notice', 'assets/css/notice.css' );
-		$changed = $style->depends_on( 'wp-components', 'acme-base' )->with_version( '2' )->for_media( 'print' );
+		$style        = Style::file( 'acme-notice', 'assets/css/notice.css' );
+		$dependent    = $style->depends_on( 'wp-components', 'acme-base' );
+		$versioned    = $dependent->with_version( '2' );
+		$for_printing = $versioned->for_media( 'print' );
 
-		$this->assertSame( [], $style->get_dependencies(), 'The original is unchanged.' );
-		$this->assertSame( [ 'wp-components', 'acme-base' ], $changed->get_dependencies() );
-		$this->assertSame( '2', $changed->get_version() );
-		$this->assertSame( 'print', $changed->get_media() );
+		// Each step leaves the object it was called on as it was.
+		$this->assertSame( [ [], null, 'all' ], self::style_options( $style ) );
+		$this->assertSame( [ [ 'wp-components', 'acme-base' ], null, 'all' ], self::style_options( $dependent ) );
+		$this->assertSame( [ [ 'wp-components', 'acme-base' ], '2', 'all' ], self::style_options( $versioned ) );
+		$this->assertSame( [ [ 'wp-components', 'acme-base' ], '2', 'print' ], self::style_options( $for_printing ) );
 		$this->assertSame(
 			[ 'acme-base' ],
-			$changed->depends_on( 'acme-base' )->get_dependencies(),
+			$for_printing->depends_on( 'acme-base' )->get_dependencies(),
 			'Dependencies are replaced.'
 		);
 	}
@@ -62,17 +65,21 @@ final class AssetDeclarationsTest extends TestCase {
 	}
 
 	public function test_script_options_return_changed_copies(): void {
-		$script  = Script::file( 'acme-copy', 'assets/js/copy.js' );
-		$changed = $script->depends_on( 'wp-i18n' )->with_version( '3' )->in_footer()->deferred();
+		$script    = Script::file( 'acme-copy', 'assets/js/copy.js' );
+		$dependent = $script->depends_on( 'wp-i18n' );
+		$versioned = $dependent->with_version( '3' );
+		$in_footer = $versioned->in_footer();
+		$deferred  = $in_footer->deferred();
+		$async     = $deferred->async();
 
+		// Each step leaves the object it was called on as it was.
 		$this->assertSame( 'assets/js/copy.js', $script->get_path()->to_string() );
-		$this->assertFalse( $script->is_in_footer(), 'The original is unchanged.' );
-		$this->assertNull( $script->get_strategy() );
-		$this->assertSame( [ 'wp-i18n' ], $changed->get_dependencies() );
-		$this->assertSame( '3', $changed->get_version() );
-		$this->assertTrue( $changed->is_in_footer() );
-		$this->assertSame( Script::STRATEGY_DEFER, $changed->get_strategy() );
-		$this->assertSame( Script::STRATEGY_ASYNC, $changed->async()->get_strategy(), 'The last strategy wins.' );
+		$this->assertSame( [ [], null, false, null ], self::script_options( $script ) );
+		$this->assertSame( [ [ 'wp-i18n' ], null, false, null ], self::script_options( $dependent ) );
+		$this->assertSame( [ [ 'wp-i18n' ], '3', false, null ], self::script_options( $versioned ) );
+		$this->assertSame( [ [ 'wp-i18n' ], '3', true, null ], self::script_options( $in_footer ) );
+		$this->assertSame( [ [ 'wp-i18n' ], '3', true, Script::STRATEGY_DEFER ], self::script_options( $deferred ) );
+		$this->assertSame( [ [ 'wp-i18n' ], '3', true, Script::STRATEGY_ASYNC ], self::script_options( $async ) );
 	}
 
 	/**
@@ -102,6 +109,20 @@ final class AssetDeclarationsTest extends TestCase {
 				static fn() => Script::file( '', 'a.js' ),
 				'An asset handle cannot be empty.',
 			],
+			'question mark in handle' => [
+				static fn() => Style::file( 'acme-a?ver=1', 'a.css' ),
+				'WordPress would register it, but not find it',
+			],
+			'space in handle'         => [
+				static fn() => Script::file( 'acme a', 'a.js' ),
+				'WordPress would register it, but not find it',
+			],
+			'newline in handle'       => [
+				static fn() => Style::inline( "acme-a\n", 'p {}' ),
+				'WordPress would register it, but not find it',
+			],
+			'encoded parent'          => [ static fn() => Style::file( 'acme-a', '%2e%2e/outside.css' ), $path ],
+			'tab in path'             => [ static fn() => Style::file( 'acme-a', "assets/\ta.css" ), $path ],
 			'empty path'              => [ static fn() => Style::file( 'acme-a', '' ), $path ],
 			'absolute path'           => [ static fn() => Style::file( 'acme-a', '/etc/a.css' ), $path ],
 			'URL'                     => [
@@ -152,6 +173,31 @@ final class AssetDeclarationsTest extends TestCase {
 				static fn() => new AssetLocation( 'https://example.com', '' ),
 				'need a default version',
 			],
+		];
+	}
+
+	/**
+	 * Get the options of a style.
+	 *
+	 * @param Style $style Style to read.
+	 * @return array{list<string>, string|null, string} Dependencies, version and media.
+	 */
+	private static function style_options( Style $style ): array {
+		return [ $style->get_dependencies(), $style->get_version(), $style->get_media() ];
+	}
+
+	/**
+	 * Get the options of a script.
+	 *
+	 * @param Script $script Script to read.
+	 * @return array{list<string>, string|null, bool, string|null} Dependencies, version, footer and strategy.
+	 */
+	private static function script_options( Script $script ): array {
+		return [
+			$script->get_dependencies(),
+			$script->get_version(),
+			$script->is_in_footer(),
+			$script->get_strategy(),
 		];
 	}
 

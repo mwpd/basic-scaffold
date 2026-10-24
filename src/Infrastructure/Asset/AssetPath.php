@@ -51,14 +51,16 @@ final class AssetPath {
 	 */
 	public static function for_asset( string $handle, string $path ): self {
 		/*
-		 * The path is joined to the plugin URL as it is. A leading slash, a
-		 * scheme or a backslash would make the browser load something else
-		 * than the file in the plugin, and a ".." segment could point outside
-		 * of it.
+		 * The path is joined to the plugin URL as it is, so it has to mean the
+		 * same to the browser as it does here. A leading slash, a scheme or a
+		 * backslash would load something else than the file in the plugin. A
+		 * ".." segment could point outside of it, and so could a "%2e%2e"
+		 * the browser decodes, or a control character it strips. A query or
+		 * fragment is not part of a file name.
 		 */
 		if ( '' === $path
 			|| '/' === $path[0]
-			|| false !== \strpbrk( $path, "\\\0:?#" )
+			|| 1 === \preg_match( '/[\\\\:?#%\x00-\x1F\x7F]/', $path )
 			|| \in_array( '..', \explode( '/', $path ), true ) ) {
 			throw InvalidAsset::for_path( $handle, $path );
 		}

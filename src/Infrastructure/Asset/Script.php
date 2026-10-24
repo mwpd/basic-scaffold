@@ -97,13 +97,12 @@ final class Script implements Asset {
 	 *                       prefix.
 	 * @param string $path   Path of the script, relative to the plugin root.
 	 *
-	 * @throws InvalidAsset If the handle is empty or the path is not a plain
-	 *                      path inside the plugin.
+	 * @throws InvalidAsset If the handle is empty or one WordPress could not
+	 *                      enqueue, or the path is not a plain path inside the
+	 *                      plugin.
 	 */
 	public static function file( string $handle, string $path ): self {
-		if ( '' === $handle ) {
-			throw InvalidAsset::for_empty_handle();
-		}
+		$handle = AssetHandle::from_string( $handle )->to_string();
 
 		return new self( $handle, AssetPath::for_asset( $handle, $path ) );
 	}

@@ -22,7 +22,8 @@ use MWPD\BasicScaffold\Exception\InvalidAsset;
  * The plugin builds this from its main file the first time a request has an
  * asset to enqueue: the URL of the plugin directory, and the "Version" header.
  * Nothing reads a constant for it. A composition root that serves its assets
- * from somewhere else, such as a CDN, delegates AssetLocation to its own.
+ * from somewhere else, such as a CDN, returns its own from
+ * ServiceBasedPlugin::get_asset_location().
  */
 final class AssetLocation {
 

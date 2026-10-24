@@ -48,6 +48,7 @@ final class CapabilitiesOnServicesRuleTest extends RuleTestCase {
 		'MWPD\BasicScaffold\Infrastructure\HasDependencies',
 		'MWPD\BasicScaffold\Infrastructure\Activateable',
 		'MWPD\BasicScaffold\Infrastructure\Deactivateable',
+		'MWPD\BasicScaffold\Infrastructure\HasAssets',
 	];
 
 	/** @var array<string> */
@@ -79,6 +80,7 @@ final class CapabilitiesOnServicesRuleTest extends RuleTestCase {
 			'HasDependencies',
 			'Activateable',
 			'Deactivateable',
+			'HasAssets',
 		];
 		foreach ( $capabilities as $name ) {
 			$errors = [ [ $this->service_message( self::NAMESPACE_ROOT . '\\' . $name . 'Only' ), 9, self::TIP ] ];

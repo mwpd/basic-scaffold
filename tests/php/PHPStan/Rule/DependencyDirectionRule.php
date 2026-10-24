@@ -159,7 +159,10 @@ final class DependencyDirectionRule implements Rule {
 				return false;
 			}
 
-			if ( in_array( PluginNamespace::normalize( $dependency ), $this->value_objects, true ) ) {
+			// A subsystem may name a value of the infrastructure; a top-level
+			// class keeps to the interfaces, as with traits below.
+			if ( $from !== DependencyContext::TOP_LEVEL
+				&& in_array( PluginNamespace::normalize( $dependency ), $this->value_objects, true ) ) {
 				return true;
 			}
 
