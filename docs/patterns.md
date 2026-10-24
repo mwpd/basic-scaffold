@@ -119,7 +119,7 @@ final class SampleBackendService implements Service, Registerable, Conditional {
 }
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-77`.
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:66-104`.
 
 **Rules:** `architecture.noHooksInConstructor`,
 `architecture.hooksInLifecycleMethods`, `architecture.constructorsOnlyAssign`.
@@ -146,7 +146,7 @@ public static function is_needed(): bool {
 }
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:45-52`.
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:51-58`.
 
 When the answer depends on the query, such as `is_singular()`, also implement
 `Delayed` and wait for `wp` or a later action as shown in
@@ -212,7 +212,7 @@ as soon as they are, at the end of the action they arrive on. The plugin does
 not reject that combination, and does not run an action again to make up for a
 priority that has passed.
 
-**Proven by:** `src/SampleSubsystem/SampleLoopService.php:28-80`, and the
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:31-83`, and the
 priority and dependency cases in
 `tests/php/Unit/ServiceBasedPluginTest.php:533-660`.
 
@@ -295,7 +295,7 @@ is outdated.
   services still load theirs. A failure in `get_assets()` itself loads none of
   the service's assets, as they are all collected first.
 
-**Proven by:** `src/SampleSubsystem/SampleLoopService.php:116-132` (a style on
+**Proven by:** `src/SampleSubsystem/SampleLoopService.php:130-145` (a style on
 singular views) and `src/SampleSubsystem/SampleBackendService.php:75-93` (a
 deferred script on admin screens), the orchestration in
 `src/Infrastructure/ServiceBasedPlugin.php:1925-2131` with its defaults at
@@ -615,8 +615,8 @@ plugin constructor instead:
 $plugin = new BasicScaffoldPlugin( true, $custom_injector );
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:60-66` and
-`:82-99`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:66-72` and
+`:109-126`, `src/Infrastructure/View/TemplatedViewFactory.php:39` and `:90-111`,
 bound at `src/BasicScaffoldPlugin.php:130`. The injector is made injectable at
 `src/Infrastructure/ServiceBasedPlugin.php:1168-1171`, proven by
 `tests/php/Unit/ServiceBasedPluginTest.php:1013-1061`.
@@ -965,7 +965,7 @@ The interface is for state a service depends on.
 **Proven by:** `src/SampleSubsystem/MainLoop.php:19-49` and
 `src/SampleSubsystem/WordPressMainLoop.php:27-67`, bound at
 `src/BasicScaffoldPlugin.php:155`, and asked at call time in
-`src/SampleSubsystem/SampleLoopService.php:137-155`.
+`src/SampleSubsystem/SampleLoopService.php:159-177`.
 `tests/php/Unit/WordPressMainLoopTest.php` covers each state of the loop, and
 `tests/php/Integration/SampleLoopServiceTest.php:53-115` shows the header on
 the queried post only.
@@ -1073,8 +1073,8 @@ $raw_plugin = $this->raw( 'plugin' );
 <p><em>Raw value: <b><?= esc_html( $raw_plugin ) ?></b></em></p>
 ```
 
-**Proven by:** `src/SampleSubsystem/SampleBackendService.php:82-99` and
-`views/test-backend-service.php:5-15`.
+**Proven by:** `src/SampleSubsystem/SampleBackendService.php:109-126` and
+`views/test-backend-service.php:5-20`.
 
 **Rules:** `architecture.outputOnlyThroughViews` requires direct method
 calls on typed `Renderable` or `View` objects when printing from services.
@@ -1134,7 +1134,7 @@ when the template asks.
 **Proven by:** `src/SampleSubsystem/PostHeader.php:29-48` and
 `src/SampleSubsystem/QueriedPostHeader.php:25-62`, bound at
 `src/BasicScaffoldPlugin.php:162`, passed at
-`src/SampleSubsystem/SampleLoopService.php:151-152` and called in
+`src/SampleSubsystem/SampleLoopService.php:173-174` and called in
 `views/test-loop-service.php:6-18`. `tests/php/Unit/SimpleViewPresenterTest.php`
 covers results, failures and partials.
 

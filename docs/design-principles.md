@@ -81,7 +81,7 @@ and activation stores the uninstall callback
 plugin is deleted. Everything else is decided per service.
 `SampleLoopService` shows the result: it declares that it runs at
 `wp` and only on singular views
-(`src/SampleSubsystem/SampleLoopService.php:63-80`), and no other code has to
+(`src/SampleSubsystem/SampleLoopService.php:66-83`), and no other code has to
 know.
 
 The questions are static methods on purpose: the plugin can **decide before it
@@ -209,7 +209,7 @@ another part of the plugin depends on:
 - **Dependency inversion:** high-level code depends on interfaces, and the
   injector supplies the implementations. `SampleBackendService` receives a
   `ViewFactory` through its constructor
-  (`src/SampleSubsystem/SampleBackendService.php:60`) and never creates one.
+  (`src/SampleSubsystem/SampleBackendService.php:66`) and never creates one.
 
 **Implementation details may take shortcuts.** Inside a class, behind its
 interface, it is fine to call WordPress functions, use the plugin API and read
@@ -322,12 +322,12 @@ book, shows the better alternative so that plugins built on it learn it too.
 
 | Common anti-pattern | What the scaffold does instead |
 | --- | --- |
-| Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:71-77`). [Pattern](patterns.md#i-need-to-add-hooks) |
+| Registering hooks in a constructor, so creating an object changes global state | Constructors only store dependencies. Hooks are added in `register()` (`Registerable`), called by the plugin at the right time (`src/SampleSubsystem/SampleBackendService.php:98-104`). [Pattern](patterns.md#i-need-to-add-hooks) |
 | Singletons with `::instance()` and static state | Shared instances come from the injector (`share()`). The plugin factory keeps one shared plugin instance without the Singleton pattern (`src/BasicScaffoldPluginFactory.php:45-63`). [Pattern](patterns.md#i-need-a-singleton) |
 | A service locator, such as a static `Services::get( 'id' )` | Each need behind it has its own answer: constructor injection, a factory, a typed registry, `share()`, or a bridge at the edge of the object graph (principle 5). [Pattern](patterns.md#i-need-a-service-locator) |
 | A global variable or singleton so that WordPress callbacks can reach the plugin | A bridge gets the plugin through the plugin factory and delegates at once (`basic-scaffold.php:129-151`). [Pattern](patterns.md#i-need-to-reach-the-plugin-from-a-static-wordpress-callback) |
 | Creating collaborators with `new` inside a class, or pulling them from globals | Dependencies are injected through the constructor and configured as bindings in the composition root. [Pattern: creating objects](patterns.md#i-need-to-create-objects-on-demand), [WordPress state](patterns.md#i-need-wordpress-state-such-as-the-current-post) |
-| `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:45-52`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
+| `is_admin()` checks wrapped around hook calls throughout the code | A service states when it is needed once, in `Conditional::is_needed()` (`src/SampleSubsystem/SampleBackendService.php:51-58`). [Pattern](patterns.md#i-need-a-service-only-in-some-requests) |
 | Hooking to an early action just to wait for a later one | A service names its registration action through `Delayed`, and the plugin defers it. [Pattern](patterns.md#i-need-to-hook-in-later) |
 | Asking query-dependent conditions before the query has run | A `Conditional` service also implements `Delayed` and returns `wp` or a later action from `get_registration_action()`, so the plugin waits before asking `is_needed()`. [Pattern](patterns.md#i-need-to-hook-in-later) |
 | Doing work when a file is included | Only `basic-scaffold.php` has side effects; everything else is autoloadable declarations. [Pattern](patterns.md#i-need-to-run-code-when-the-plugin-file-loads) |
