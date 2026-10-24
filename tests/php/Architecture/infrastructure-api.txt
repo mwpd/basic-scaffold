@@ -239,6 +239,11 @@ Infrastructure\SiteUninitializable interface
 Infrastructure\SiteUninitializable::public abstract function uninitialize_site( Infrastructure\Lifecycle\SiteContext $context ): void
 Infrastructure\SiteUninstallable interface
 Infrastructure\SiteUninstallable::public abstract function uninstall_site( Infrastructure\Lifecycle\SiteContext $context ): void
+Infrastructure\TemplateScope interface
+Infrastructure\TemplateScope::public abstract function __get( string $property )
+Infrastructure\TemplateScope::public abstract function __isset( string $property ): bool
+Infrastructure\TemplateScope::public abstract function raw( $property )
+Infrastructure\TemplateScope::public abstract function render_partial( string $path, ?array $context = null ): string
 Infrastructure\View extends Infrastructure\Renderable
 Infrastructure\View interface
 Infrastructure\View::public abstract function __get( string $property )
@@ -254,6 +259,14 @@ Infrastructure\View\EmptyView::public function __get( string $property )
 Infrastructure\View\EmptyView::public function raw( $property )
 Infrastructure\View\EmptyView::public function render( array $context = [] ): string
 Infrastructure\View\EmptyView::public function render_partial( string $path, ?array $context = null ): string
+Infrastructure\View\SimpleTemplateScope final class
+Infrastructure\View\SimpleTemplateScope implements Infrastructure\TemplateScope
+Infrastructure\View\SimpleTemplateScope::public function __construct( Infrastructure\View $view )
+Infrastructure\View\SimpleTemplateScope::public function __get( string $property )
+Infrastructure\View\SimpleTemplateScope::public function __isset( string $property ): bool
+Infrastructure\View\SimpleTemplateScope::public function __set( string $property, $value ): void
+Infrastructure\View\SimpleTemplateScope::public function raw( $property )
+Infrastructure\View\SimpleTemplateScope::public function render_partial( string $path, ?array $context = null ): string
 Infrastructure\View\SimpleView class
 Infrastructure\View\SimpleView implements Infrastructure\Renderable
 Infrastructure\View\SimpleView implements Infrastructure\View

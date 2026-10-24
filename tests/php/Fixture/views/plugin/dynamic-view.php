@@ -1,6 +1,6 @@
 <?php
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 ?>
 <p>Rendering works with context: <?= $this->some_value ?>.</p>

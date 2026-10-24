@@ -1,8 +1,8 @@
 <?php
 
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 /** @var WP_Post $current_post */
 $current_post = $this->raw( 'post' );
 

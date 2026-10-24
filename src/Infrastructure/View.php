@@ -25,7 +25,9 @@ use MWPD\BasicScaffold\Exception\InvalidPath;
  * template is being rendered.
  *
  * As an example, with a default PHP-based view, the context information will be
- * available as properties of the '$this' variable.
+ * available as properties of the '$this' variable. There, '$this' is not the
+ * view itself but a TemplateScope, which offers escaped properties, isset(),
+ * raw() and render_partial(), and nothing of the view's internals.
  *
  * @phpstan-require-extends stdClass
  */

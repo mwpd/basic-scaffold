@@ -1,6 +1,6 @@
 <?php
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 ?>
 partial D from parent theme - <?= $this->render_partial( 'partial-e' ) ?>

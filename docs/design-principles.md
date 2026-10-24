@@ -159,7 +159,7 @@ the built-in implementation as the fallback:
   a custom injector also needs its own factory, because the default factory
   cannot know how to create it.
 - `SimpleView` accepts any `DebugMode` and falls back to `WordPressDebugMode`
-  (`src/Infrastructure/View/SimpleView.php:96`), and so do the view factories,
+  (`src/Infrastructure/View/SimpleView.php:98`), and so do the view factories,
   which hand theirs on to the views they create.
 
 The fallback is the only place the default is named. Callers never have to
@@ -308,7 +308,7 @@ injected collaborators, not through inheritance. Only classes deliberately
 designed as a base are open: `ServiceBasedPlugin` is abstract so the
 composition root can extend it (`src/Infrastructure/ServiceBasedPlugin.php:39`),
 and `SimpleView` is the base that `TemplatedView` builds on
-(`src/Infrastructure/View/SimpleView.php:35`). Every other class in `src/` is
+(`src/Infrastructure/View/SimpleView.php:37`). Every other class in `src/` is
 `final`, and new classes follow suit unless they are designed for extension
 from the start.
 
@@ -410,7 +410,10 @@ delegation returns an instance of the class it was registered for
 
 **Output is escaped for the context it lands in.** The reverse direction gets
 the same care. Values a view reads as properties are escaped by default
-(`src/Infrastructure/View/SimpleView.php:334-365`). A value fetched with
+(`src/Infrastructure/View/SimpleView.php:366-397`), and a template runs in a
+scope of its own, so neither a context key named like one of the view's
+properties nor an assignment to `$this` can get around that
+(`src/Infrastructure/View/SimpleView.php:179-199`). A value fetched with
 `raw()` is the explicit exception, and the template must then escape it for
 where it is printed: HTML text, an attribute, a URL or JavaScript each need
 their own escaping, using WordPress's matching `esc_*` function.
@@ -475,7 +478,7 @@ debug mode, the view factories rethrow the original exception, and
 `SimpleView::render()` throws `FailedToLoadView` with the template's
 exception as its cause. In production, a factory returns an `EmptyView` and a
 failing template renders an empty string, after the view has discarded the
-output buffers the template opened (`src/Infrastructure/View/SimpleView.php:135-155`,
+output buffers the template opened (`src/Infrastructure/View/SimpleView.php:132-152`,
 `src/Infrastructure/View/TemplatedViewFactory.php:90-111`). The samples need no
 `try`/`catch` around rendering for that reason.
 

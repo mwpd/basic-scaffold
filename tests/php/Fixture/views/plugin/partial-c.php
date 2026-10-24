@@ -1,6 +1,6 @@
 <?php
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 ?>
 partial C from plugin - <?= $this->render_partial( 'partial-d' ) ?>

@@ -644,6 +644,116 @@ final class SimpleViewTest extends TestCase {
 		];
 	}
 
+	public function test_context_keys_named_like_view_internals_read_as_context_values(): void {
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/scope-internal-names-view.php' );
+
+		$result = $view->render(
+			[
+				'path'          => '<path>',
+				'view_factory'  => 'factory',
+				'debug_mode'    => 'debug',
+				'configuration' => 'configuration',
+				'_context_'     => 'context',
+				'view'          => 'view',
+			]
+		);
+
+		$this->assertSame(
+			"<p>&lt;path&gt;|factory|debug</p>\n<p>configuration|context|view</p>",
+			$this->normalize( $result )
+		);
+	}
+
+	public function test_a_template_has_no_variables_of_render(): void {
+		$view = $this->make_view( 'tests/php/Fixture/views/plugin/scope-variables-view.php' );
+
+		$result = $this->normalize( $view->render( [ 'some_value' => 'x' ] ) );
+
+		$this->assertStringContainsString( '<p>context: no</p>', $result );
+		$this->assertStringContainsString( '<p>buffer_level: no</p>', $result );
+		$this->assertStringContainsString( '<p>only the template path: yes</p>', $result );
+	}
+
+	public function test_assigning_to_this_fails_with_the_cause_in_debug_mode(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( true );
+
+		$view  = new SimpleView(
+			'tests/php/Fixture/views/plugin/scope-assigning-view.php',
+			$this->view_factory,
+			$this->debug_mode,
+			$this->configuration
+		);
+		$level = \ob_get_level();
+
+		try {
+			$view->render(
+				[
+					'assign' => true,
+					'plugin' => 'context',
+				]
+			);
+			$this->fail( 'Assigning to $this in a template should throw in debug mode.' );
+		} catch ( FailedToLoadView $exception ) {
+			$this->assertInstanceOf( InvalidContextProperty::class, $exception->getPrevious() );
+		} finally {
+			$after = \ob_get_level();
+			$this->restore_buffer_level( $level );
+		}
+
+		$this->assertSame( $level, $after, 'The view leaked an output buffer.' );
+	}
+
+	public function test_an_assignment_neither_renders_nor_outlives_the_render_in_production(): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( false );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/scope-assigning-view.php',
+			$this->view_factory,
+			$this->debug_mode,
+			$this->configuration
+		);
+
+		$first = $view->render(
+			[
+				'assign' => true,
+				'plugin' => 'context',
+			]
+		);
+		$next  = $view->render( [ 'plugin' => '<i>next</i>' ] );
+
+		$this->assertSame( '', $first );
+		$this->assertSame( '<p>&lt;i&gt;next&lt;/i&gt;</p>', $this->normalize( $next ) );
+	}
+
+	/**
+	 * @dataProvider data_debug_modes
+	 */
+	public function test_a_template_cannot_call_methods_of_the_view( bool $debug_mode ): void {
+		$this->debug_mode->method( 'is_debug_mode' )
+			->willReturn( $debug_mode );
+
+		$view = new SimpleView(
+			'tests/php/Fixture/views/plugin/scope-internal-method-view.php',
+			$this->view_factory,
+			$this->debug_mode,
+			$this->configuration
+		);
+
+		try {
+			$result = $view->render( [ 'method' => 'escape' ] );
+		} catch ( FailedToLoadView $exception ) {
+			$this->assertTrue( $debug_mode, 'Only debug mode should throw.' );
+			$this->assertInstanceOf( Error::class, $exception->getPrevious() );
+
+			return;
+		}
+
+		$this->assertFalse( $debug_mode, 'Debug mode should throw.' );
+		$this->assertSame( '', $result );
+	}
+
 	/**
 	 * Create a view relative to the repository root, with the default debug mode.
 	 *

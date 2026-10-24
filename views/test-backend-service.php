@@ -1,8 +1,8 @@
 <?php
 
-use MWPD\BasicScaffold\Infrastructure\View;
+use MWPD\BasicScaffold\Infrastructure\TemplateScope;
 
-/** @var View $this */
+/** @var TemplateScope $this */
 /** @var string $raw_plugin */
 $raw_plugin = $this->raw( 'plugin' );
 
